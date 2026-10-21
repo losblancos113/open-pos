@@ -1,6 +1,12 @@
 node_modules/
 dist/
-.worktrees/
-.superpowers/
+dist-ssr/
+*.local
 src-tauri/target/
+src-tauri/gen/
+sidecar/node_modules/
+.DS_Store
 *.log
+coverage/
+.hub-data/
+.superpowers/
