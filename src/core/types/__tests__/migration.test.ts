@@ -1,5 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { applyTransforms, MigrationError } from '../migration';
+import { createEnvelope } from '../../db/envelope';
+import { createMemoryAdapter } from '../../db/memory-adapter';
+import type { TypeDefinition } from '../definition';
+import {
+  applyTransforms,
+  buildChain,
+  migrateCollection,
+  migrateData,
+  migrateRecordOnRead,
+  MigrationChainError,
+  MigrationError,
+  type TypeMigration,
+} from '../migration';
 
 describe('applyTransforms — rename', () => {
   it('moves the value to the new key and drops the old one', () => {
@@ -134,5 +146,288 @@ describe('applyTransforms — pipeline', () => {
     } catch (error) {
       expect((error as MigrationError).code).toBe('unknown_transform');
     }
+  });
+});
+
+const V1: TypeDefinition = {
+  key: 'product',
+  kind: 'builtin_ext',
+  baseType: 'product',
+  name: { vi: 'SP', en: 'Product' },
+  version: 1,
+  fields: [],
+  listView: [],
+};
+const V3: TypeDefinition = { ...V1, version: 3 };
+
+const CHAIN: TypeMigration[] = [
+  {
+    fromVersion: 1,
+    toVersion: 2,
+    transforms: [{ kind: 'rename', from: 'spicy', to: 'spicy_level' }],
+  },
+  {
+    fromVersion: 2,
+    toVersion: 3,
+    transforms: [
+      { kind: 'mapValue', field: 'spicy_level', map: { mild: 1, hot: 2 }, fallback: 0 },
+    ],
+  },
+];
+
+/**
+ * 2→3 **không** có fallback. CHAIN dùng fallback nên `mapValue` không bao giờ ném lỗi;
+ * muốn kiểm tra đường lỗi (không ghi khi transform hỏng) thì phải dùng chuỗi này.
+ */
+const STRICT_CHAIN: TypeMigration[] = [
+  {
+    fromVersion: 2,
+    toVersion: 3,
+    transforms: [{ kind: 'mapValue', field: 'spicy_level', map: { mild: 1, hot: 2 } }],
+  },
+];
+
+/**
+ * `DocEnvelope` không khai báo field tuỳ chỉnh của từng type, nên test đọc chúng qua
+ * helper này thay vì rải `as unknown as ...` khắp file.
+ */
+function custom(doc: object): Record<string, unknown> {
+  return doc as unknown as Record<string, unknown>;
+}
+
+describe('buildChain', () => {
+  it('returns the empty chain when already at the target version', () => {
+    expect(buildChain(CHAIN, 3, 3)).toEqual([]);
+  });
+
+  it('returns the steps in ascending order', () => {
+    expect(buildChain(CHAIN, 1, 3).map((step) => `${step.fromVersion}->${step.toVersion}`)).toEqual([
+      '1->2',
+      '2->3',
+    ]);
+  });
+
+  it('throws when a step is missing from the registry', () => {
+    expect(() => buildChain([CHAIN[0] as TypeMigration], 1, 3)).toThrow(MigrationChainError);
+  });
+
+  it('throws when the document is newer than the definition', () => {
+    expect(() => buildChain(CHAIN, 4, 3)).toThrow(/newer/i);
+  });
+
+  it('names the missing step in the error', () => {
+    try {
+      buildChain([CHAIN[0] as TypeMigration], 1, 3);
+      throw new Error('expected buildChain to throw');
+    } catch (error) {
+      expect((error as MigrationChainError).message).toContain('2->3');
+    }
+  });
+});
+
+describe('migrateData', () => {
+  it('runs every step in order for a document two versions behind', () => {
+    const { data, toVersion } = migrateData({ spicy: 'mild', name: 'Phở' }, CHAIN, 1, 3);
+    expect(data).toEqual({ spicy_level: 1, name: 'Phở' });
+    expect(toVersion).toBe(3);
+  });
+
+  it('is idempotent — running the same chain again changes nothing', () => {
+    const once = migrateData({ spicy: 'mild' }, CHAIN, 1, 3);
+    const twice = migrateData({ ...once.data }, CHAIN, once.toVersion, 3);
+    expect(twice.data).toEqual(once.data);
+  });
+
+  it('changes nothing when already current', () => {
+    const { data, applied } = migrateData({ spicy_level: 1 }, CHAIN, 3, 3);
+    expect(data).toEqual({ spicy_level: 1 });
+    expect(applied).toEqual([]);
+  });
+
+  it('does not mutate the input data', () => {
+    const input = { spicy: 'mild' };
+    migrateData(input, CHAIN, 1, 3);
+    expect(input).toEqual({ spicy: 'mild' });
+  });
+});
+
+describe('migrateRecordOnRead', () => {
+  it('migrates a stale document and writes it back with the new version', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'product:p001', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 1,
+      spicy: 'mild',
+    } as never);
+
+    const before = await adapter.get('product:p001');
+    const outcome = await migrateRecordOnRead(before!, V3, CHAIN, adapter);
+
+    expect(outcome.migrated).toBe(true);
+    expect(outcome.wrote).toBe(true);
+    expect(custom(outcome.doc).spicy_level).toBe(1);
+    expect(outcome.doc.schemaVersion).toBe(3);
+
+    const stored = await adapter.get('product:p001');
+    expect(stored!.schemaVersion).toBe(3);
+    expect(custom(stored!).spicy_level).toBe(1);
+  });
+
+  it('leaves a current document untouched and does not write', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'product:p002', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 3,
+      spicy_level: 1,
+    } as never);
+
+    const doc = await adapter.get('product:p002');
+    const outcome = await migrateRecordOnRead(doc!, V3, CHAIN, adapter);
+
+    expect(outcome.migrated).toBe(false);
+    expect(outcome.wrote).toBe(false);
+    expect(outcome.doc).toEqual(doc);
+  });
+
+  it('does not write when a transform fails, and surfaces the error', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'product:p003', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 2,
+      spicy_level: 'not-in-the-map',
+    } as never);
+
+    const doc = await adapter.get('product:p003');
+    await expect(migrateRecordOnRead(doc!, V3, STRICT_CHAIN, adapter)).rejects.toThrow(
+      /not-in-the-map/,
+    );
+
+    const stored = await adapter.get('product:p003');
+    expect(stored!.schemaVersion).toBe(2);
+  });
+
+  it('bumps updatedAt when it writes', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({
+        id: 'product:p004',
+        docType: 'product',
+        branchId: 'hq',
+        now: '2020-01-01T00:00:00.000Z',
+      }),
+      schemaVersion: 1,
+      spicy: 'mild',
+    } as never);
+
+    const doc = await adapter.get('product:p004');
+    const outcome = await migrateRecordOnRead(doc!, V3, CHAIN, adapter);
+
+    expect(outcome.doc.updatedAt).not.toBe('2020-01-01T00:00:00.000Z');
+    expect(outcome.doc.createdAt).toBe('2020-01-01T00:00:00.000Z');
+  });
+});
+
+describe('migrateCollection', () => {
+  it('migrates only documents of the given type', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'product:p001', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 1,
+      spicy: 'mild',
+    } as never);
+    await adapter.put({
+      ...createEnvelope({ id: 'order:o001', docType: 'order', branchId: 'hq' }),
+      schemaVersion: 1,
+      spicy: 'mild',
+    } as never);
+
+    const progress = await migrateCollection(adapter, V3, CHAIN);
+
+    expect(progress.migrated).toBe(1);
+    expect((await adapter.get('product:p001'))!.schemaVersion).toBe(3);
+    expect((await adapter.get('order:o001'))!.schemaVersion).toBe(1);
+  });
+
+  it('reports progress as it scans', async () => {
+    const adapter = await createMemoryAdapter();
+    for (let i = 0; i < 3; i += 1) {
+      await adapter.put({
+        ...createEnvelope({ id: `product:p00${i}`, docType: 'product', branchId: 'hq' }),
+        schemaVersion: 1,
+        spicy: 'mild',
+      } as never);
+    }
+
+    const seen: number[] = [];
+    await migrateCollection(adapter, V3, CHAIN, (p) => seen.push(p.migrated));
+
+    expect(seen.at(-1)).toBe(3);
+    expect(seen.length).toBeGreaterThan(1);
+  });
+
+  it('keeps going when one document fails, and counts it', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'product:good', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 2,
+      spicy_level: 'mild',
+    } as never);
+    await adapter.put({
+      ...createEnvelope({ id: 'product:bad', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 2,
+      spicy_level: 'nope',
+    } as never);
+
+    const progress = await migrateCollection(adapter, V3, STRICT_CHAIN);
+
+    expect(progress.migrated).toBe(1);
+    expect(progress.failed).toBe(1);
+    expect((await adapter.get('product:good'))!.schemaVersion).toBe(3);
+    expect((await adapter.get('product:bad'))!.schemaVersion).toBe(2);
+  });
+
+  it('reports total as the number of matching documents', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'product:a', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 3,
+      spicy_level: 1,
+    } as never);
+    await adapter.put({
+      ...createEnvelope({ id: 'product:b', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 1,
+      spicy: 'mild',
+    } as never);
+
+    const progress = await migrateCollection(adapter, V3, CHAIN);
+
+    expect(progress.total).toBe(2);
+    expect(progress.scanned).toBe(2);
+    expect(progress.migrated).toBe(1);
+    expect(progress.failed).toBe(0);
+  });
+
+  it('matches a new entity type by its own key', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'supplier:s1', docType: 'supplier', branchId: 'hq' }),
+      schemaVersion: 2,
+      spicy_level: 'hot',
+    } as never);
+
+    const entity: TypeDefinition = {
+      key: 'supplier',
+      kind: 'entity',
+      baseType: null,
+      name: { vi: 'NCC', en: 'Supplier' },
+      version: 3,
+      fields: [],
+      listView: [],
+    };
+
+    const progress = await migrateCollection(adapter, entity, CHAIN);
+
+    expect(progress.total).toBe(1);
+    expect(custom((await adapter.get('supplier:s1'))!).spicy_level).toBe(2);
   });
 });
