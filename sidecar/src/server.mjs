@@ -68,13 +68,19 @@ app.get('/:db/_changes', async (req, res) => {
   try {
     const db = getDb(req.params.db);
     const since = Number(req.query.since ?? 0);
-    const changes = await db.changes({ since, include_docs: true, limit: 1000 });
+    // PouchDB replication gửi `limit` (batch size) và `style=all_docs`.
+    // Bỏ qua hai tham số này vẫn chạy đúng nhưng trả thừa dữ liệu mỗi vòng,
+    // và sẽ bỏ sót các nhánh revision khi có conflict.
+    const limit = req.query.limit === undefined ? 1000 : Number(req.query.limit);
+    const style = req.query.style === 'all_docs' ? 'all_docs' : 'main_only';
+    const changes = await db.changes({ since, include_docs: true, limit, style });
     res.json({
       results: changes.results.map((row) => ({
         seq: row.seq,
         id: row.id,
         changes: row.changes,
         doc: row.doc,
+        ...(row.deleted ? { deleted: true } : {}),
       })),
       last_seq: changes.last_seq,
     });
