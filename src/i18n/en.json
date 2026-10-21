@@ -1,0 +1,14 @@
+{
+  "app": {
+    "title": "Open POS",
+    "tagline": "Point of sale for restaurants and cafes"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "loading": "Loading…",
+    "error": "Something went wrong"
+  }
+}

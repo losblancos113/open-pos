@@ -1,0 +1,14 @@
+{
+  "app": {
+    "title": "Open POS",
+    "tagline": "Phần mềm bán hàng cho nhà hàng, quán cafe"
+  },
+  "common": {
+    "save": "Lưu",
+    "cancel": "Huỷ",
+    "delete": "Xoá",
+    "confirm": "Xác nhận",
+    "loading": "Đang tải…",
+    "error": "Đã xảy ra lỗi"
+  }
+}
