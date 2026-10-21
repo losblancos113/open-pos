@@ -1,0 +1,12 @@
+{
+  "name": "open-pos-hub",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/server.mjs",
+  "dependencies": {
+    "express": "^4.21.0",
+    "pouchdb": "^9.0.0",
+    "pouchdb-find": "^9.0.0"
+  }
+}
