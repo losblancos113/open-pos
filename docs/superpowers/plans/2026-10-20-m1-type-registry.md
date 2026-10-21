@@ -2940,12 +2940,82 @@ Không phát hiện lệch tên. **Một lệch đã biết:** `TypeMigration` �
 
 **Plan đã lưu** tại `docs/superpowers/plans/2026-10-20-m1-type-registry.md`.
 
-**Trạng thái tiền đề:** M0 đã xong và đã commit. PouchDB adapter (`src/core/db/pouch-adapter.ts`) cũng đã xong — thêm cùng bộ test hợp đồng chia sẻ với memory adapter (`__tests__/adapter-contract.ts`). Tổng 89 test pass. `happy-dom` **chưa** được cài (Task 14 cài).
+**Trạng thái tiền đề (cập nhật 2026-10-21):**
+
+- M0 đã xong và đã commit.
+- **PouchDB adapter đã xong** — `src/core/db/pouch-adapter.ts` (commit `6e42a0f`), dùng chung bộ test hợp đồng `src/core/db/__tests__/adapter-contract.ts` với memory adapter. Cả 4 gate xanh; **89 test pass**.
+- Vuetify0 đã được ghi thành invariant: `CLAUDE.md` #8 và `AGENTS.md` §4.8 (commit `cb41011`).
+- `happy-dom` **chưa** cài (Task 14 cài). `@vuetify/v0` **chưa** cài.
+
+---
+
+### ⚠️ Plan này CHƯA cập nhật theo Vuetify0
+
+Invariant #8 yêu cầu **mọi UI dùng `@vuetify/v0`**. Các task UI dưới đây (13–16) được viết **trước** khi invariant đó tồn tại, nên chúng giả định dùng HTML thô (`<input>`, `<select>`, `<tr>`) — và như vậy là **vi phạm #8**.
+
+| Nhóm task | Trạng thái | Việc cần làm |
+|---|---|---|
+| **Task 1–12** (engine TypeScript thuần: money, model, field registry, validation, formula, migration, registry engine, read model, repository) | ✅ **Không bị ảnh hưởng — thực thi được ngay** | Không cần sửa gì |
+| **Task 13–17** (i18n UI, widget, form renderer, list renderer, Type Designer) | ❌ **Phải viết lại trước khi thực thi** | Chuyển sang component Vuetify0 (bảng dưới) |
+
+**Ánh xạ widget cần dùng khi viết lại Task 14–16:**
+
+| `dataType` | Component Vuetify0 |
+|---|---|
+| `text` | `Input.Root` + `Input.Control` |
+| `textarea` | ⚠️ Vuetify0 **không có** Textarea — tự viết primitive bằng `createInput`, hoặc bọc `<textarea>` native trong `Input.Root`/`Input.Description`/`Input.Error` |
+| `number`, `decimal`, `money` | `NumberField.Root` (+ `.Control`, `.Increment`, `.Decrement`, `.Scrub`, `.Error`). Có sẵn `min`/`max`/`step`/`locale`/`format` |
+| `boolean` | `Checkbox.Root` / `Switch.Root` |
+| `date`, `datetime` | ⚠️ Không có DatePicker — dùng `<input type="date">` / `datetime-local` qua `Input.Root type="..."` |
+| `select` | `Select.Root` — **hoặc** `<select>` native, xem câu hỏi treo bên dưới |
+| `multiselect` | `Checkbox.Root` theo nhóm, hoặc `Select.Root` multiple |
+| `reference` | `Combobox.Root` (tìm kiếm được) |
+| `image` | ⚠️ Không có upload — giữ ô nhập URL/data-URL ở v1 |
+| `color` | ⚠️ Không có ColorPicker — `<input type="color">` native |
+| `formula` | Text readonly (không phải control) |
+| danh sách | `DataTable` / `DataGrid` thay cho `<table>` tự viết |
+| form | `Form` + `createForm`/`useForm` |
+| hộp thoại xác nhận | `Dialog` / `AlertDialog` |
+| tiến độ migration | `Progress` |
+| nút | `Button.Root` (+ `.Content`, `.Icon`, `.Loading`) |
+
+**Bốn hệ quả kiến trúc quan trọng — đọc trước khi viết lại:**
+
+1. **Validation là của Vuetify0, không phải của plan.** Plan (Task 3, 4, 11, 12, 15) tự viết một validation engine song song. Vuetify0 đã có `createForm`, `createValidation`, `useRules`, và nhận cả **Standard Schema** (Zod ≥3.24, Valibot, ArkType). → Field validation phải chuyển thành `FormValidationRule`/`RuleAlias` truyền vào `Input.Root :rules`. **Nhưng** domain validation (reserved key, formula cycle, duplicate key, giới hạn index) **không phải** input validation — nó vẫn thuộc `core/` và giữ nguyên. Ranh giới này phải rõ, nếu không sẽ thành hai engine đá nhau.
+2. **Không được dùng theme/palettes của Vuetify0.** `useTheme`, `createTheme`, `./palettes/*` sẽ trùng `tokens.ts` và vi phạm invariant #7. Chỉ dùng plugin factory cho **locale** và **rules**.
+3. **Locale:** Vuetify0 chỉ ship **`en`**. Rule alias dựng sẵn và chuỗi component mặc định tiếng Anh. → Tiếng Việt phải lấy từ `src/i18n/vi.json` qua adapter `@vuetify/v0/locale/adapters/vue-i18n`, hoặc đăng ký alias riêng qua `createRules({ aliases })`. Không được giả định có chuỗi tiếng Việt dựng sẵn. Task 13 vì vậy **tăng phạm vi**.
+4. **`Select`/`Combobox`/`Menu`/`Popover` cần `@floating-ui/dom`** (peer optional nhưng bắt buộc trên thực tế). Chưa cài.
+
+---
+
+### ⚠️ MCP: `vuetify-mcp` chưa dùng được trong session cũ
+
+Cấu hình **đúng** — không sửa gì thêm:
+
+- `.zcode/config.json` (workspace scope) → `mcp.servers["vuetify-mcp"]`, `type: "http"`, `url: "https://mcp.vuetifyjs.com/mcp"`.
+- JSON hợp lệ; URL reachable (`HTTP 405` khi GET — **đúng**, vì endpoint MCP chỉ nhận POST/JSON-RPC).
+- Đã sửa `type` từ dạng cũ `"remote"` sang canonical `"http"`.
+
+**Nguyên nhân tools không xuất hiện:** config được ghi **sau** khi session khởi động (mtime 20:46–20:58). MCP chỉ kết nối ở đầu session. → **Mở session mới** là đủ; sau đó xác nhận `mcp__vuetify-mcp__*` có trong toolset, hoặc xem **Settings → MCP**.
+
+**Chưa xác minh được gì (nói thẳng):** mới chỉ đọc *type definitions* từ tarball `@vuetify/v0@1.3.0` trên npm — tức là API surface. **Chưa** xác minh hành vi runtime, chưa cài package, chưa render thử component nào. Khi MCP sống, nên tra chéo lại trước khi viết task.
+
+---
 
 **Về việc thực thi:** skill `writing-plans` yêu cầu dùng `superpowers:subagent-driven-development` hoặc `superpowers:executing-plans`, nhưng plugin `superpowers@claude-plugins-official` **chưa được cài** trên máy này. Hai cách xử lý:
 
 1. **Cài plugin** rồi dùng đúng hai sub-skill trên (thêm marketplace `claude-plugins-official` → cài `superpowers`).
 2. **Chạy plan này trực tiếp** — plan tự chứa đủ ngữ cảnh (mỗi task có file, interface, test và code thật), nên có thể thực thi tuần tự mà không cần sub-skill.
+
+---
+
+**Câu hỏi đang treo — chặn việc viết lại Task 14:**
+
+> **Dùng `Select`/`Combobox` của Vuetify0 (kéo theo `@floating-ui/dom`) hay `<select>` native cho các field select/multiselect?**
+>
+> Khuyến nghị: **dùng của Vuetify0** — đó là điều invariant #8 ngụ ý, và cho a11y + keyboard nav đúng. Đánh đổi: thêm một peer dependency. Phương án còn lại giữ danh sách dependency nhỏ hơn cho M1.
+>
+> Nếu chọn Vuetify0: thêm `@floating-ui/dom` vào `dependencies`. Nếu chọn native: ghi rõ ngoại lệ này vào `AGENTS.md` §4.8 để không ai tưởng là sót.
 
 **Quyết định cần xác nhận trước khi bắt đầu** — nếu sai thì phải sửa **trước** khi code, vì chúng ảnh hưởng schema hoặc tiền:
 
@@ -2956,16 +3026,24 @@ Không phát hiện lệch tên. **Một lệch đã biết:** `TypeMigration` �
 | D3 | `meta_types` là metadata toàn hệ thống, không theo branch | Task 2, 10, 12 |
 | D4 | Formula chỉ nhận number / money / boolean | Task 6, 7, 11 |
 | D5 | Chưa thêm `vue-router` ở M1 | Task 16 |
+| **D6** | Dùng `@vuetify/v0` + `@floating-ui/dom` cho control | Task 13–16 |
+| **D7** | `textarea` = primitive tự viết bằng `createInput` (không phải `<textarea>` trần) | Task 14 |
+| **D8** | Field validation → Vuetify0 rules; domain validation giữ ở `core/` | Task 3, 4, 11, 12, 15 |
+| **D9** | Không dùng theme/palettes của Vuetify0; giữ `tokens.ts` | Task 13–16 |
 
-**Thứ tự git đề xuất:**
+**Thứ tự thực thi đề xuất (sau khi viết lại Task 13–16):**
 
-```bash
-cd E:/Coding/vue/open-pos
-git add docs/superpowers/plans/2026-10-20-m1-type-registry.md
-git commit -m "docs: add m1 type registry implementation plan"
+```
+1 → 2 → 3 → 5 → 6 → 7 → 4 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17
 ```
 
-Commit plan **trước** khi bắt đầu Task 1, để mọi thay đổi code sau đó đều có điểm so sánh.
+Task 1–12 **không phụ thuộc Vuetify0** — có thể bắt đầu ngay trong lúc chờ chốt D6. Task 4 cần `parseFormula` của Task 6, nên chạy 5→6→7 trước rồi quay lại 4.
+
+**Git:** plan này **đã** được commit (`77fb74e`) — không cần commit lại. Chỉ commit phần viết lại Task 13–16 khi xong.
+
+**File cấu hình chưa track (cần quyết):** `.zcode/`, `.codex/`, `.vuetify/`, `.mcp.json` chưa được ignore. Nên thêm `.zcode/`, `.codex/`, `.vuetify/` vào `.gitignore`. `.mcp.json` để riêng — có thể muốn chia sẻ cho team.
+
+**Nhắc lại gate nghiệm thu:** trước khi báo xong bất kỳ task nào, chạy đủ bốn lệnh — `npm run test`, `npx vue-tsc --noEmit`, `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. CI chạy đúng bốn lệnh này, nên pass cục bộ mới là gate thật.
 
 **Nhắc lại gate nghiệm thu:** trước khi báo xong bất kỳ task nào, chạy đủ bốn lệnh — `npm run test`, `npx vue-tsc --noEmit`, `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. CI chạy đúng bốn lệnh này, nên pass cục bộ mới là gate thật.
 
