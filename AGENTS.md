@@ -177,6 +177,73 @@ same change. Do not hard-code user-visible strings in components; use `t('...')`
 `src/styles/tokens.ts` is the source of truth. `src/styles/tokens.css` must declare exactly
 the same set of CSS variables; a drift test enforces it. Add a token in both places.
 
+### 4.8 UI primitives come from Vuetify0
+
+All interactive UI is built from **Vuetify0**, imported as **`@vuetify/v0`**.
+
+> **Package-name trap.** The product is "Vuetify0" / "Vuetify Zero", but the npm package is
+> `@vuetify/v0`. There is no `vuetify0` package — that name 404s. Plain `vuetify` is the
+> older v3/v4 component library and is **not** what this project uses. `@vuetify/v0` was at
+> **1.3.0** and is SemVer-stable since v1.0.0.
+
+Why: it is headless and unstyled (zero runtime dependencies), so it gives us behaviour,
+accessibility wiring, and validation without imposing a look — we keep our own design tokens
+as the single styling source (4.7).
+
+Rules:
+
+- **Do not hand-roll controls.** No raw `<input>`, `<select>`, `<button>`, or `<table>` for
+  interactive UI in feature code. Use the Vuetify0 components instead:
+
+  | Need | Use |
+  |------|-----|
+  | Text / number-ish text input | `Input.Root` + `Input.Control` (+ `Input.Description`, `Input.Error`) |
+  | Number, decimal, money | `NumberField.Root` (+ `.Control`, `.Increment`, `.Decrement`, `.Scrub`, `.Error`) — supports `min`/`max`/`step`/`locale`/`format` |
+  | Single select | `Select.Root` |
+  | Searchable select / reference picker | `Combobox.Root` |
+  | Boolean | `Checkbox.Root` / `Switch.Root` / `Toggle.Root` |
+  | Radio group | `Radio.Root` |
+  | Tabular list | `DataTable` / `DataGrid` |
+  | Confirm / modal | `Dialog` / `AlertDialog` |
+  | Transient feedback | `Snackbar`, `Alert` |
+  | Progress | `Progress` |
+  | Buttons | `Button.Root` (+ `.Content`, `.Icon`, `.Loading`) |
+  | Form orchestration | `Form` component + `createForm` / `useForm` |
+
+- **Validation is Vuetify0's, not ours.** Field rules are `FormValidationRule` functions or
+  `RuleAlias` strings passed to `Input.Root :rules`, resolved by `useRules`. Vuetify0 also
+  accepts **Standard Schema** objects (Zod ≥3.24, Valibot, ArkType) if we adopt one later.
+  Do not build a parallel validation engine — but note that *domain* validation (type
+  definitions: reserved keys, formula cycles, index limits) is **not** input validation and
+  stays in `core/`.
+- **Custom widgets are built with `createInput`.** Anything Vuetify0 does not ship (see the
+  gaps below) is authored as a primitive via `createInput` so it still registers with the
+  parent `Form`, participates in validation, and gets `aria-describedby` /
+  `aria-errormessage` wiring for free.
+- **Do not adopt Vuetify0's theme layer.** `useTheme`, `createTheme`, and the `./palettes/*`
+  exports are out of scope — they would duplicate `tokens.ts` and violate 4.7. Use Vuetify0's
+  optional plugin factories only for locale and rules.
+- **No plugin install is required** for the components; import them directly. Optional
+  `createLocalePlugin` (with the `./locale/adapters/vue-i18n` adapter) and `createRulesPlugin`
+  are how we wire Vuetify0 into our existing i18n.
+
+**Known gaps — Vuetify0 does not ship these; handle them explicitly:**
+
+| Missing | Consequence |
+|---------|-------------|
+| **Textarea** | `Input.Control` renders `<input>`. Author a textarea primitive with `createInput`, or wrap a native `<textarea>` in `Input.Root`/`Input.Description`/`Input.Error` |
+| **DatePicker / DateInput** | No date component (`useDate` composable only). Use native `<input type="date">` / `type="datetime-local"` via `Input.Root type="..."`, or build a popover calendar later |
+| **ColorPicker** | Use native `<input type="color">`, or build with `Slider` |
+| **File / image upload** | No upload component. Image fields stay URL / reference-id in v1 |
+
+**Peer dependency:** `@floating-ui/dom` is an *optional* peer, but `Select`, `Combobox`,
+`Menu`, `Popover`, and `Tooltip` need it. Install it if any of those are used.
+
+**Locale coverage:** Vuetify0 ships **`en` messages only** (`./locale/messages/en`). Its
+built-in rule aliases and component strings therefore default to English. Vietnamese must come
+from our own `vi.json` via the `vue-i18n` locale adapter, or from custom aliases registered
+through `createRules({ aliases })`. Do not assume a Vietnamese built-in string exists.
+
 ---
 
 ## 5. Hub protocol and security invariants
@@ -332,13 +399,20 @@ M0 is complete. The foundation in place:
 
 - Money type + deterministic allocation (property-tested).
 - Document envelope with mandatory `branchId`; `_id` conventions.
-- `DbAdapter` interface + in-memory adapter.
+- `DbAdapter` interface + **both** implementations — in-memory and PouchDB
+  (`src/core/db/pouch-adapter.ts`), sharing one contract suite in
+  `src/core/db/__tests__/adapter-contract.ts`.
 - Design tokens + CSS mirror; vi/en i18n with key parity.
 - Tauri 2 shell (builds and links) and axum `GET /api/health`.
 - Hub sidecar with a CouchDB-compatible API and regression tests.
 - Two terminals sync through the hub — the M0 acceptance test proves it.
 - CI for both the web and Rust jobs.
 
-**Not yet built** (do not assume these exist): the PouchDB `DbAdapter` implementation,
-feature UI, hub authentication, LAN/WebSocket endpoints beyond health, branch switching,
-inventory, reporting. See "Known limitations" in the README and §9 of the design spec.
+**Next up — M1 (Type Registry):** the plan is at
+`docs/superpowers/plans/2026-10-20-m1-type-registry.md`. It covers the type-definition model,
+field-type registry, validation, formula interpreter, schema migration, and the Type Designer
+UI. UI tasks are built on **Vuetify0** — see 4.8.
+
+**Not yet built** (do not assume these exist): feature UI (catalog, orders, tables, QR, KDS),
+hub authentication, LAN/WebSocket endpoints beyond health, branch switching, inventory,
+reporting. See "Known limitations" in the README and §9 of the design spec.

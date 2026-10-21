@@ -83,6 +83,13 @@ Breaking any of these fails a type or a test. Do not work around them — raise 
    if you need more.
 6. **i18n key parity.** Every key must exist in both `vi.json` and `en.json`.
 7. **Design tokens are defined once** in `tokens.ts`; `tokens.css` must mirror them exactly.
+8. **UI primitives come from Vuetify0.** Import from **`@vuetify/v0`** — that is the real
+   package name (`vuetify0` does not exist on npm; `vuetify` is the older v3/v4 library).
+   Do not hand-roll controls out of raw `<input>`, `<select>`, or `<button>` in feature code.
+   Vuetify0 is headless and unstyled, so style it with **our** tokens (invariant 7) — do not
+   adopt its theme palettes or `useTheme`. Input validation goes through its rules system
+   (`Input.Root` / `createValidation` / `useRules`) instead of a parallel hand-rolled
+   validator. The `vuetify-mcp` server serves Vuetify0 docs — prefer it over guessing.
 
 ---
 
