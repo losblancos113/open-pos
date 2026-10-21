@@ -6,7 +6,13 @@ import { mkdirSync } from 'node:fs';
 PouchDB.plugin(find);
 
 const port = Number(process.env.HUB_PORT ?? 5984);
+const host = process.env.HUB_HOST ?? '127.0.0.1';
 const dataDir = process.env.HUB_DATA_DIR ?? '.hub-data';
+
+// Allowlist tên database: chỉ chữ, số và _ . $ -
+// Không cho '/', '\', hay '..' → chặn path traversal kiểu `/..%2fESCAPED`
+// (Express decode param SAU khi match path, nên %2f lọt vào tên db).
+const DB_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.$-]{0,62}$/;
 
 mkdirSync(dataDir, { recursive: true });
 
@@ -14,7 +20,22 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 
 const dbs = new Map();
+
+function badRequest(reason, error = 'bad_request') {
+  const err = new Error(reason);
+  err.status = 400;
+  err.error = error;
+  err.reason = reason;
+  return err;
+}
+
 function getDb(name) {
+  if (!DB_NAME_RE.test(name)) {
+    throw badRequest(
+      `Name: ${name}. Only letters, digits and _ . $ - are allowed in database names.`,
+      'illegal_database_name',
+    );
+  }
   let db = dbs.get(name);
   if (!db) {
     db = new PouchDB(`${dataDir}/${name}`);
@@ -23,12 +44,43 @@ function getDb(name) {
   return db;
 }
 
+// Trả đúng status của lỗi. PouchDB phân nhánh theo status: 409 → retry checkpoint,
+// 401/403 → 'denied'. Gộp hết thành 500 làm replication abort giữa chừng.
 function errorResponse(res, err) {
-  if (err && err.status === 404) {
-    res.status(404).json({ error: 'not_found' });
-    return;
+  const status =
+    err && Number.isInteger(err.status) && err.status >= 400 && err.status < 600
+      ? err.status
+      : 500;
+  const fallback =
+    status === 404
+      ? 'not_found'
+      : status === 400
+        ? 'bad_request'
+        : status === 409
+          ? 'conflict'
+          : 'internal_server_error';
+  const error = (err && err.error) || fallback;
+  const reason = (err && err.reason) || (err && err.message) || 'unknown error';
+  res.status(status).json({ error, reason });
+}
+
+// `limit`/`since` đi thẳng từ query string vào PouchDB. Giá trị sai (âm, thập phân,
+// NaN) làm PouchDB ném RangeError *ngoài* try/catch → giết tiến trình hub.
+// Phải chặn ở đây, không được để lọt xuống dưới.
+function parseNonNegativeInt(value, fallback, name) {
+  if (value === undefined || value === '') return fallback;
+  const n = Number(value);
+  if (!Number.isSafeInteger(n) || n < 0) {
+    throw badRequest(`invalid value for parameter: ${name}=${value}`, 'query_parse_error');
   }
-  res.status(500).json({ error: String(err && err.message ? err.message : err) });
+  return n;
+}
+
+function assertDocId(id) {
+  if (typeof id !== 'string' || id.startsWith('_')) {
+    throw badRequest('Only reserved document ids may start with underscore.');
+  }
+  return id;
 }
 
 app.get('/', (_req, res) => {
@@ -46,14 +98,30 @@ app.get('/_all_dbs', (_req, res) => {
 app.post('/:db/_revs_diff', async (req, res) => {
   try {
     const db = getDb(req.params.db);
+    const body = req.body ?? {};
+    if (typeof body !== 'object' || Array.isArray(body)) {
+      throw badRequest('Request body must be a JSON object mapping ids to revisions.');
+    }
     const result = {};
-    for (const [id, revs] of Object.entries(req.body ?? {})) {
+    for (const [id, revs] of Object.entries(body)) {
+      if (!Array.isArray(revs)) {
+        throw badRequest(`Revisions for document ${id} must be an array.`);
+      }
       const missing = [];
       for (const rev of revs) {
         try {
+          // Lưu ý: rev đã bị xoá (tombstone) KHÔNG ném 404 — PouchDB trả về chính
+          // tombstone đó. Vì vậy "có mặt" ở đây là đúng cho cả rev đã xoá.
           await db.get(id, { rev });
         } catch (err) {
-          if (err && err.status === 404) missing.push(rev);
+          if (err && err.status === 404) {
+            missing.push(rev);
+          } else {
+            // TUYỆT ĐỐI không coi lỗi không rõ là "đã có": _revs_diff dùng để báo
+            // rev nào hub còn thiếu. Bỏ sót một rev = client không bao giờ gửi
+            // document đó = mất dữ liệu vĩnh viễn khi sync.
+            throw err;
+          }
         }
       }
       if (missing.length > 0) result[id] = { missing };
@@ -67,19 +135,28 @@ app.post('/:db/_revs_diff', async (req, res) => {
 app.get('/:db/_changes', async (req, res) => {
   try {
     const db = getDb(req.params.db);
-    const since = Number(req.query.since ?? 0);
-    // PouchDB replication gửi `limit` (batch size) và `style=all_docs`.
-    // Bỏ qua hai tham số này vẫn chạy đúng nhưng trả thừa dữ liệu mỗi vòng,
-    // và sẽ bỏ sót các nhánh revision khi có conflict.
-    const limit = req.query.limit === undefined ? 1000 : Number(req.query.limit);
+
+    let since = 0;
+    if (req.query.since !== undefined && req.query.since !== '') {
+      if (req.query.since === 'now') {
+        const info = await db.info();
+        since = info.update_seq;
+      } else {
+        since = parseNonNegativeInt(req.query.since, 0, 'since');
+      }
+    }
+
+    const limit = parseNonNegativeInt(req.query.limit, 1000, 'limit');
     const style = req.query.style === 'all_docs' ? 'all_docs' : 'main_only';
-    const changes = await db.changes({ since, include_docs: true, limit, style });
+    const includeDocs = req.query.include_docs !== 'false';
+
+    const changes = await db.changes({ since, include_docs: includeDocs, limit, style });
     res.json({
       results: changes.results.map((row) => ({
         seq: row.seq,
         id: row.id,
         changes: row.changes,
-        doc: row.doc,
+        ...(includeDocs && row.doc !== undefined ? { doc: row.doc } : {}),
         ...(row.deleted ? { deleted: true } : {}),
       })),
       last_seq: changes.last_seq,
@@ -103,13 +180,34 @@ app.put('/:db/_local/:id', async (req, res) => {
   try {
     const db = getDb(req.params.db);
     const id = `_local/${req.params.id}`;
-    let existing = {};
+
+    let existing;
     try {
       existing = await db.get(id);
     } catch (err) {
       if (!(err && err.status === 404)) throw err;
+      existing = undefined;
     }
-    const result = await db.put({ ...req.body, _id: id, _rev: existing._rev });
+
+    // PouchDB gửi rev của checkpoint ở body._rev hoặc query ?rev= tuỳ phiên bản.
+    const clientRev = (req.body && req.body._rev) || req.query.rev;
+
+    if (existing && clientRev !== existing._rev) {
+      const conflict = new Error('Document update conflict.');
+      conflict.status = 409;
+      conflict.error = 'conflict';
+      conflict.reason = 'Document update conflict.';
+      throw conflict;
+    }
+
+    const doc = { ...(req.body ?? {}), _id: id };
+    if (existing) {
+      doc._rev = existing._rev;
+    } else {
+      delete doc._rev;
+    }
+
+    const result = await db.put(doc);
     res.status(201).json({ ok: true, id: result.id, rev: result.rev });
   } catch (err) {
     errorResponse(res, err);
@@ -122,9 +220,11 @@ app.put('/:db/_local/:id', async (req, res) => {
 app.post('/:db/_bulk_docs', async (req, res) => {
   try {
     const db = getDb(req.params.db);
-    const result = await db.bulkDocs(req.body?.docs ?? [], {
-      new_edits: req.body?.new_edits !== false,
-    });
+    const body = req.body ?? {};
+    if (!Array.isArray(body.docs)) {
+      throw badRequest("Missing JSON list of 'docs'");
+    }
+    const result = await db.bulkDocs(body.docs, { new_edits: body.new_edits !== false });
     res.status(201).json(result);
   } catch (err) {
     errorResponse(res, err);
@@ -135,7 +235,7 @@ app.post('/:db/_bulk_docs', async (req, res) => {
 app.post('/:db/_bulk_get', async (req, res) => {
   try {
     const db = getDb(req.params.db);
-    const docs = req.body?.docs ?? [];
+    const docs = Array.isArray(req.body?.docs) ? req.body.docs : [];
     const results = await Promise.all(
       docs.map(async (entry) => {
         const id = entry.id;
@@ -144,7 +244,22 @@ app.post('/:db/_bulk_get', async (req, res) => {
           const doc = await db.get(id, rev ? { rev, revs: true } : { revs: true });
           return { id, docs: [{ ok: doc }] };
         } catch (err) {
-          return { id, docs: [{ error: { id, rev, error: 'not_found', reason: 'missing' } }] };
+          const is404 = err && err.status === 404;
+          return {
+            id,
+            docs: [
+              {
+                error: {
+                  id,
+                  rev,
+                  error: is404 ? 'not_found' : (err && err.error) || 'internal_server_error',
+                  reason: is404
+                    ? 'missing'
+                    : (err && err.reason) || (err && err.message) || 'unknown error',
+                },
+              },
+            ],
+          };
         }
       }),
     );
@@ -166,23 +281,102 @@ app.get('/:db', async (req, res) => {
   }
 });
 
-// PouchDB dùng `_all_docs` cho một số truy vấn replication.
+// `_all_docs` là 2 segment, trùng dạng với `/:db/:id` → phải đăng ký trước.
 app.get('/:db/_all_docs', async (req, res) => {
   try {
     const db = getDb(req.params.db);
-    const result = await db.allDocs({ include_docs: req.query.include_docs === 'true' });
+    const opts = {};
+    if (req.query.include_docs === 'true') opts.include_docs = true;
+    if (req.query.descending === 'true') opts.descending = true;
+    if (req.query.limit !== undefined) opts.limit = parseNonNegativeInt(req.query.limit, 0, 'limit');
+    if (req.query.skip !== undefined) opts.skip = parseNonNegativeInt(req.query.skip, 0, 'skip');
+    if (typeof req.query.startkey === 'string') opts.startkey = req.query.startkey;
+    if (typeof req.query.endkey === 'string') opts.endkey = req.query.endkey;
+    const result = await db.allDocs(opts);
     res.json(result);
   } catch (err) {
     errorResponse(res, err);
   }
 });
 
+app.post('/:db/_all_docs', async (req, res) => {
+  try {
+    const db = getDb(req.params.db);
+    const body = req.body ?? {};
+    const opts = {};
+    if (Array.isArray(body.keys)) opts.keys = body.keys;
+    if (body.include_docs === true) opts.include_docs = true;
+    const result = await db.allDocs(opts);
+    res.json(result);
+  } catch (err) {
+    errorResponse(res, err);
+  }
+});
+
+// CouchDB create-database. Trả 201 (idempotent) thay vì 412 khi đã tồn tại:
+// PouchDB http adapter coi 412 là lỗi, còn app thì chỉ cần db sẵn sàng.
 app.put('/:db', async (req, res) => {
   try {
     const db = getDb(req.params.db);
-    const doc = req.body;
+    await db.info();
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    errorResponse(res, err);
+  }
+});
+
+// CouchDB delete-database. Không có route này thì `db.destroy()` phía client
+// báo thành công mà dữ liệu vẫn nằm nguyên trên đĩa.
+app.delete('/:db', async (req, res) => {
+  try {
+    const name = req.params.db;
+    const db = getDb(name);
+    await db.destroy();
+    dbs.delete(name);
+    res.status(200).json({ ok: true });
+  } catch (err) {
+    errorResponse(res, err);
+  }
+});
+
+app.put('/:db/:id', async (req, res) => {
+  try {
+    const db = getDb(req.params.db);
+    const id = assertDocId(req.params.id);
+
+    const doc = { ...(req.body ?? {}), _id: id };
+    if (typeof req.query.rev === 'string' && req.query.rev !== '') doc._rev = req.query.rev;
+
+    if (req.query.new_edits === 'false') {
+      const [row] = await db.bulkDocs([doc], { new_edits: false });
+      if (row && row.error) {
+        const err = new Error(row.reason || row.error);
+        err.status = row.status || 409;
+        err.error = row.error;
+        err.reason = row.reason;
+        throw err;
+      }
+      res.status(201).json({ ok: true, id, rev: (row && row.rev) || doc._rev });
+      return;
+    }
+
     const result = await db.put(doc);
     res.status(201).json({ ok: true, id: result.id, rev: result.rev });
+  } catch (err) {
+    errorResponse(res, err);
+  }
+});
+
+app.delete('/:db/:id', async (req, res) => {
+  try {
+    const db = getDb(req.params.db);
+    const id = assertDocId(req.params.id);
+    const rev = typeof req.query.rev === 'string' ? req.query.rev : '';
+    if (!rev) {
+      throw badRequest('You must supply the revision to delete a document.');
+    }
+    const result = await db.put({ _id: id, _rev: rev, _deleted: true });
+    res.status(200).json({ ok: true, id: result.id, rev: result.rev });
   } catch (err) {
     errorResponse(res, err);
   }
@@ -192,21 +386,80 @@ app.put('/:db', async (req, res) => {
 app.get('/:db/:id', async (req, res) => {
   try {
     const db = getDb(req.params.db);
-    const doc = await db.get(req.params.id);
+    const opts = {};
+    if (typeof req.query.rev === 'string') opts.rev = req.query.rev;
+    if (req.query.revs === 'true') opts.revs = true;
+    if (req.query.revs_info === 'true') opts.revs_info = true;
+    if (req.query.conflicts === 'true') opts.conflicts = true;
+    if (req.query.attachments === 'true') opts.attachments = true;
+    if (req.query.open_revs !== undefined) opts.open_revs = req.query.open_revs;
+    const doc = await db.get(req.params.id, opts);
     res.json(doc);
   } catch (err) {
     errorResponse(res, err);
   }
 });
 
-const server = app.listen(port, '127.0.0.1', () => {
-  const actual = server.address();
-  const boundPort = typeof actual === 'object' && actual !== null ? actual.port : port;
-  console.log(`OPEN_POS_HUB_URL=http://127.0.0.1:${boundPort}`);
+// JSON hỏng từ client → trả đúng dạng lỗi CouchDB thay vì HTML của Express.
+app.use((err, _req, res, _next) => {
+  errorResponse(res, err);
 });
 
-function shutdown() {
-  server.close(() => process.exit(0));
+let server;
+
+// `app.listen` không có 'error' handler: nếu cổng đang bận (chạy 2 instance, hoặc
+// máy đã có CouchDB/PouchDB-server ở 5984) thì Node ném 'error' không ai bắt và
+// tiến trình chết trước khi kịp in OPEN_POS_HUB_URL → bên gọi treo vô thời hạn.
+function startHub(listenPort, allowFallback) {
+  const s = app.listen(listenPort, host);
+
+  s.on('listening', () => {
+    server = s;
+    const actual = s.address();
+    const boundPort = typeof actual === 'object' && actual !== null ? actual.port : listenPort;
+    const advertisedHost = host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host;
+    console.log(`OPEN_POS_HUB_URL=http://${advertisedHost}:${boundPort}`);
+  });
+
+  s.on('error', (err) => {
+    const code = (err && err.code) || 'unknown';
+    if (allowFallback && code === 'EADDRINUSE') {
+      console.error(`OPEN_POS_HUB_PORT_IN_USE=${listenPort}; falling back to an ephemeral port`);
+      s.removeAllListeners('error');
+      startHub(0, false);
+      return;
+    }
+    console.error(`OPEN_POS_HUB_ERROR=${code}: ${(err && err.message) || err}`);
+    process.exit(1);
+  });
+}
+
+startHub(port, true);
+
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // Đóng PouchDB trước khi thoát để nhả LOCK file của LevelDB (Windows giữ handle
+  // khá lâu, làm thư mục tạm không xoá được).
+  for (const db of dbs.values()) {
+    try {
+      await db.close();
+    } catch {
+      // best effort
+    }
+  }
+  dbs.clear();
+  if (server) {
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 2000);
+  } else {
+    process.exit(0);
+  }
 }
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
+
+process.on('unhandledRejection', (reason) => {
+  console.error('OPEN_POS_HUB_UNHANDLED_REJECTION', reason);
+});
