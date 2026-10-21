@@ -36,7 +36,8 @@ export interface FieldTypeDefinition {
   readonly formulaSupport: boolean;
 }
 
-const EMPTY_DISPLAY = '—';
+/** Chuỗi hiển thị cho ô rỗng — dùng chung giữa registry và read model. */
+export const EMPTY_DISPLAY = '—';
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -174,6 +175,10 @@ const registry: Record<DataType, FieldTypeDefinition> = {
       const absent = absentIssue(value, field);
       if (absent) return absent;
       if (typeof value !== 'string') return [typeIssue(field, 'a string', value)];
+      // Chuỗi rỗng/space: field bắt buộc coi như thiếu giá trị, field không bắt buộc chấp nhận.
+      if (field.required && isBlankString(value)) {
+        return [issue(field.key, 'required', `${field.key} is required`)];
+      }
       return [];
     },
     format: (value) => (isAbsent(value) ? EMPTY_DISPLAY : String(value)),
@@ -188,6 +193,10 @@ const registry: Record<DataType, FieldTypeDefinition> = {
       const absent = absentIssue(value, field);
       if (absent) return absent;
       if (typeof value !== 'string') return [typeIssue(field, 'a string', value)];
+      // Chuỗi rỗng/space: field bắt buộc coi như thiếu giá trị, field không bắt buộc chấp nhận.
+      if (field.required && isBlankString(value)) {
+        return [issue(field.key, 'required', `${field.key} is required`)];
+      }
       return [];
     },
     format: (value) => (isAbsent(value) ? EMPTY_DISPLAY : String(value)),

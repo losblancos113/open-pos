@@ -103,6 +103,20 @@ describe('required and range', () => {
     expect(issues.map((i) => i.code)).toEqual(['required']);
   });
 
+  it('treats a blank string as missing for a required text field', () => {
+    const issues = fieldType('text').validate('   ', field({ dataType: 'text', required: true }));
+    expect(issues.map((i) => i.code)).toEqual(['required']);
+  });
+
+  it('treats a blank string as missing for a required textarea field', () => {
+    const issues = fieldType('textarea').validate('', field({ dataType: 'textarea', required: true }));
+    expect(issues.map((i) => i.code)).toEqual(['required']);
+  });
+
+  it('accepts a blank string for an optional text field', () => {
+    expect(fieldType('text').validate('', field({ dataType: 'text' }))).toEqual([]);
+  });
+
   it('accepts a missing value for an optional field', () => {
     expect(fieldType('number').validate(undefined, field({ dataType: 'number' }))).toEqual([]);
   });
