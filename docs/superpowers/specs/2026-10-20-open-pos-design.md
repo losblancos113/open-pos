@@ -1022,7 +1022,7 @@ Sau mỗi milestone là một sản phẩm **chạy thật được**, không ph
 2. ✅ **Đã chốt scope v1** — multi-branch **trong** v1; e-invoice **ngoài**; VietQR **trong**; `requireWaiterApproval` mặc định BẬT.
 3. ✅ **Đã tách M6** thành **M6a** (multi-branch & cloud), **M6b** (inventory), **M6c** (shifts / reports / hardening) — mỗi phần 2 tuần, nghiệm thu độc lập. Kèm bảng mốc bàn giao ở §9.1.
 4. ✅ **Đã chốt mô hình phân quyền** — chỉ `owner`/`admin` xem dữ liệu toàn hệ thống; mọi role khác giới hạn theo `branchIds[]`; **guest là user tạm thời** sinh ra khi khách đặt món thành công (§1.4, §2 R6, §6.1).
-5. ⏳ **Xác nhận lần cuối** — đọc lại §3.1 (kiến trúc), §4.7 (branch override), §6.1 (phân quyền), §9 + §9.1 (lộ trình) và cho biết cần điều chỉnh gì.
+5. ⏳ **Xác nhận lần cuối** — đọc lại §3.1 (kiến trúc), §4.7 (branch override), §6.1 (phân quyền), §9 + §9.1 (lộ trình), **và §13 (bổ sung sau brainstorm)** và cho biết cần điều chỉnh gì.
 6. ⏳ **Sau khi approve** → chuyển sang `writing-plans` skill để tạo implementation plan chi tiết cho từng milestone.
 7. ⏳ **Khởi tạo git repo** và commit tài liệu này làm baseline (`git init` chưa được thực hiện).
 
@@ -1043,6 +1043,139 @@ Sau đó thứ tự phụ thuộc vào **nhu cầu kinh doanh thực tế**, kh�
 | Sắp mở chi nhánh thứ 2 | **M6a** — multi-branch + cloud (có thể đưa lên trước M5) |
 | Kiểm soát nguyên liệu, chống thất thoát | **M6b** — inventory |
 | Chốt sổ ca, báo cáo, phát hành chính thức | **M6c** — shifts + reports + hardening |
+
+---
+
+## 13. Bổ sung thiết kế sau brainstorm (v0.4 — chờ review)
+
+> Mục này tập hợp các lỗ hổng thiết kế phát hiện khi rà soát lại spec theo tình huống vận hành thực tế của quán phở / cơm / cafe có **bếp và quầy nước tách biệt**. Sau khi approve, nội dung sẽ được hợp nhất vào §4 / §5 / §7 tương ứng (không tạo thêm nguồn sự thật mới).
+
+### 13.1 Station routing — chia ticket theo bếp / bar / cold
+
+**Vấn đề.** §7.3 mô tả KDS "hiển thị ticket theo station" nhưng toàn bộ spec **không có mô hình dữ liệu nào cho station**. Với quán có bếp và quầy nước tách biệt (cafe: đồ uống ra bar, bánh ra bếp; phở: bếp chính + quầy nước), KDS không biết ticket nào thuộc màn hình nào, và `PrinterAdapter` (§7.1) không biết in phiếu chế biến đi đâu. Đây là lỗ hổng chặn M5.
+
+**Thiết kế.**
+
+```jsonc
+// stations — theo branch
+{
+  "_id": "station:branch:hq|bar",
+  "branchId": "branch:hq",
+  "code": "bar",
+  "name": { "vi": "Quầy nước", "en": "Bar" },
+  "printerId": "device:printer-bar",
+  "active": true
+}
+```
+
+- `catalog_categories.stationId` — station mặc định cho cả danh mục (vd: danh mục "Đồ uống" → bar).
+- `catalog_products.stationId` — override cho từng món (vd: "Trà đá" luôn ra bar dù nằm trong danh mục khác).
+- **Snapshot vào order line** ngay lúc `LINE_ADDED`: `line.stationId`, cùng cách xử lý với `unitPriceSnapshot`. Nếu chỉ resolve tại thời điểm in thì việc sửa station của món về sau sẽ làm sai lệch ticket đã in — snapshot là bắt buộc để giữ tính append-only của event log (§4.3).
+- **Thứ tự resolve:** `product.stationId` → `category.stationId` → station `default` của branch.
+- KDS `/kds?station=bar` chỉ hiển thị ticket có **ít nhất 1 line** thuộc station đó; bump/recall thao tác **theo từng line**, không bump cả bill — vì một bill có thể vừa có món bếp vừa có món bar, và bếp xong trước quầy nước là chuyện thường.
+- `PrinterAdapter` và KDS **chia sẻ cùng một mô hình station** — một nguồn sự thật, hai consumer.
+
+### 13.2 Ảnh sản phẩm — chiến lược lưu trữ & sync
+
+**Vấn đề.** `image` là một dataType hợp lệ (§4.1) và M2 có nhắc "ảnh", nhưng spec không nói ảnh **lưu ở đâu** và **sync thế nào**. PouchDB replicate attachment theo document, nên nếu nhét ảnh trực tiếp vào `catalog_products` thì mỗi tablet phải tải toàn bộ ảnh menu về IndexedDB. Với menu 150 món × ảnh 200KB ≈ 30MB thì tạm được, nhưng ảnh gốc 2–5MB/ảnh sẽ vỡ quota WebView2 và làm chậm sync lần đầu.
+
+**Thiết kế — hai tầng.**
+
+| Loại | Lưu ở đâu | Có replicate? |
+|------|-----------|---------------|
+| **Thumbnail** (≤ 200KB, đã resize ngay trên client) | PouchDB attachment trên doc `product_image` | ✅ có — PouchDB **dedupe theo digest**, ảnh dùng chung giữa nhiều doc chỉ lưu một bản |
+| **Ảnh gốc / file lớn** (> 200KB) | File trên hub (thư mục static của PouchDB-server, hoặc route `/media/:digest`) | ❌ không — terminal tải lazy qua HTTP khi thực sự cần |
+
+- Doc ảnh tách riêng khỏi `catalog_products`, để **filtered replication** có thể bỏ qua collection ảnh trên các terminal chỉ chạy KDS.
+- `catalog_products.imageRef` lưu **digest**; URL resolve = `hubUrl + "/media/" + digest`.
+- Client **bắt buộc resize + nén trước khi lưu** (canvas / `createImageBitmap`), giới hạn kích thước cấu hình được theo branch.
+- Ngoài phạm vi v1: CDN, image-transform server-side, nhiều phiên bản ảnh theo kích thước.
+
+### 13.3 Event log — partition & compaction
+
+**Vấn đề.** §4.3 lưu **một doc cho một event**. Quán phở trung bình ~200 bill/ngày × ~8 event ≈ 1.600 event/ngày ≈ 580k doc/năm cho **mỗi** terminal. `_changes` feed và payload replication phình theo cấp số đó. Risk #2 chỉ ghi "compaction định kỳ" mà chưa có thiết kế cụ thể — và đây là loại chi phí retrofit đắt (cùng họ với Risk #17), nên phải chốt từ M0/M3 thay vì phát hiện ở tuần 15.
+
+**Thiết kế.**
+
+1. **Partition theo session.** Gom toàn bộ event của một `table_session` vào **một** doc `session_events:{sessionId}`, với mảng `events[]`; mỗi phần tử vẫn giữ `eventId` UUID riêng.
+   - Merge = **union theo `eventId`**, giữ nguyên tính conflict-free của event sourcing (không có conflict thật để giải quyết — §4.3 vẫn đúng).
+   - Một doc/session thay vì ~8 doc/session → **giảm ~8× số doc**, `_changes` và replication nhẹ hơn tương ứng.
+2. **Compaction khi session đóng.** Khi `session.status = closed` **và** bill đã `paid` **và** hub đã ack → thay `events[]` bằng `snapshot` (state cuối cùng), đồng thời giữ event thô trong **cửa sổ audit N ngày** (mặc định 30).
+   - Hết cửa sổ: event thô bị xoá khỏi terminal; **hub giữ bản đầy đủ** để phục vụ audit/report (hoặc cloud sau này).
+3. **Ràng buộc.** `bills` vẫn là **materialized view** dựng lại được từ `session_events` — replay vẫn deterministic, đây là điều kiện để compaction an toàn.
+4. `audit_log` và `inventory_movements` áp dụng cùng chiến lược, partition theo **ca (shift)** và theo **ngày**.
+
+### 13.4 Combo có lựa chọn (set menu)
+
+**Vấn đề.** §2 R2 định nghĩa combo là "nhóm nhiều item con, có giá riêng" nhưng không có mô hình cho **chọn 1 trong N** — vd "Cơm phần + chọn 1 trong 3 món chính + chọn 1 trong 4 loại nước". Thiếu mô hình này thì không làm được set menu thực tế.
+
+**Thiết kế.**
+
+```jsonc
+// catalog_combos
+{
+  "_id": "combo:com-trua",
+  "name": { "vi": "Cơm trưa" },
+  "basePrice": 55000,
+  "comboGroups": [
+    {
+      "key": "main",
+      "label": { "vi": "Món chính" },
+      "minSelect": 1,
+      "maxSelect": 1,
+      "options": [
+        { "optionId": "opt:pho", "productId": "product:pho-bo", "priceDelta": 0 },
+        { "optionId": "opt:com", "productId": "product:com-ga", "priceDelta": 5000 }
+      ]
+    },
+    {
+      "key": "drink",
+      "label": { "vi": "Nước" },
+      "minSelect": 1,
+      "maxSelect": 1,
+      "options": [
+        { "optionId": "opt:tra", "productId": "product:tra-da", "priceDelta": 0 }
+      ]
+    }
+  ]
+}
+```
+
+- **Bill line** giữ `comboSelections: [{ groupKey, optionIds[] }]` cùng `comboPriceDelta`.
+- Giá line = `combo.basePrice + Σ priceDelta`.
+- **Materialize thành child lines** (`parentLineId`) ngay khi gửi bếp/bar, để KDS và việc trừ kho hoạt động đúng cho **từng món con**. Kết hợp §13.1: món chính ra bếp, nước ra bar — cùng một combo, hai station khác nhau.
+- Validation `minSelect ≤ |optionIds| ≤ maxSelect` enforce ở **cả** client **lẫn** axum server (Risk #13).
+
+### 13.5 Thuế / VAT trên bill
+
+**Vấn đề.** Bill (§4.6) có `discounts`, `surcharges`, `total` nhưng **không có tax**. Chữ "thuế" chỉ xuất hiện ở danh sách thuộc tính thuộc global catalog (§4.7). Cần phân biệt rõ: §11 #4 defer **e-invoice** (tích hợp hoá đơn điện tử với cơ quan thuế), không phải việc **thu** VAT. Đa số quán VN niêm yết giá đã gồm VAT, nhưng báo cáo doanh thu vẫn cần tách phần VAT ra.
+
+**Thiết kế.**
+
+```jsonc
+// meta_settings.tax_rates — global hoặc theo branch
+[ { "rateId": "vat10", "label": { "vi": "VAT 10%" }, "rate": 10 } ]
+
+// bill
+{
+  "taxMode": "inclusive",  // inclusive: giá đã gồm | exclusive: cộng thêm
+  "taxLines": [ { "rateId": "vat10", "base": 130000, "amount": 11818 } ]
+}
+```
+
+- `catalog_products.taxRateId` — mặc định theo danh mục.
+- `inclusive`: `amount = round(total − total/(1+rate/100))`. **Không** đổi `total` khách phải trả; chỉ tách ra để báo cáo.
+- `exclusive`: `total = subtotal + tax`.
+- Mặc định `inclusive` → không thay đổi trải nghiệm bán hàng hiện có; bật `exclusive` theo branch khi cần.
+- Rounding dùng largest-remainder như money math hiện có (Risk #7).
+
+### 13.6 Điểm cần xác nhận thêm
+
+| # | Điểm mở | Đề xuất |
+|---|---------|---------|
+| A | **Time-based pricing (giờ vàng / happy hour).** `price_lists` có trong schema nhưng chưa có mô hình khung giờ. | Thêm `price_list.windows: [{ days, from, to }]`; bước resolve chèn giữa override và `basePrice`. Cần xác nhận làm ở v1 hay đẩy sang M6c. |
+| B | **Bàn giao ca giữa waiter (handover).** `table_assignments` có nhưng chưa có luồng chuyển bàn giữa nhân viên. | Thêm event `TABLE_HANDOVER`; giữ lịch sử phục vụ để tính tip / doanh số theo waiter. |
+| C | **Giới hạn dung lượng local.** IndexedDB / WebView2 quota chưa được đo. | Đo dung lượng thật ngay ở M0 acceptance; cảnh báo khi vượt 70%. |
 
 ---
 
