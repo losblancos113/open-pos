@@ -1,5 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { money, add, sub, mulInt, mulRational, isZero, isNegative, format } from '../money';
+import {
+  money,
+  add,
+  sub,
+  mulInt,
+  mulRational,
+  minorUnitsPerMajor,
+  isZero,
+  isNegative,
+  format,
+} from '../money';
+
+describe('minorUnitsPerMajor', () => {
+  it('reports how many minor units make one major unit', () => {
+    expect(minorUnitsPerMajor('VND')).toBe(1);
+    expect(minorUnitsPerMajor('USD')).toBe(100);
+  });
+});
 
 describe('money()', () => {
   it('creates a money value from integer minor units', () => {

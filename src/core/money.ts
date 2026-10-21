@@ -2,6 +2,16 @@ export type CurrencyCode = 'VND' | 'USD';
 
 const EXPONENTS: Record<CurrencyCode, number> = { VND: 0, USD: 2 };
 
+/**
+ * Số đơn vị nhỏ (minor unit) trong một đơn vị lớn: VND → 1, USD → 100.
+ *
+ * Cần cho formula: một literal như `100` trong `price >= 100` là 100 **đơn vị lớn**,
+ * còn `Money.minor` là đơn vị nhỏ. Không có hàm này thì hai bên không so sánh được.
+ */
+export function minorUnitsPerMajor(currency: CurrencyCode): number {
+  return 10 ** EXPONENTS[currency];
+}
+
 export interface Money {
   readonly minor: number;
   readonly currency: CurrencyCode;
