@@ -42,6 +42,22 @@ describe('allocate()', () => {
     expect(parts.map((p) => p.minor)).toEqual([-33_334, -33_333, -33_333]);
     expect(parts.reduce((acc, p) => acc + p.minor, 0)).toBe(-100_000);
   });
+
+  it('throws instead of silently breaking the sum invariant at extreme magnitudes', () => {
+    // 9_007_199_254_740_989 * 100 exceeds Number.MAX_SAFE_INTEGER, so the product
+    // rounds, Math.floor overshoots, `leftover` goes negative and the correction
+    // loop is skipped — the parts would not sum back to the total.
+    const huge = money(9_007_199_254_740_989, 'VND');
+    expect(() => allocate(huge, [100, 100, 100])).toThrow(/safe integer range/i);
+  });
+
+  it('still splits correctly just below the safe-integer product bound', () => {
+    // Largest total a weight of 100 can carry exactly: MAX_SAFE_INTEGER / 100.
+    const bound = Math.floor(Number.MAX_SAFE_INTEGER / 100);
+    const parts = allocate(money(bound, 'VND'), [1, 1, 1]);
+    expect(parts.reduce((acc, p) => acc + p.minor, 0)).toBe(bound);
+    expect(parts).toHaveLength(3);
+  });
 });
 
 describe('allocateEqual()', () => {

@@ -5,6 +5,9 @@ import { type Money, money } from './money';
  * Phần dư được phân bổ theo phương pháp largest-remainder, phá vỡ thế bằng
  * chỉ số (index) tăng dần — nên kết quả luôn tất định (deterministic).
  * Bất biến: tổng các phần luôn bằng đúng `total`.
+ *
+ * Giới hạn: `total * weight` phải nằm trong phạm vi safe integer. Vượt qua đó
+ * hàm ném lỗi thay vì trả về kết quả sai — xem chú thích trong thân hàm.
  */
 export function allocate(total: Money, weights: number[]): Money[] {
   if (weights.length === 0) return [];
@@ -22,6 +25,21 @@ export function allocate(total: Money, weights: number[]): Money[] {
 
   const sign = total.minor < 0 ? -1 : 1;
   const absTotal = Math.abs(total.minor);
+
+  // `absTotal * w` must stay inside the safe-integer range. Past it the product
+  // rounds, `Math.floor` can overshoot, `leftover` turns negative, and the
+  // correction loop below is skipped — which silently breaks the invariant this
+  // function exists to guarantee. Fail loudly instead of returning wrong money.
+  if (absTotal > 0) {
+    for (const w of weights) {
+      if (w > Number.MAX_SAFE_INTEGER / absTotal) {
+        throw new Error(
+          `allocate(): total * weight exceeds the safe integer range ` +
+            `(total=${total.minor}, weight=${w})`,
+        );
+      }
+    }
+  }
 
   const base = weights.map((w) => Math.floor((absTotal * w) / totalWeight));
   const remainders = weights.map((w, i) => ({ i, frac: (absTotal * w) % totalWeight }));
