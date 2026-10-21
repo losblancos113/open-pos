@@ -567,6 +567,7 @@ Mỗi collection = 1 PouchDB database riêng (ánh xạ 1-1 với PouchDB-server
 
 **Event types:**
 `SESSION_OPENED`, `SESSION_CLOSED`, `TABLE_JOINED`, `TABLE_TRANSFERRED`,
+`TABLE_HANDOVER`, `TABLE_ASSIGNED`, `TABLE_RELEASED`,
 `LINE_ADDED`, `LINE_VOIDED`, `LINE_MOVED`, `LINE_QTY_CHANGED`,
 `DISCOUNT_APPLIED`, `SURCHARGE_APPLIED`,
 `BILL_SPLIT`, `BILL_MERGED`, `BILL_CLOSED`,
@@ -1171,11 +1172,15 @@ Sau đó thứ tự phụ thuộc vào **nhu cầu kinh doanh thực tế**, kh�
 
 ### 13.6 Điểm cần xác nhận thêm
 
-| # | Điểm mở | Đề xuất |
-|---|---------|---------|
-| A | **Time-based pricing (giờ vàng / happy hour).** `price_lists` có trong schema nhưng chưa có mô hình khung giờ. | Thêm `price_list.windows: [{ days, from, to }]`; bước resolve chèn giữa override và `basePrice`. Cần xác nhận làm ở v1 hay đẩy sang M6c. |
-| B | **Bàn giao ca giữa waiter (handover).** `table_assignments` có nhưng chưa có luồng chuyển bàn giữa nhân viên. | Thêm event `TABLE_HANDOVER`; giữ lịch sử phục vụ để tính tip / doanh số theo waiter. |
-| C | **Giới hạn dung lượng local.** IndexedDB / WebView2 quota chưa được đo. | Đo dung lượng thật ngay ở M0 acceptance; cảnh báo khi vượt 70%. |
+| # | Điểm mở | Trạng thái / Đề xuất |
+|---|---------|----------------------|
+| A | **Time-based pricing (giờ vàng / happy hour).** `price_lists` có trong schema nhưng chưa có mô hình khung giờ. | **MỞ — cần quyết định.** Đề xuất: thêm `price_list.windows: [{ days, from, to }]`, bước resolve chèn giữa override và `basePrice`. Chọn làm ở v1 (thêm ~1 ngày) hay đẩy sang M6c? Mặc định nếu không có ý kiến: **đẩy sang M6c** để giữ v1 nhỏ. |
+| B | **Bàn giao ca giữa waiter (handover).** | ✅ **ĐÃ CHỐT.** Event `TABLE_HANDOVER` (kèm `TABLE_ASSIGNED` / `TABLE_RELEASED`) đã thêm vào event types ở §4.3. Lịch sử phục vụ suy ra được từ chuỗi event → tính tip/doanh số theo waiter bằng replay, không cần bảng phụ. |
+| C | **Giới hạn dung lượng local.** IndexedDB / WebView2 quota chưa được đo. | ✅ **ĐÃ CHỐT.** Không phải vấn đề thiết kế mà là **tiêu chí nghiệm thu**: đo dung lượng thật ở M0 acceptance, cảnh báo khi vượt 70%. Đưa vào checklist của plan (Task 11). |
+
+### 13.7 Trạng thái tài liệu
+
+v0.4 — các quyết định ở §13.1–13.5 đã chốt; §13.6 còn đúng một điểm mở (A). Sau khi A được quyết, spec này là baseline để viết implementation plan.
 
 ---
 
