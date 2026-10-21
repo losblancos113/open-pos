@@ -1047,7 +1047,7 @@ Sau đó thứ tự phụ thuộc vào **nhu cầu kinh doanh thực tế**, kh�
 
 ---
 
-## 13. Bổ sung thiết kế sau brainstorm (v0.4 — chờ review)
+## 13. Bổ sung thiết kế sau brainstorm (v0.5 — đã chốt)
 
 > Mục này tập hợp các lỗ hổng thiết kế phát hiện khi rà soát lại spec theo tình huống vận hành thực tế của quán phở / cơm / cafe có **bếp và quầy nước tách biệt**. Sau khi approve, nội dung sẽ được hợp nhất vào §4 / §5 / §7 tương ứng (không tạo thêm nguồn sự thật mới).
 
@@ -1174,13 +1174,13 @@ Sau đó thứ tự phụ thuộc vào **nhu cầu kinh doanh thực tế**, kh�
 
 | # | Điểm mở | Trạng thái / Đề xuất |
 |---|---------|----------------------|
-| A | **Time-based pricing (giờ vàng / happy hour).** `price_lists` có trong schema nhưng chưa có mô hình khung giờ. | **MỞ — cần quyết định.** Đề xuất: thêm `price_list.windows: [{ days, from, to }]`, bước resolve chèn giữa override và `basePrice`. Chọn làm ở v1 (thêm ~1 ngày) hay đẩy sang M6c? Mặc định nếu không có ý kiến: **đẩy sang M6c** để giữ v1 nhỏ. |
+| A | **Time-based pricing (giờ vàng / happy hour).** `price_lists` có trong schema nhưng chưa có mô hình khung giờ. | ✅ **ĐÃ CHỐT — đẩy sang M6c** để giữ v1 nhỏ. Khi làm: thêm `price_list.windows: [{ days, from, to }]`, bước resolve chèn giữa override và `basePrice`. |
 | B | **Bàn giao ca giữa waiter (handover).** | ✅ **ĐÃ CHỐT.** Event `TABLE_HANDOVER` (kèm `TABLE_ASSIGNED` / `TABLE_RELEASED`) đã thêm vào event types ở §4.3. Lịch sử phục vụ suy ra được từ chuỗi event → tính tip/doanh số theo waiter bằng replay, không cần bảng phụ. |
 | C | **Giới hạn dung lượng local.** IndexedDB / WebView2 quota chưa được đo. | ✅ **ĐÃ CHỐT.** Không phải vấn đề thiết kế mà là **tiêu chí nghiệm thu**: đo dung lượng thật ở M0 acceptance, cảnh báo khi vượt 70%. Đưa vào checklist của plan (Task 11). |
 
 ### 13.7 Trạng thái tài liệu
 
-v0.4 — các quyết định ở §13.1–13.5 đã chốt; §13.6 còn đúng một điểm mở (A). Sau khi A được quyết, spec này là baseline để viết implementation plan.
+v0.5 — toàn bộ §13.1–13.5 và §13.6 (A/B/C) đã chốt. Đây là baseline để viết implementation plan.
 
 ---
 
