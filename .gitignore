@@ -9,4 +9,5 @@ sidecar/node_modules/
 *.log
 coverage/
 .hub-data/
+.worktrees/
 .superpowers/
