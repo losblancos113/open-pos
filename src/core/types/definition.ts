@@ -1,6 +1,7 @@
 import type { DocEnvelope } from '../db/envelope';
 import { createEnvelope } from '../db/envelope';
 import { typeDocId } from '../db/ids';
+import type { TypeMigration } from './migration';
 
 /** Kiểu dữ liệu field được hỗ trợ ở v1 — spec §R1. */
 export const DATA_TYPES = [
@@ -64,7 +65,14 @@ export interface TypeDefinition {
 }
 
 /** Document thật trong collection `meta_types`. */
-export type TypeDefinitionDoc = DocEnvelope<'meta_type'> & TypeDefinition;
+export type TypeDefinitionDoc = DocEnvelope<'meta_type'> &
+  TypeDefinition & {
+    /**
+     * Lịch sử migration của type này — mỗi bậc version là một phần tử.
+     * Bậc thiếu transform vẫn phải tồn tại để chuỗi migration không khuyết.
+     */
+    readonly migrations: readonly TypeMigration[];
+  };
 
 /** Field hệ thống của envelope — field tuỳ chỉnh không được trùng tên. */
 export const SYSTEM_FIELD_KEYS = [
@@ -78,6 +86,8 @@ export interface CreateTypeDefinitionInput {
   readonly baseType: string | null;
   readonly name: LocalizedText;
   readonly branchId: string;
+  /** Cho phép bơm thời gian trong test; mặc định lấy giờ hệ thống. */
+  readonly now?: string;
 }
 
 export function createTypeDefinitionDoc(input: CreateTypeDefinitionInput): TypeDefinitionDoc {
@@ -95,6 +105,8 @@ export function createTypeDefinitionDoc(input: CreateTypeDefinitionInput): TypeD
       id: typeDocId(input.key),
       docType: 'meta_type',
       branchId: input.branchId,
+      // `exactOptionalPropertyTypes` không cho truyền `now: undefined` thẳng.
+      ...(input.now === undefined ? {} : { now: input.now }),
     }),
     key: input.key,
     kind: input.kind,
@@ -103,5 +115,6 @@ export function createTypeDefinitionDoc(input: CreateTypeDefinitionInput): TypeD
     version: 1,
     fields: [],
     listView: [],
+    migrations: [],
   };
 }
