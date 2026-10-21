@@ -1,4 +1,37 @@
+/**
+ * Design tokens cho Open POS.
+ * Tên biến phải khớp với `src/styles/tokens.ts` (test chống drift ở Task 6).
+ */
 :root {
-  --color-bg: #ffffff;
-  --color-fg: #111111;
+  /* Màu nền & chữ */
+  --color-bg: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-text: #1a1a1e;
+  --color-text-muted: #6b7280;
+
+  /* Màu thương hiệu & trạng thái */
+  --color-primary: #c2410c;
+  --color-primary-contrast: #ffffff;
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger: #b91c1c;
+
+  /* Khoảng cách */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  /* Bo góc */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Chữ */
+  --font-family-base: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-lg: 18px;
+  --font-size-xl: 24px;
 }
