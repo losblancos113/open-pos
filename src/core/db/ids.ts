@@ -19,3 +19,8 @@ export function productDocId(productId: string): string {
 export function productBranchOverrideId(productId: string, branchId: string): string {
   return `product_override:${requireSegment(branchId, 'branchId')}:${requireSegment(productId, 'productId')}`;
 }
+
+/** `_id` của một type definition trong collection `meta_types`. */
+export function typeDocId(typeKey: string): string {
+  return `type:${requireSegment(typeKey, 'typeKey')}`;
+}
