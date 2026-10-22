@@ -20,6 +20,26 @@ export function productBranchOverrideId(productId: string, branchId: string): st
   return `product_override:${requireSegment(branchId, 'branchId')}:${requireSegment(productId, 'productId')}`;
 }
 
+/** `_id` của một danh mục catalog (tầng global — dùng chung mọi chi nhánh). */
+export function categoryDocId(categoryId: string): string {
+  return `category:${requireSegment(categoryId, 'categoryId')}`;
+}
+
+/** `_id` của một nhóm modifier (topping) — tầng global. */
+export function modifierGroupDocId(groupId: string): string {
+  return `modifier_group:${requireSegment(groupId, 'groupId')}`;
+}
+
+/** `_id` của một combo / set menu — tầng global. */
+export function comboDocId(comboId: string): string {
+  return `combo:${requireSegment(comboId, 'comboId')}`;
+}
+
+/** `_id` của một bảng giá — thuộc một chi nhánh. */
+export function priceListDocId(priceListId: string): string {
+  return `price_list:${requireSegment(priceListId, 'priceListId')}`;
+}
+
 /** `_id` của một type definition trong collection `meta_types`. */
 export function typeDocId(typeKey: string): string {
   return `type:${requireSegment(typeKey, 'typeKey')}`;

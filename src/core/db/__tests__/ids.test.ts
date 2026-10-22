@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   branchDocId,
+  categoryDocId,
+  comboDocId,
+  modifierGroupDocId,
+  priceListDocId,
   productDocId,
   productBranchOverrideId,
   recordDocId,
@@ -32,6 +36,19 @@ describe('id conventions', () => {
 
   it('rejects a type key containing a colon', () => {
     expect(() => typeDocId('a:b')).toThrow(/must not contain ":"/);
+  });
+
+  it('builds catalog document ids', () => {
+    expect(categoryDocId('drinks')).toBe('category:drinks');
+    expect(modifierGroupDocId('topping')).toBe('modifier_group:topping');
+    expect(comboDocId('com-trua')).toBe('combo:com-trua');
+    expect(priceListDocId('happy-hour')).toBe('price_list:happy-hour');
+  });
+
+  it('rejects empty or colon-bearing catalog id segments', () => {
+    expect(() => categoryDocId('')).toThrow();
+    expect(() => categoryDocId('a:b')).toThrow();
+    expect(() => priceListDocId(' ')).toThrow();
   });
 });
 
