@@ -31,6 +31,31 @@ async function typeInto(wrapper: VueWrapper, index: number, value: string): Prom
   await nextTick();
 }
 
+/** Nút nằm trong một field row — sidebar cũng có nút nên phải khoanh vùng theo text. */
+async function clickInRow(wrapper: VueWrapper, rowKey: string, label: string): Promise<void> {
+  const row = wrapper.find(`[data-field-row="${rowKey}"]`);
+  const found = row.findAll('button').find((node) => node.text().includes(label));
+  if (found === undefined) throw new Error(`button not found in row ${rowKey}: ${label}`);
+  await found.trigger('click');
+  await nextTick();
+}
+
+/**
+ * Đổi `dataType` của một field. Vuetify0 `Select` là nút activator + popover listbox,
+ * không phải `<select>` thô — nên phải bấm activator rồi bấm item.
+ */
+async function setRowDataType(wrapper: VueWrapper, rowKey: string, dataType: string): Promise<void> {
+  const row = wrapper.find(`[data-field-row="${rowKey}"]`);
+  await row.find('[role="combobox"]').trigger('click');
+  await nextTick();
+  const item = row
+    .findAll('[role="option"]')
+    .find((node) => node.text().includes(t(`type.dataType.${dataType}`)));
+  if (item === undefined) throw new Error(`data type option not found: ${dataType}`);
+  await item.trigger('click');
+  await nextTick();
+}
+
 describe('TypeDesigner', () => {
   it('mounts on an empty registry and offers to create a type', async () => {
     const wrapper = await mountDesigner();
@@ -131,5 +156,96 @@ describe('TypeDesigner', () => {
     await nextTick();
 
     expect(button(wrapper, t('type.migration.run')).attributes('disabled')).toBeDefined();
+  });
+
+  it('shows the engine validation error under the offending field', async () => {
+    const wrapper = await mountDesigner();
+    await button(wrapper, t('type.designer.newType')).trigger('click');
+    await nextTick();
+
+    await typeInto(wrapper, 0, 'menu_item');
+    await typeInto(wrapper, 1, 'Món ăn');
+
+    await button(wrapper, t('type.field.add')).trigger('click');
+    await nextTick();
+    await wrapper.find('[data-field-row=""]').find('input').setValue('_id');
+    await nextTick();
+
+    // `_id` là khoá hệ thống giữ riêng — engine trả `reserved_key` tại path của field,
+    // và lỗi phải hiện ngay dưới field đó chứ không phải ở đâu khác.
+    const row = wrapper.find('[data-field-row="_id"]');
+    expect(row.text()).toContain(t('type.error.reservedKey'));
+
+    // Còn lỗi thì không lưu được.
+    expect(button(wrapper, t('type.form.save')).attributes('disabled')).toBeDefined();
+  });
+
+  it('adds options to a select field and persists them', async () => {
+    const wrapper = await mountDesigner();
+    await button(wrapper, t('type.designer.newType')).trigger('click');
+    await nextTick();
+
+    await typeInto(wrapper, 0, 'menu_item');
+    await typeInto(wrapper, 1, 'Món ăn');
+
+    await button(wrapper, t('type.field.add')).trigger('click');
+    await nextTick();
+    await wrapper.find('[data-field-row=""]').find('input').setValue('spicy');
+    await nextTick();
+
+    await setRowDataType(wrapper, 'spicy', 'select');
+
+    // Chọn một mà chưa khai option nào → engine báo lỗi và chặn lưu.
+    expect(wrapper.find('[data-field-row="spicy"]').text()).toContain(t('type.error.missingOptions'));
+    expect(button(wrapper, t('type.form.save')).attributes('disabled')).toBeDefined();
+
+    await clickInRow(wrapper, 'spicy', t('type.field.addOption'));
+    const option = wrapper.find('[data-field-row="spicy"]').find('.type-designer__option');
+    expect(option.exists()).toBe(true);
+    const optionInputs = option.findAll('input');
+    await optionInputs[0]?.setValue('hot');
+    await nextTick();
+    await optionInputs[1]?.setValue('Cay');
+    await nextTick();
+
+    expect(wrapper.find('[data-field-row="spicy"]').text()).not.toContain(t('type.error.missingOptions'));
+    expect(button(wrapper, t('type.form.save')).attributes('disabled')).toBeUndefined();
+
+    await button(wrapper, t('type.form.save')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    await nextTick();
+
+    // Đọc lại từ registry: option vừa khai phải còn nguyên cả value lẫn nhãn.
+    const saved = wrapper.find('[data-field-row="spicy"]');
+    expect(saved.exists()).toBe(true);
+    const savedOption = saved.find('.type-designer__option');
+    expect(savedOption.findAll('input')[0]?.element.value).toBe('hot');
+    expect(savedOption.findAll('input')[1]?.element.value).toBe('Cay');
+  });
+
+  it('removes an option from a select field', async () => {
+    const wrapper = await mountDesigner();
+    await button(wrapper, t('type.designer.newType')).trigger('click');
+    await nextTick();
+
+    await typeInto(wrapper, 0, 'menu_item');
+    await typeInto(wrapper, 1, 'Món ăn');
+
+    await button(wrapper, t('type.field.add')).trigger('click');
+    await nextTick();
+    await wrapper.find('[data-field-row=""]').find('input').setValue('spicy');
+    await nextTick();
+    await setRowDataType(wrapper, 'spicy', 'select');
+
+    await clickInRow(wrapper, 'spicy', t('type.field.addOption'));
+    await clickInRow(wrapper, 'spicy', t('type.field.addOption'));
+    const row = wrapper.find('[data-field-row="spicy"]');
+    expect(row.findAll('.type-designer__option').length).toBe(2);
+
+    await row.findAll('.type-designer__option')[1]?.findAll('button')[0]?.trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-field-row="spicy"]').findAll('.type-designer__option').length).toBe(1);
   });
 });
