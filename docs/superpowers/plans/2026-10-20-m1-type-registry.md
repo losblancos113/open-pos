@@ -2945,41 +2945,44 @@ Không phát hiện lệch tên. **Một lệch đã biết:** `TypeMigration` �
 - M0 đã xong và đã commit.
 - **PouchDB adapter đã xong** — `src/core/db/pouch-adapter.ts` (commit `6e42a0f`), dùng chung bộ test hợp đồng `src/core/db/__tests__/adapter-contract.ts` với memory adapter. Cả 4 gate xanh; **89 test pass**.
 - Vuetify0 đã được ghi thành invariant: `CLAUDE.md` #8 và `AGENTS.md` §4.8 (commit `cb41011`).
-- `happy-dom` **chưa** cài (Task 14 cài). `@vuetify/v0` **chưa** cài.
+- ~~`happy-dom` **chưa** cài (Task 14 cài). `@vuetify/v0` **chưa** cài.~~ → đã cài đủ `@vuetify/v0`, `@floating-ui/dom`, `happy-dom`, `@vue/test-utils` (commit `a825ab2`).
 
 ---
 
-### ⚠️ Plan này CHƯA cập nhật theo Vuetify0
+### ✅ Task 13–17 đã viết lại theo Vuetify0 (2026-10-22)
 
-Invariant #8 yêu cầu **mọi UI dùng `@vuetify/v0`**. Các task UI dưới đây (13–16) được viết **trước** khi invariant đó tồn tại, nên chúng giả định dùng HTML thô (`<input>`, `<select>`, `<tr>`) — và như vậy là **vi phạm #8**.
+Ghi chú dưới đây viết **trước** khi rewrite; nay đã xử lý xong. Task 13–16 dùng
+`@vuetify/v0` (`Input`, `NumberField`, `Checkbox`, `Select`, `Progress`, `Button`), và
+`@floating-ui/dom` đã được cài cho các control của `Select`.
 
-| Nhóm task | Trạng thái | Việc cần làm |
-|---|---|---|
-| **Task 1–12** (engine TypeScript thuần: money, model, field registry, validation, formula, migration, registry engine, read model, repository) | ✅ **Không bị ảnh hưởng — thực thi được ngay** | Không cần sửa gì |
-| **Task 13–17** (i18n UI, widget, form renderer, list renderer, Type Designer) | ❌ **Phải viết lại trước khi thực thi** | Chuyển sang component Vuetify0 (bảng dưới) |
+**Ba điểm khác so với bảng ánh xạ ngay dưới:**
 
-**Ánh xạ widget cần dùng khi viết lại Task 14–16:**
+- `textarea` → `Input.Control as="textarea"` (phương án AGENTS.md §4.8 cho phép), không phải primitive `createInput` như D7 dự kiến.
+- `select` → `Select.Root` của Vuetify0 kèm `@floating-ui/dom` (D6 chốt phương án Vuetify0).
+- `reference`/`image` giữ ô nhập text ở v1; `color` dùng `<input type="color">` bọc trong `Input.Root` (ngoại lệ đã ghi trong 4.8).
+
+Bảng ánh xạ giữ lại để tham chiếu:
 
 | `dataType` | Component Vuetify0 |
 |---|---|
 | `text` | `Input.Root` + `Input.Control` |
-| `textarea` | ⚠️ Vuetify0 **không có** Textarea — tự viết primitive bằng `createInput`, hoặc bọc `<textarea>` native trong `Input.Root`/`Input.Description`/`Input.Error` |
+| `textarea` | ⚠️ Vuetify0 **không có** Textarea → đã dùng `Input.Control as="textarea"` (xem ba điểm khác ở trên) |
 | `number`, `decimal`, `money` | `NumberField.Root` (+ `.Control`, `.Increment`, `.Decrement`, `.Scrub`, `.Error`). Có sẵn `min`/`max`/`step`/`locale`/`format` |
 | `boolean` | `Checkbox.Root` / `Switch.Root` |
 | `date`, `datetime` | ⚠️ Không có DatePicker — dùng `<input type="date">` / `datetime-local` qua `Input.Root type="..."` |
-| `select` | `Select.Root` — **hoặc** `<select>` native, xem câu hỏi treo bên dưới |
+| `select` | `Select.Root` + `@floating-ui/dom` (đã chốt; không dùng `<select>` native) |
 | `multiselect` | `Checkbox.Root` theo nhóm, hoặc `Select.Root` multiple |
 | `reference` | `Combobox.Root` (tìm kiếm được) |
 | `image` | ⚠️ Không có upload — giữ ô nhập URL/data-URL ở v1 |
 | `color` | ⚠️ Không có ColorPicker — `<input type="color">` native |
 | `formula` | Text readonly (không phải control) |
 | danh sách | `DataTable` / `DataGrid` thay cho `<table>` tự viết |
-| form | `Form` + `createForm`/`useForm` |
+| form | `<form>` trần + widget Vuetify0 bên trong; nút lưu là `Button.Root` gọi `requestSubmit()` (Vuetify0 hardcode `type="button"`, và 4.8 cấm `<button>` trần) |
 | hộp thoại xác nhận | `Dialog` / `AlertDialog` |
 | tiến độ migration | `Progress` |
 | nút | `Button.Root` (+ `.Content`, `.Icon`, `.Loading`) |
 
-**Bốn hệ quả kiến trúc quan trọng — đọc trước khi viết lại:**
+**Bốn hệ quả kiến trúc (đã áp dụng khi viết lại):**
 
 1. **Validation là của Vuetify0, không phải của plan.** Plan (Task 3, 4, 11, 12, 15) tự viết một validation engine song song. Vuetify0 đã có `createForm`, `createValidation`, `useRules`, và nhận cả **Standard Schema** (Zod ≥3.24, Valibot, ArkType). → Field validation phải chuyển thành `FormValidationRule`/`RuleAlias` truyền vào `Input.Root :rules`. **Nhưng** domain validation (reserved key, formula cycle, duplicate key, giới hạn index) **không phải** input validation — nó vẫn thuộc `core/` và giữ nguyên. Ranh giới này phải rõ, nếu không sẽ thành hai engine đá nhau.
 2. **Không được dùng theme/palettes của Vuetify0.** `useTheme`, `createTheme`, `./palettes/*` sẽ trùng `tokens.ts` và vi phạm invariant #7. Chỉ dùng plugin factory cho **locale** và **rules**.
@@ -2988,17 +2991,14 @@ Invariant #8 yêu cầu **mọi UI dùng `@vuetify/v0`**. Các task UI dưới �
 
 ---
 
-### ⚠️ MCP: `vuetify-mcp` chưa dùng được trong session cũ
+### ✅ MCP: `vuetify-mcp` đã dùng được (2026-10-22)
 
-Cấu hình **đúng** — không sửa gì thêm:
+Config canonical (`type: "http"`) hoạt động ở session mới: `mcp__vuetify-mcp__*` có trong
+toolset và đã được dùng để tra chéo API Vuetify0 khi viết lại Task 13–16. `.mcp.json` đã
+được commit để cả team dùng chung (commit `2ba697b`).
 
-- `.zcode/config.json` (workspace scope) → `mcp.servers["vuetify-mcp"]`, `type: "http"`, `url: "https://mcp.vuetifyjs.com/mcp"`.
-- JSON hợp lệ; URL reachable (`HTTP 405` khi GET — **đúng**, vì endpoint MCP chỉ nhận POST/JSON-RPC).
-- Đã sửa `type` từ dạng cũ `"remote"` sang canonical `"http"`.
-
-**Nguyên nhân tools không xuất hiện:** config được ghi **sau** khi session khởi động (mtime 20:46–20:58). MCP chỉ kết nối ở đầu session. → **Mở session mới** là đủ; sau đó xác nhận `mcp__vuetify-mcp__*` có trong toolset, hoặc xem **Settings → MCP**.
-
-**Chưa xác minh được gì (nói thẳng):** mới chỉ đọc *type definitions* từ tarball `@vuetify/v0@1.3.0` trên npm — tức là API surface. **Chưa** xác minh hành vi runtime, chưa cài package, chưa render thử component nào. Khi MCP sống, nên tra chéo lại trước khi viết task.
+API surface đã được xác minh ở runtime, không còn ở mức đọc type definition: component
+render thật trong app (`npm run dev`) và trong unit test (`happy-dom`).
 
 ---
 
@@ -3009,15 +3009,10 @@ Cấu hình **đúng** — không sửa gì thêm:
 
 ---
 
-**Câu hỏi đang treo — chặn việc viết lại Task 14:**
+**Câu hỏi treo (đã chốt 2026-10-22):** dùng `Select` của Vuetify0 kèm `@floating-ui/dom`
+— theo invariant #8, đổi lại thêm một peer dependency. Không dùng `<select>` native.
 
-> **Dùng `Select`/`Combobox` của Vuetify0 (kéo theo `@floating-ui/dom`) hay `<select>` native cho các field select/multiselect?**
->
-> Khuyến nghị: **dùng của Vuetify0** — đó là điều invariant #8 ngụ ý, và cho a11y + keyboard nav đúng. Đánh đổi: thêm một peer dependency. Phương án còn lại giữ danh sách dependency nhỏ hơn cho M1.
->
-> Nếu chọn Vuetify0: thêm `@floating-ui/dom` vào `dependencies`. Nếu chọn native: ghi rõ ngoại lệ này vào `AGENTS.md` §4.8 để không ai tưởng là sót.
-
-**Quyết định cần xác nhận trước khi bắt đầu** — nếu sai thì phải sửa **trước** khi code, vì chúng ảnh hưởng schema hoặc tiền:
+**Quyết định đã chốt** — D1–D6, D9 khớp implementation; D7 và D8 đã đi khác và ghi rõ ở bảng dưới:
 
 | # | Quyết định | Ảnh hưởng |
 |---|---|---|
@@ -3027,8 +3022,8 @@ Cấu hình **đúng** — không sửa gì thêm:
 | D4 | Formula chỉ nhận number / money / boolean | Task 6, 7, 11 |
 | D5 | Chưa thêm `vue-router` ở M1 | Task 16 |
 | **D6** | Dùng `@vuetify/v0` + `@floating-ui/dom` cho control | Task 13–16 |
-| **D7** | `textarea` = primitive tự viết bằng `createInput` (không phải `<textarea>` trần) | Task 14 |
-| **D8** | Field validation → Vuetify0 rules; domain validation giữ ở `core/` | Task 3, 4, 11, 12, 15 |
+| **D7** | `textarea` = `Input.Control as="textarea"` — dự kiến ban đầu là primitive `createInput`, nhưng §4.8 cho phép lối bọc này nên chọn cách đơn giản hơn | Task 14 |
+| **D8** | Validate record vẫn ở `core/` (`validateRecord` → `buildFormModel` → `field.error`), UI chỉ render; **chưa** dùng `:rules` của Vuetify0. Đây là domain validation (record có đủ field bắt buộc theo type definition), không phải input validation — nên không vi phạm §4.8 | Task 3, 4, 11, 12, 15 |
 | **D9** | Không dùng theme/palettes của Vuetify0; giữ `tokens.ts` | Task 13–16 |
 
 **Thứ tự thực thi đề xuất (sau khi viết lại Task 13–16):**
@@ -3039,11 +3034,33 @@ Cấu hình **đúng** — không sửa gì thêm:
 
 Task 1–12 **không phụ thuộc Vuetify0** — có thể bắt đầu ngay trong lúc chờ chốt D6. Task 4 cần `parseFormula` của Task 6, nên chạy 5→6→7 trước rồi quay lại 4.
 
-**Git:** plan này **đã** được commit (`77fb74e`) — không cần commit lại. Chỉ commit phần viết lại Task 13–16 khi xong.
+**Git:** plan đã commit (`77fb74e`); phần viết lại Task 13–16 cũng đã lên (`a9e67a4`, `f0c2962`, `bde229e`, `d50f299` + các fix sau đó).
 
-**File cấu hình chưa track (cần quyết):** `.zcode/`, `.codex/`, `.vuetify/`, `.mcp.json` chưa được ignore. Nên thêm `.zcode/`, `.codex/`, `.vuetify/` vào `.gitignore`. `.mcp.json` để riêng — có thể muốn chia sẻ cho team.
+**File cấu hình (đã xử lý):** `.zcode/`, `.codex/`, `.vuetify/` đã vào `.gitignore` (`849b68f`); `.mcp.json` được commit để chia sẻ cho team (`2ba697b`).
 
-**Nhắc lại gate nghiệm thu:** trước khi báo xong bất kỳ task nào, chạy đủ bốn lệnh — `npm run test`, `npx vue-tsc --noEmit`, `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. CI chạy đúng bốn lệnh này, nên pass cục bộ mới là gate thật.
+---
 
-**Nhắc lại gate nghiệm thu:** trước khi báo xong bất kỳ task nào, chạy đủ bốn lệnh — `npm run test`, `npx vue-tsc --noEmit`, `cargo test --manifest-path src-tauri/Cargo.toml`, `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. CI chạy đúng bốn lệnh này, nên pass cục bộ mới là gate thật.
+### ✅ Trạng thái M1 (2026-10-22)
+
+Task 1–17 đã xong và đã commit. Gate bốn lệnh xanh trên cây hiện tại:
+
+- `npm run test` — **454 test pass** (27 file).
+- `npx vue-tsc --noEmit` — sạch.
+- `cargo test --manifest-path src-tauri/Cargo.toml` — 3 pass.
+- `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings` — sạch.
+
+**Task 17 Step 4 (kiểm tra bằng mắt) đã chạy** trên `http://localhost:5173` theo đúng kịch
+bản demo: tạo type `Supplier` (entity) → thêm `rating` (number) + `score`
+(formula `rating * 10`) → preview tính `score = 40`, field computed không nhập được →
+lưu record, record hiện trong list view → đổi key `rating` → `quality`: engine báo ngay
+"công thức trỏ tới field không tồn tại" và chặn Lưu (đúng thiết kế), sửa công thức, lưu
+v2, chạy migration → record cũ giữ giá trị theo field mới.
+
+Lần chạy by-eye này **phát hiện một lỗ hổng thật**: form record không có nút Lưu — test cũ
+chỉ gọi `form.trigger('submit')` nên che mất. Đã sửa kèm test ở commit `42448af`.
+
+**Nhắc lại gate nghiệm thu:** trước khi báo xong bất kỳ task nào, chạy đủ bốn lệnh —
+`npm run test`, `npx vue-tsc --noEmit`, `cargo test --manifest-path src-tauri/Cargo.toml`,
+`cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`. CI chạy
+đúng bốn lệnh này, nên pass cục bộ mới là gate thật.
 
