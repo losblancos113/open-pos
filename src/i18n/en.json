@@ -114,17 +114,28 @@
     "product": {
       "new": "New product",
       "empty": "No products yet",
+      "edit": "Edit product",
+      "search": "Search by name or barcode",
       "active": "On sale",
       "inactive": "Off sale",
       "unavailable": "Not sold at this branch",
       "uncategorised": "Uncategorised",
+      "nameRequired": "Product name must not be empty",
+      "remove": "Delete product",
+      "removeConfirm": "Delete product \"{name}\"? It will stop selling at every branch.",
       "danglingCategory": "Product points to a category that no longer exists"
+    },
+    "priceSource": {
+      "override": "Branch price",
+      "priceList": "Price list",
+      "base": "Base price"
     },
     "field": {
       "name": "Name",
       "nameEn": "English name",
       "category": "Category",
       "basePrice": "Price",
+      "priceInvalid": "Invalid price",
       "unit": "Unit",
       "barcode": "Barcode",
       "sku": "SKU",
@@ -136,6 +147,8 @@
     },
     "variant": {
       "add": "Add size",
+      "remove": "Remove size",
+      "empty": "No sizes yet",
       "id": "Size code",
       "delta": "Price difference"
     },

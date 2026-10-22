@@ -114,17 +114,28 @@
     "product": {
       "new": "Thêm món",
       "empty": "Chưa có món",
+      "edit": "Sửa món",
+      "search": "Tìm theo tên hoặc mã vạch",
       "active": "Đang bán",
       "inactive": "Ngừng bán",
       "unavailable": "Hết món tại chi nhánh này",
       "uncategorised": "Chưa phân loại",
+      "nameRequired": "Tên món không được để trống",
+      "remove": "Xoá món",
+      "removeConfirm": "Xoá món \"{name}\"? Món sẽ không còn bán ở mọi chi nhánh.",
       "danglingCategory": "Món trỏ tới danh mục không tồn tại"
+    },
+    "priceSource": {
+      "override": "Giá riêng",
+      "priceList": "Bảng giá",
+      "base": "Giá chung"
     },
     "field": {
       "name": "Tên",
       "nameEn": "Tên tiếng Anh",
       "category": "Danh mục",
       "basePrice": "Giá bán",
+      "priceInvalid": "Giá không hợp lệ",
       "unit": "Đơn vị",
       "barcode": "Mã vạch",
       "sku": "Mã hàng",
@@ -136,6 +147,8 @@
     },
     "variant": {
       "add": "Thêm kích cỡ",
+      "remove": "Xoá kích cỡ",
+      "empty": "Chưa có kích cỡ",
       "id": "Mã kích cỡ",
       "delta": "Chênh lệch giá"
     },
