@@ -16,7 +16,17 @@
       "title": "Trình tạo type",
       "newType": "Tạo type mới",
       "editType": "Sửa type",
-      "empty": "Chưa có type nào"
+      "empty": "Chưa có type nào",
+      "typeName": "Tên type",
+      "kind": "Loại type",
+      "baseType": "Type nền",
+      "fields": "Các field",
+      "record": "Bản ghi",
+      "versionWarning": "Đổi field sẽ tăng version và dữ liệu cũ sẽ được chuyển đổi."
+    },
+    "kind": {
+      "entity": "Thực thể",
+      "builtinExt": "Mở rộng type có sẵn"
     },
     "field": {
       "add": "Thêm field",
@@ -26,6 +36,8 @@
       "dataType": "Kiểu dữ liệu",
       "required": "Bắt buộc",
       "options": "Lựa chọn",
+      "addOption": "Thêm lựa chọn",
+      "removeOption": "Xoá lựa chọn",
       "formula": "Công thức",
       "scale": "Số thập phân",
       "referenceType": "Type được trỏ tới",
@@ -35,13 +47,19 @@
     "error": {
       "reservedKey": "Khoá này bị hệ thống giữ riêng",
       "duplicateKey": "Khoá bị trùng",
-      "formulaCycle": "Công thức tham chiếu vòng",
-      "unknownField": "Công thức trỏ tới field không tồn tại",
-      "tooManyIndexed": "Quá nhiều field đánh index",
+      "unknownDataType": "Kiểu dữ liệu không tồn tại",
       "missingOptions": "Field chọn cần ít nhất một lựa chọn",
-      "unknownListField": "Cột list view không phải field đã khai báo"
+      "duplicateOption": "Giá trị lựa chọn bị trùng",
+      "missingReferenceType": "Field tham chiếu cần chọn type được trỏ tới",
+      "tooManyIndexed": "Quá nhiều field đánh index",
+      "unknownListField": "Cột list view không phải field đã khai báo",
+      "unknownField": "Công thức trỏ tới field không tồn tại",
+      "formulaCycle": "Công thức tham chiếu vòng",
+      "formulaUnsupportedType": "Công thức chỉ dùng được với field số, tiền hoặc đúng/sai",
+      "formulaSyntax": "Công thức sai cú pháp"
     },
     "migration": {
+      "run": "Chạy chuyển đổi",
       "running": "Đang chuyển đổi dữ liệu…",
       "done": "Đã chuyển đổi xong"
     },

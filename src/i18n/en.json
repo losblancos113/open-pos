@@ -16,7 +16,17 @@
       "title": "Type Designer",
       "newType": "New type",
       "editType": "Edit type",
-      "empty": "No types yet"
+      "empty": "No types yet",
+      "typeName": "Type name",
+      "kind": "Type kind",
+      "baseType": "Base type",
+      "fields": "Fields",
+      "record": "Record",
+      "versionWarning": "Editing fields bumps the version and existing data will be migrated."
+    },
+    "kind": {
+      "entity": "Entity",
+      "builtinExt": "Extend a built-in type"
     },
     "field": {
       "add": "Add field",
@@ -26,6 +36,8 @@
       "dataType": "Data type",
       "required": "Required",
       "options": "Options",
+      "addOption": "Add option",
+      "removeOption": "Remove option",
       "formula": "Formula",
       "scale": "Decimal places",
       "referenceType": "Referenced type",
@@ -35,13 +47,19 @@
     "error": {
       "reservedKey": "This key is reserved by the system",
       "duplicateKey": "Duplicate key",
-      "formulaCycle": "Formula reference cycle",
-      "unknownField": "Formula references an unknown field",
-      "tooManyIndexed": "Too many indexed fields",
+      "unknownDataType": "Unknown data type",
       "missingOptions": "A select field needs at least one option",
-      "unknownListField": "List view column is not a declared field"
+      "duplicateOption": "Duplicate option value",
+      "missingReferenceType": "A reference field needs a referenced type",
+      "tooManyIndexed": "Too many indexed fields",
+      "unknownListField": "List view column is not a declared field",
+      "unknownField": "Formula references an unknown field",
+      "formulaCycle": "Formula reference cycle",
+      "formulaUnsupportedType": "Formula fields must reference number, money, or boolean fields",
+      "formulaSyntax": "Formula syntax error"
     },
     "migration": {
+      "run": "Run migration",
       "running": "Migrating data…",
       "done": "Migration complete"
     },
