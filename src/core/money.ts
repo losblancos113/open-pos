@@ -12,6 +12,16 @@ export function minorUnitsPerMajor(currency: CurrencyCode): number {
   return 10 ** EXPONENTS[currency];
 }
 
+/**
+ * Số chữ số thập phân của một đơn vị tiền tệ: VND → 0, USD → 2.
+ *
+ * Dùng cho việc chuyển đổi chuỗi ⇄ Money (`money-parse.ts`), nơi cần **số mũ** chứ
+ * không phải hệ số nhân — nhân/chia bằng `10 ** e` trên float là thứ phải tránh.
+ */
+export function currencyExponent(currency: CurrencyCode): number {
+  return EXPONENTS[currency];
+}
+
 export interface Money {
   readonly minor: number;
   readonly currency: CurrencyCode;
