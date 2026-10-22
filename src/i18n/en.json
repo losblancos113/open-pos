@@ -10,5 +10,67 @@
     "confirm": "Confirm",
     "loading": "Loading…",
     "error": "Something went wrong"
+  },
+  "type": {
+    "designer": {
+      "title": "Type Designer",
+      "newType": "New type",
+      "editType": "Edit type",
+      "empty": "No types yet"
+    },
+    "field": {
+      "add": "Add field",
+      "remove": "Remove field",
+      "key": "Key",
+      "label": "Label",
+      "dataType": "Data type",
+      "required": "Required",
+      "options": "Options",
+      "formula": "Formula",
+      "scale": "Decimal places",
+      "referenceType": "Referenced type",
+      "indexed": "Indexed",
+      "computed": "Computed"
+    },
+    "error": {
+      "reservedKey": "This key is reserved by the system",
+      "duplicateKey": "Duplicate key",
+      "formulaCycle": "Formula reference cycle",
+      "unknownField": "Formula references an unknown field",
+      "tooManyIndexed": "Too many indexed fields",
+      "missingOptions": "A select field needs at least one option",
+      "unknownListField": "List view column is not a declared field"
+    },
+    "migration": {
+      "running": "Migrating data…",
+      "done": "Migration complete"
+    },
+    "list": {
+      "empty": "No records"
+    },
+    "form": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "record": {
+      "required": "This field is required"
+    },
+    "dataType": {
+      "text": "Text",
+      "textarea": "Long text",
+      "number": "Integer",
+      "decimal": "Decimal",
+      "money": "Money",
+      "boolean": "Yes/No",
+      "date": "Date",
+      "datetime": "Date & time",
+      "select": "Select",
+      "multiselect": "Multi-select",
+      "reference": "Reference",
+      "image": "Image",
+      "color": "Color",
+      "formula": "Formula"
+    }
   }
 }

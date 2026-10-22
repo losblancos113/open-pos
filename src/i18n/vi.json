@@ -10,5 +10,67 @@
     "confirm": "Xác nhận",
     "loading": "Đang tải…",
     "error": "Đã xảy ra lỗi"
+  },
+  "type": {
+    "designer": {
+      "title": "Trình tạo type",
+      "newType": "Tạo type mới",
+      "editType": "Sửa type",
+      "empty": "Chưa có type nào"
+    },
+    "field": {
+      "add": "Thêm field",
+      "remove": "Xoá field",
+      "key": "Khoá",
+      "label": "Nhãn",
+      "dataType": "Kiểu dữ liệu",
+      "required": "Bắt buộc",
+      "options": "Lựa chọn",
+      "formula": "Công thức",
+      "scale": "Số thập phân",
+      "referenceType": "Type được trỏ tới",
+      "indexed": "Đánh index",
+      "computed": "Tự tính"
+    },
+    "error": {
+      "reservedKey": "Khoá này bị hệ thống giữ riêng",
+      "duplicateKey": "Khoá bị trùng",
+      "formulaCycle": "Công thức tham chiếu vòng",
+      "unknownField": "Công thức trỏ tới field không tồn tại",
+      "tooManyIndexed": "Quá nhiều field đánh index",
+      "missingOptions": "Field chọn cần ít nhất một lựa chọn",
+      "unknownListField": "Cột list view không phải field đã khai báo"
+    },
+    "migration": {
+      "running": "Đang chuyển đổi dữ liệu…",
+      "done": "Đã chuyển đổi xong"
+    },
+    "list": {
+      "empty": "Chưa có dữ liệu"
+    },
+    "form": {
+      "save": "Lưu",
+      "cancel": "Huỷ",
+      "delete": "Xoá"
+    },
+    "record": {
+      "required": "Trường này là bắt buộc"
+    },
+    "dataType": {
+      "text": "Văn bản",
+      "textarea": "Văn bản dài",
+      "number": "Số nguyên",
+      "decimal": "Số thập phân",
+      "money": "Tiền",
+      "boolean": "Đúng/Sai",
+      "date": "Ngày",
+      "datetime": "Ngày giờ",
+      "select": "Chọn một",
+      "multiselect": "Chọn nhiều",
+      "reference": "Tham chiếu",
+      "image": "Ảnh",
+      "color": "Màu",
+      "formula": "Công thức"
+    }
   }
 }
