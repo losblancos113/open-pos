@@ -8,6 +8,12 @@ import type { DocEnvelope } from './envelope';
 export interface AllDocsOptions {
   /** Chỉ trả về document thuộc chi nhánh này. Bỏ trống → trả về tất cả. */
   branchId?: string;
+  /**
+   * Trả thêm document của tầng global (`GLOBAL_BRANCH_ID`) — catalog dùng chung mọi
+   * chi nhánh (§4.7). Chỉ có nghĩa khi `branchId` được đặt; không có `branchId` thì
+   * vốn đã trả về tất cả nên cờ này không đổi kết quả.
+   */
+  includeGlobal?: boolean;
 }
 
 export interface DbAdapter {

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createEnvelope } from '../envelope';
 import type { DbAdapter } from '../adapter';
+import { GLOBAL_BRANCH_ID } from '../branch';
 
 /**
  * Hợp đồng hành vi mà MỌI `DbAdapter` phải thoả mãn.
@@ -65,6 +66,34 @@ export function describeAdapterContract(
 
       const hqDocs = await db.allDocs({ branchId: 'hq' });
       expect(hqDocs.map((d) => d._id).sort()).toEqual(['product:p001', 'product:p002']);
+    });
+
+    it('returns branch documents plus global documents when includeGlobal is set', async () => {
+      await db.put(createEnvelope({ id: 'product:p001', docType: 'product', branchId: 'hq' }));
+      await db.put(
+        createEnvelope({ id: 'product:shared', docType: 'product', branchId: GLOBAL_BRANCH_ID }),
+      );
+      await db.put(createEnvelope({ id: 'product:p003', docType: 'product', branchId: 'branch2' }));
+
+      const scoped = await db.allDocs({ branchId: 'hq', includeGlobal: true });
+      expect(scoped.map((d) => d._id).sort()).toEqual(['product:p001', 'product:shared']);
+    });
+
+    it('hides global documents from a plain branch filter', async () => {
+      await db.put(
+        createEnvelope({ id: 'product:shared', docType: 'product', branchId: GLOBAL_BRANCH_ID }),
+      );
+      expect(await db.allDocs({ branchId: 'hq' })).toEqual([]);
+    });
+
+    it('ignores includeGlobal when no branchId is given', async () => {
+      await db.put(createEnvelope({ id: 'product:p001', docType: 'product', branchId: 'hq' }));
+      await db.put(
+        createEnvelope({ id: 'product:shared', docType: 'product', branchId: GLOBAL_BRANCH_ID }),
+      );
+
+      const all = await db.allDocs({ includeGlobal: true });
+      expect(all.map((d) => d._id).sort()).toEqual(['product:p001', 'product:shared']);
     });
 
     it('returns every document when no branchId filter is given', async () => {

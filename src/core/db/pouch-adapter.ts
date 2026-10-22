@@ -1,5 +1,6 @@
 import type PouchDB from 'pouchdb';
 import type { AllDocsOptions, DbAdapter } from './adapter';
+import { GLOBAL_BRANCH_ID } from './branch';
 import type { DocEnvelope } from './envelope';
 
 /**
@@ -78,6 +79,7 @@ export async function createPouchAdapter(db: PouchDB.Database): Promise<DbAdapte
     async allDocs(options?: AllDocsOptions) {
       const response = await db.allDocs({ include_docs: true });
       const branchId = options?.branchId;
+      const includeGlobal = options?.includeGlobal === true;
       const out: DocEnvelope[] = [];
 
       for (const row of response.rows) {
@@ -89,7 +91,10 @@ export async function createPouchAdapter(db: PouchDB.Database): Promise<DbAdapte
 
         const doc = raw as DocEnvelope;
         if (doc.deletedAt !== undefined) continue;
-        if (branchId !== undefined && doc.branchId !== branchId) continue;
+
+        if (branchId !== undefined && doc.branchId !== branchId) {
+          if (!(includeGlobal && doc.branchId === GLOBAL_BRANCH_ID)) continue;
+        }
 
         out.push({ ...doc });
       }

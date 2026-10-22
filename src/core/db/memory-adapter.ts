@@ -1,4 +1,5 @@
 import type { DbAdapter } from './adapter';
+import { GLOBAL_BRANCH_ID } from './branch';
 import type { DocEnvelope } from './envelope';
 
 /**
@@ -45,10 +46,16 @@ export function createMemoryAdapter(): Promise<DbAdapter> {
 
     async allDocs(options) {
       const docs = [...store.values()].filter((d) => d.deletedAt === undefined);
-      const filtered = options?.branchId
-        ? docs.filter((d) => d.branchId === options.branchId)
-        : docs;
-      return filtered.map((d) => ({ ...d }));
+      const branchId = options?.branchId;
+
+      if (branchId === undefined) return docs.map((d) => ({ ...d }));
+
+      const includeGlobal = options?.includeGlobal === true;
+      return docs
+        .filter(
+          (d) => d.branchId === branchId || (includeGlobal && d.branchId === GLOBAL_BRANCH_ID),
+        )
+        .map((d) => ({ ...d }));
     },
 
     async remove(id, rev) {
