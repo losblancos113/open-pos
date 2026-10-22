@@ -90,5 +90,100 @@
       "color": "Color",
       "formula": "Formula"
     }
+  },
+  "catalog": {
+    "title": "Menu management",
+    "tab": {
+      "categories": "Categories",
+      "products": "Products",
+      "modifiers": "Modifier groups",
+      "combos": "Combos",
+      "prices": "Price lists",
+      "overrides": "Per branch",
+      "csv": "CSV import / export"
+    },
+    "category": {
+      "new": "New category",
+      "empty": "No categories yet"
+    },
+    "product": {
+      "new": "New product",
+      "empty": "No products yet",
+      "active": "On sale",
+      "inactive": "Off sale",
+      "unavailable": "Not sold at this branch",
+      "uncategorised": "Uncategorised",
+      "danglingCategory": "Product points to a category that no longer exists"
+    },
+    "field": {
+      "name": "Name",
+      "nameEn": "English name",
+      "category": "Category",
+      "basePrice": "Price",
+      "unit": "Unit",
+      "barcode": "Barcode",
+      "sku": "SKU",
+      "imageRef": "Image (URL)",
+      "sortOrder": "Sort order",
+      "variants": "Sizes",
+      "modifierGroups": "Modifier groups",
+      "customFields": "Extra info"
+    },
+    "variant": {
+      "add": "Add size",
+      "id": "Size code",
+      "delta": "Price difference"
+    },
+    "modifier": {
+      "minSelect": "Minimum selections",
+      "maxSelect": "Maximum selections",
+      "option": {
+        "add": "Add option",
+        "default": "Default"
+      }
+    },
+    "combo": {
+      "group": {
+        "add": "Add choice group",
+        "key": "Group key",
+        "label": "Group label"
+      },
+      "option": {
+        "add": "Add product to group",
+        "product": "Product",
+        "delta": "Price difference"
+      }
+    },
+    "price": {
+      "new": "New price list",
+      "effectiveFrom": "Starts",
+      "effectiveTo": "Ends",
+      "priority": "Priority",
+      "entries": "Price list entries",
+      "entry": {
+        "add": "Add entry",
+        "variant": "Size"
+      },
+      "active": "In effect"
+    },
+    "override": {
+      "price": "Branch price",
+      "useGlobal": "Use global price",
+      "available": "Sold at branch",
+      "sortOrder": "Branch sort order"
+    },
+    "csv": {
+      "export": {
+        "categories": "Export categories",
+        "products": "Export products"
+      },
+      "import": {
+        "title": "Import from CSV",
+        "hint": "Choose an exported CSV file (or fill in the template) and press Import. Any bad row is reported and nothing is written.",
+        "done": "Created {created} products, updated {updated} products",
+        "failed": "Import failed — fix the rows below and try again"
+      },
+      "rowError": "Row {row}, column {column}: {message}"
+    }
   }
 }

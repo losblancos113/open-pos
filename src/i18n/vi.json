@@ -90,5 +90,100 @@
       "color": "Màu",
       "formula": "Công thức"
     }
+  },
+  "catalog": {
+    "title": "Quản lý menu",
+    "tab": {
+      "categories": "Danh mục",
+      "products": "Món",
+      "modifiers": "Nhóm topping",
+      "combos": "Combo",
+      "prices": "Bảng giá",
+      "overrides": "Theo chi nhánh",
+      "csv": "Nhập / xuất CSV"
+    },
+    "category": {
+      "new": "Thêm danh mục",
+      "empty": "Chưa có danh mục"
+    },
+    "product": {
+      "new": "Thêm món",
+      "empty": "Chưa có món",
+      "active": "Đang bán",
+      "inactive": "Ngừng bán",
+      "unavailable": "Hết món tại chi nhánh này",
+      "uncategorised": "Chưa phân loại",
+      "danglingCategory": "Món trỏ tới danh mục không tồn tại"
+    },
+    "field": {
+      "name": "Tên",
+      "nameEn": "Tên tiếng Anh",
+      "category": "Danh mục",
+      "basePrice": "Giá bán",
+      "unit": "Đơn vị",
+      "barcode": "Mã vạch",
+      "sku": "Mã hàng",
+      "imageRef": "Ảnh (URL)",
+      "sortOrder": "Thứ tự",
+      "variants": "Kích cỡ",
+      "modifierGroups": "Nhóm topping",
+      "customFields": "Thông tin thêm"
+    },
+    "variant": {
+      "add": "Thêm kích cỡ",
+      "id": "Mã kích cỡ",
+      "delta": "Chênh lệch giá"
+    },
+    "modifier": {
+      "minSelect": "Chọn ít nhất",
+      "maxSelect": "Chọn nhiều nhất",
+      "option": {
+        "add": "Thêm lựa chọn",
+        "default": "Mặc định"
+      }
+    },
+    "combo": {
+      "group": {
+        "add": "Thêm nhóm chọn",
+        "key": "Mã nhóm",
+        "label": "Nhãn nhóm"
+      },
+      "option": {
+        "add": "Thêm món trong nhóm",
+        "product": "Món",
+        "delta": "Chênh lệch giá"
+      }
+    },
+    "price": {
+      "new": "Thêm bảng giá",
+      "effectiveFrom": "Bắt đầu",
+      "effectiveTo": "Kết thúc",
+      "priority": "Ưu tiên",
+      "entries": "Mặt hàng trong bảng giá",
+      "entry": {
+        "add": "Thêm mặt hàng",
+        "variant": "Kích cỡ"
+      },
+      "active": "Đang áp dụng"
+    },
+    "override": {
+      "price": "Giá riêng",
+      "useGlobal": "Dùng giá chung",
+      "available": "Còn bán tại chi nhánh",
+      "sortOrder": "Thứ tự riêng"
+    },
+    "csv": {
+      "export": {
+        "categories": "Xuất danh mục",
+        "products": "Xuất món"
+      },
+      "import": {
+        "title": "Nhập từ CSV",
+        "hint": "Chọn tệp CSV đã xuất (hoặc điền theo mẫu) rồi bấm Nhập. Sai dòng nào, hệ thống báo dòng đó và không ghi gì.",
+        "done": "Đã tạo {created} món, cập nhật {updated} món",
+        "failed": "Nhập thất bại — sửa các dòng sau rồi thử lại"
+      },
+      "rowError": "Dòng {row}, cột {column}: {message}"
+    }
   }
 }
