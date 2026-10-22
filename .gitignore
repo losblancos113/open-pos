@@ -13,3 +13,8 @@ coverage/
 .worktrees/
 .superpowers/
 .embold/
+
+# Agent / tool scratch dirs
+.zcode/
+.codex/
+.vuetify/
