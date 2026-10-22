@@ -158,7 +158,14 @@ const V1: TypeDefinition = {
   fields: [],
   listView: [],
 };
+const V2: TypeDefinition = { ...V1, version: 2 };
 const V3: TypeDefinition = { ...V1, version: 3 };
+
+/**
+ * Bậc version chỉ bump vì field bị xoá khỏi schema — không có transform nào.
+ * Đây là thứ `TypeDesigner` phát ra khi admin xoá field: dữ liệu cũ phải còn nguyên.
+ */
+const REMOVAL_CHAIN: TypeMigration[] = [{ fromVersion: 1, toVersion: 2, transforms: [] }];
 
 const CHAIN: TypeMigration[] = [
   {
@@ -287,6 +294,28 @@ describe('migrateRecordOnRead', () => {
     expect(outcome.migrated).toBe(false);
     expect(outcome.wrote).toBe(false);
     expect(outcome.doc).toEqual(doc);
+  });
+
+  it('preserves record data when a version bump carries no transforms', async () => {
+    const adapter = await createMemoryAdapter();
+    await adapter.put({
+      ...createEnvelope({ id: 'product:p004', docType: 'product', branchId: 'hq' }),
+      schemaVersion: 1,
+      spicy: 'mild',
+    } as never);
+
+    const before = await adapter.get('product:p004');
+    const outcome = await migrateRecordOnRead(before!, V2, REMOVAL_CHAIN, adapter);
+
+    // Xoá field khỏi schema không được xoá giá trị đã ghi. Chuỗi transform rỗng
+    // nghĩa là `applied` rỗng, nên không có gì được ghi và dữ liệu cũ còn nguyên.
+    expect(outcome.migrated).toBe(false);
+    expect(outcome.wrote).toBe(false);
+    expect(custom(outcome.doc).spicy).toBe('mild');
+
+    const stored = await adapter.get('product:p004');
+    expect(custom(stored!).spicy).toBe('mild');
+    expect(stored!.schemaVersion).toBe(1);
   });
 
   it('does not write when a transform fails, and surfaces the error', async () => {

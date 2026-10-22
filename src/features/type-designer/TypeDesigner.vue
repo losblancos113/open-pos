@@ -187,7 +187,12 @@ const canSave = computed(
   () => draft.value.key.trim() !== '' && draft.value.name.vi.trim() !== '' && issues.value.length === 0,
 );
 
-const canMigrate = computed(() => selectedType.value !== null && selectedType.value.migrations.length > 0);
+/** Chỉ mời chạy khi có bậc version thật sự có transform — bậc rỗng là no-op. */
+const canMigrate = computed(() => {
+  const saved = selectedType.value;
+  if (saved === null) return false;
+  return saved.migrations.some((step) => step.transforms.length > 0);
+});
 
 async function loadTypes(): Promise<void> {
   const current = registry.value;
@@ -300,26 +305,27 @@ function removeOption(row: DraftField, index: number): void {
  * Transform cho bậc version mới, suy ra từ bản nháp.
  *
  * Đổi `key` của một field chính là rename — dữ liệu cũ phải theo key mới, nếu không
- * record cũ mất giá trị. Field bị xoá khỏi bản nháp thì bỏ luôn giá trị tương ứng.
+ * record cũ mất giá trị.
+ *
+ * Field bị xoá khỏi bản nháp **cố ý không** sinh `removeField`. Xoá field là sửa
+ * *schema*, còn `removeField` là xoá *dữ liệu đã ghi* — hai việc khác nhau, và không
+ * có undo. Nếu admin xoá nhầm một field thì giá trị cũ vẫn nằm nguyên trong record;
+ * nó chỉ đơn giản là không còn field nào khai báo nên không hiện trên UI. Dọn dữ liệu
+ * phải là một bước riêng, có chủ đích.
+ *
+ * Vì bậc version mới có `transforms` rỗng, `migrateRecordOnRead` thấy `applied` rỗng
+ * nên không ghi gì — record giữ nguyên `schemaVersion` cũ và không mất dữ liệu.
+ * `canMigrate` cũng lọc theo transform thật, nên UI không mời admin chạy no-op.
  */
 function buildTransforms(): readonly MigrationTransform[] {
-  const previous = selectedType.value;
-  if (previous === null) return [];
+  if (selectedType.value === null) return [];
 
   const transforms: MigrationTransform[] = [];
-  const keptOriginals = new Set<string>();
 
   for (const row of rows.value) {
     const key = row.key.trim();
-    if (row.originalKey !== '') keptOriginals.add(row.originalKey);
     if (row.originalKey === '' || key === '' || row.originalKey === key) continue;
     transforms.push({ kind: 'rename', from: row.originalKey, to: key });
-  }
-
-  for (const field of previous.fields) {
-    if (!keptOriginals.has(field.key)) {
-      transforms.push({ kind: 'removeField', field: field.key });
-    }
   }
 
   return transforms;

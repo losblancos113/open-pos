@@ -96,4 +96,40 @@ describe('TypeDesigner', () => {
     expect(wrapper.find('[data-field-row="quality"]').exists()).toBe(true);
     expect(button(wrapper, t('type.migration.run')).attributes('disabled')).toBeUndefined();
   });
+
+  it('does not offer a migration when a field is only removed from the schema', async () => {
+    const wrapper = await mountDesigner();
+    await button(wrapper, t('type.designer.newType')).trigger('click');
+    await nextTick();
+
+    await typeInto(wrapper, 0, 'menu_item');
+    await typeInto(wrapper, 1, 'Món ăn');
+
+    await button(wrapper, t('type.field.add')).trigger('click');
+    await nextTick();
+    const row = wrapper.find('[data-field-row=""]');
+    await row.find('input').setValue('rating');
+    await nextTick();
+
+    await button(wrapper, t('type.form.save')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    await nextTick();
+
+    expect(wrapper.find('[data-field-row="rating"]').exists()).toBe(true);
+
+    // Xoá field khỏi *schema* rồi lưu. Field biến mất khỏi định nghĩa nhưng không
+    // sinh transform nào, nên không có gì để migrate — nút vẫn tắt, và giá trị cũ
+    // trong record không bị xoá (xem migration.test.ts).
+    await button(wrapper, t('type.field.remove')).trigger('click');
+    await nextTick();
+    expect(wrapper.find('[data-field-row="rating"]').exists()).toBe(false);
+
+    await button(wrapper, t('type.form.save')).trigger('click');
+    await flushPromises();
+    await flushPromises();
+    await nextTick();
+
+    expect(button(wrapper, t('type.migration.run')).attributes('disabled')).toBeDefined();
+  });
 });
