@@ -31,7 +31,14 @@ import {
 import type { ComboDoc, CreateComboInput } from './combo';
 import { COMBO_DOC_TYPE, createComboDoc, validateCombo } from './combo';
 import type { CreatePriceListInput, PriceListDoc } from './price-list';
-import { PRICE_LIST_DOC_TYPE, createPriceListDoc, validatePriceList } from './price-list';
+import {
+  PRICE_LIST_DOC_TYPE,
+  activePriceList,
+  createPriceListDoc,
+  validatePriceList,
+} from './price-list';
+import type { BranchMenu } from './menu';
+import { assembleMenu } from './menu';
 import type { ProductOverrideDoc, SetOverrideInput } from './override';
 import {
   PRODUCT_OVERRIDE_DOC_TYPE,
@@ -160,6 +167,14 @@ export interface CatalogRepository {
   getOverride(productId: string, branchId: string): Promise<ProductOverrideDoc | null>;
   listOverrides(branchId: string): Promise<readonly ProductOverrideDoc[]>;
   clearOverride(productId: string, branchId: string): Promise<void>;
+
+  // Read model
+  /** Menu hiệu dụng của một chi nhánh tại thời điểm `now` (mặc định: giờ hệ thống). */
+  menu(options: {
+    readonly branchId: string;
+    readonly now?: string;
+    readonly includeUnavailable?: boolean;
+  }): Promise<BranchMenu>;
 }
 
 export function createCatalogRepository(
@@ -653,6 +668,34 @@ export function createCatalogRepository(
       const current = await readDoc<ProductOverrideDoc>(docId, PRODUCT_OVERRIDE_DOC_TYPE);
       if (current === null || current._rev === undefined) return;
       await adapter.remove(docId, current._rev);
+    },
+
+    // ---- Read model --------------------------------------------------------
+
+    async menu(options) {
+      const now = options.now ?? clock();
+
+      const categories = (await globalDocs(CATEGORY_DOC_TYPE)) as CategoryDoc[];
+      const products = (await globalDocs(PRODUCT_DOC_TYPE)) as ProductDoc[];
+      const overrides = (await branchDocs(
+        PRODUCT_OVERRIDE_DOC_TYPE,
+        options.branchId,
+      )) as ProductOverrideDoc[];
+      const priceLists = (await branchDocs(
+        PRICE_LIST_DOC_TYPE,
+        options.branchId,
+      )) as PriceListDoc[];
+
+      return assembleMenu({
+        branchId: options.branchId,
+        categories,
+        products,
+        overrides,
+        priceList: activePriceList(priceLists, now),
+        ...(options.includeUnavailable === undefined
+          ? {}
+          : { includeUnavailable: options.includeUnavailable }),
+      });
     },
   };
 }
