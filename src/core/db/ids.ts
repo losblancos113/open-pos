@@ -24,3 +24,8 @@ export function productBranchOverrideId(productId: string, branchId: string): st
 export function typeDocId(typeKey: string): string {
   return `type:${requireSegment(typeKey, 'typeKey')}`;
 }
+
+/** `_id` của một record thuộc entity type do người dùng định nghĩa. */
+export function recordDocId(typeKey: string, id: string): string {
+  return `${requireSegment(typeKey, 'typeKey')}:${requireSegment(id, 'id')}`;
+}

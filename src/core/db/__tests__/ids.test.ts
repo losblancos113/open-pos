@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { branchDocId, productDocId, productBranchOverrideId, typeDocId } from '../ids';
+import {
+  branchDocId,
+  productDocId,
+  productBranchOverrideId,
+  recordDocId,
+  typeDocId,
+} from '../ids';
 
 describe('id conventions', () => {
   it('builds branch document ids', () => {
@@ -26,5 +32,16 @@ describe('id conventions', () => {
 
   it('rejects a type key containing a colon', () => {
     expect(() => typeDocId('a:b')).toThrow(/must not contain ":"/);
+  });
+});
+
+describe('recordDocId', () => {
+  it('builds a record id from the type key and the record id', () => {
+    expect(recordDocId('supplier', 's001')).toBe('supplier:s001');
+  });
+
+  it('rejects colons in either segment', () => {
+    expect(() => recordDocId('a:b', 'x')).toThrow(/must not contain ":"/);
+    expect(() => recordDocId('a', 'x:y')).toThrow(/must not contain ":"/);
   });
 });
