@@ -451,20 +451,21 @@ function onSubmit(): void {
                 class="combo-editor__option"
                 data-combo-option
               >
-                <Select.Root
-                  data-combo-option-product
-                  :model-value="option.productId === '' ? null : option.productId"
-                  @update:model-value="(value: unknown) => onOptionProduct(groupIndex, optionIndex, value)"
-                >
-                  <Select.Activator :label="t('catalog.combo.option.product')">
-                    {{ productLabel(option.productId) }}
-                  </Select.Activator>
-                  <Select.Content eager>
-                    <Select.Item v-for="product in products" :key="product._id" :value="product._id">
-                      {{ product.name[activeLocale] }}
-                    </Select.Item>
-                  </Select.Content>
-                </Select.Root>
+                <div data-combo-option-product>
+                  <Select.Root
+                    :model-value="option.productId === '' ? null : option.productId"
+                    @update:model-value="(value: unknown) => onOptionProduct(groupIndex, optionIndex, value)"
+                  >
+                    <Select.Activator :label="t('catalog.combo.option.product')">
+                      {{ productLabel(option.productId) }}
+                    </Select.Activator>
+                    <Select.Content eager>
+                      <Select.Item v-for="product in products" :key="product._id" :value="product._id">
+                        {{ product.name[activeLocale] }}
+                      </Select.Item>
+                    </Select.Content>
+                  </Select.Root>
+                </div>
 
                 <NumberField.Root
                   data-combo-option-delta

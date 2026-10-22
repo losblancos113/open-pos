@@ -9,18 +9,25 @@ import type { CategoryPatch } from '@/core/catalog/catalog-repository';
 import { createCatalogRepository } from '@/core/catalog/catalog-repository';
 import type { CategoryDoc } from '@/core/catalog/category';
 import { format } from '@/core/money';
+import type { Money } from '@/core/money';
 import type { ComboDoc } from '@/core/catalog/combo';
 import type { BranchMenu, MenuItem } from '@/core/catalog/menu';
 import type { ModifierGroupDoc } from '@/core/catalog/modifier-group';
+import type { ProductOverrideDoc } from '@/core/catalog/override';
+import { activePriceList } from '@/core/catalog/price-list';
+import type { PriceListDoc } from '@/core/catalog/price-list';
 import type { ProductRecord } from '@/core/catalog/product';
 import { ensureProductTypeDefinition } from '@/core/catalog/product-type';
 import { slugify } from '@/core/slug';
 import type { LocalizedText, TypeDefinition } from '@/core/types/definition';
+import BranchOverrideEditor from './BranchOverrideEditor.vue';
 import CategoryList from './CategoryList.vue';
 import ComboEditor from './ComboEditor.vue';
 import type { ComboFormValue } from './ComboEditor.vue';
 import ModifierGroupEditor from './ModifierGroupEditor.vue';
 import type { ModifierGroupFormValue } from './ModifierGroupEditor.vue';
+import PriceListEditor from './PriceListEditor.vue';
+import type { PriceListFormValue } from './PriceListEditor.vue';
 import ProductEditor from './ProductEditor.vue';
 import type { ProductFormValue } from './ProductEditor.vue';
 import ProductList from './ProductList.vue';
@@ -49,7 +56,7 @@ const { t, locale } = useI18n();
 const activeLocale = computed<SupportedLocale>(() => (locale.value === 'en' ? 'en' : 'vi'));
 
 interface Tab {
-  readonly key: 'categories' | 'products' | 'modifiers' | 'combos';
+  readonly key: 'categories' | 'products' | 'modifiers' | 'combos' | 'prices' | 'overrides';
   readonly labelKey: string;
 }
 
@@ -59,6 +66,8 @@ const TABS: readonly Tab[] = [
   { key: 'products', labelKey: 'catalog.tab.products' },
   { key: 'modifiers', labelKey: 'catalog.tab.modifiers' },
   { key: 'combos', labelKey: 'catalog.tab.combos' },
+  { key: 'prices', labelKey: 'catalog.tab.prices' },
+  { key: 'overrides', labelKey: 'catalog.tab.overrides' },
 ];
 
 const activeTab = ref<Tab['key']>('categories');
@@ -69,6 +78,8 @@ const categories = ref<readonly CategoryDoc[]>([]);
 const products = ref<readonly ProductRecord[]>([]);
 const modifierGroups = ref<readonly ModifierGroupDoc[]>([]);
 const combos = ref<readonly ComboDoc[]>([]);
+const priceLists = ref<readonly PriceListDoc[]>([]);
+const overrides = ref<readonly ProductOverrideDoc[]>([]);
 const productType = ref<TypeDefinition | null>(null);
 const menu = ref<BranchMenu | null>(null);
 const loading = ref(true);
@@ -86,6 +97,21 @@ const groupEditorOpen = ref(false);
 /** `null` = tạo combo mới; chỉ có nghĩa khi `comboEditorOpen`. */
 const editingComboId = ref<string | null>(null);
 const comboEditorOpen = ref(false);
+
+/** `null` = tạo bảng giá mới; chỉ có nghĩa khi `priceEditorOpen`. */
+const editingPriceListId = ref<string | null>(null);
+const priceEditorOpen = ref(false);
+
+const editingPriceList = computed<PriceListDoc | null>(() => {
+  const id = editingPriceListId.value;
+  if (id === null) return null;
+  return priceLists.value.find((list) => list._id === id) ?? null;
+});
+
+/** Bảng giá đang áp cho chi nhánh — chọn bằng chính hàm của core, không tự suy luận. */
+const activePriceListId = computed<string | null>(
+  () => activePriceList(priceLists.value, new Date().toISOString())?._id ?? null,
+);
 
 const editingGroup = computed<ModifierGroupDoc | null>(() => {
   const id = editingGroupId.value;
@@ -120,21 +146,33 @@ function messageOf(error: unknown): string {
 async function reload(): Promise<void> {
   loadError.value = null;
   try {
-    const [nextCategories, nextProducts, nextModifierGroups, nextCombos, definition, nextMenu] =
-      await Promise.all([
-        repository.listCategories(),
-        repository.listProducts(),
-        repository.listModifierGroups(),
-        repository.listCombos(),
-        // Type `product` của M1: tạo sẵn bản rỗng nếu chưa có để editor luôn có field tuỳ chỉnh.
-        ensureProductTypeDefinition(props.adapter),
-        repository.menu({ branchId: props.branchId, includeUnavailable: true }),
-      ]);
+    const [
+      nextCategories,
+      nextProducts,
+      nextModifierGroups,
+      nextCombos,
+      nextPriceLists,
+      nextOverrides,
+      definition,
+      nextMenu,
+    ] = await Promise.all([
+      repository.listCategories(),
+      repository.listProducts(),
+      repository.listModifierGroups(),
+      repository.listCombos(),
+      repository.listPriceLists(props.branchId),
+      repository.listOverrides(props.branchId),
+      // Type `product` của M1: tạo sẵn bản rỗng nếu chưa có để editor luôn có field tuỳ chỉnh.
+      ensureProductTypeDefinition(props.adapter),
+      repository.menu({ branchId: props.branchId, includeUnavailable: true }),
+    ]);
 
     categories.value = nextCategories;
     products.value = nextProducts;
     modifierGroups.value = nextModifierGroups;
     combos.value = nextCombos;
+    priceLists.value = nextPriceLists;
+    overrides.value = nextOverrides;
     productType.value = definition;
     menu.value = nextMenu;
   } catch (error) {
@@ -398,15 +436,124 @@ async function removeCombo(comboId: string): Promise<void> {
   if (removed && editingComboId.value === comboId) closeComboEditor();
 }
 
-// ---- Xác nhận xoá nhóm topping / combo -------------------------------------
+// ---- Price list (tầng branch) ----------------------------------------------
+
+/** `_id` dạng `price_list:happy-hour` → segment `happy-hour`. */
+function priceListSegment(docId: string): string {
+  const prefix = 'price_list:';
+  return docId.startsWith(prefix) ? docId.slice(prefix.length) : docId;
+}
+
+function createPriceList(): void {
+  editingPriceListId.value = null;
+  priceEditorOpen.value = true;
+}
+
+function editPriceList(priceListId: string): void {
+  editingPriceListId.value = priceListId;
+  priceEditorOpen.value = true;
+}
+
+function closePriceEditor(): void {
+  priceEditorOpen.value = false;
+  editingPriceListId.value = null;
+}
+
+async function savePriceList(value: PriceListFormValue): Promise<void> {
+  const id = editingPriceListId.value;
+
+  const saved = await run(async () => {
+    const fields = {
+      name: value.name,
+      effectiveFrom: value.effectiveFrom,
+      effectiveTo: value.effectiveTo,
+      priority: value.priority,
+      entries: value.entries,
+    };
+
+    if (id === null) {
+      // Bảng giá thuộc đúng chi nhánh đang quản lý — không có tầng global cho bảng giá.
+      await repository.createPriceList({
+        id: slugify(value.name.vi),
+        branchId: props.branchId,
+        ...fields,
+      });
+      return;
+    }
+
+    const current = priceLists.value.find((list) => list._id === id);
+    if (current === undefined) throw new Error(`price_list ${JSON.stringify(id)} not found`);
+
+    await repository.updatePriceList(priceListSegment(id), fields, requireRev(current));
+  });
+
+  if (saved) closePriceEditor();
+}
+
+async function removePriceList(priceListId: string): Promise<void> {
+  const current = priceLists.value.find((list) => list._id === priceListId);
+  if (current === undefined) return;
+
+  const removed = await run(() =>
+    repository.removePriceList(priceListSegment(priceListId), requireRev(current)),
+  );
+  if (removed && editingPriceListId.value === priceListId) closePriceEditor();
+}
+
+/** Giờ hiệu lực của một bảng giá — hiện gọn trong bảng, đủ để phân biệt các bảng. */
+function windowText(list: PriceListDoc): string {
+  const moment = (iso: string): string => {
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return iso;
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    return `${day}/${month} ${hour}:${minute}`;
+  };
+
+  const fromText = moment(list.effectiveFrom);
+  if (list.effectiveTo === null) return `${fromText} →`;
+  return `${fromText} → ${moment(list.effectiveTo)}`;
+}
+
+// ---- Product override (tầng branch) ----------------------------------------
 
 /**
- * Một hộp thoại dùng chung cho hai loại tài liệu: cả hai đều chỉ cần tên để hỏi lại,
- * nên tách thành hai hộp thoại giống nhau chỉ tạo thêm chỗ để lệch nhau.
+ * Ghi một override của chi nhánh. `setOverride` nhận `undefined` = giữ nguyên nên
+ * component luôn gửi cả ba field — dòng là một hình dạng đầy đủ, không phải patch.
+ */
+async function setBranchOverride(value: {
+  readonly productId: string;
+  readonly price: Money | null;
+  readonly available: boolean;
+  readonly sortOrder: number | null;
+}): Promise<void> {
+  await run(() =>
+    repository.setOverride({
+      productId: value.productId,
+      branchId: props.branchId,
+      price: value.price,
+      available: value.available,
+      sortOrder: value.sortOrder,
+    }),
+  );
+}
+
+async function clearBranchOverride(productId: string): Promise<void> {
+  await run(() => repository.clearOverride(productId, props.branchId));
+}
+
+// ---- Xác nhận xoá nhóm topping / combo / bảng giá --------------------------
+
+/**
+ * Một hộp thoại dùng chung cho các loại tài liệu: mỗi loại chỉ cần tên để hỏi lại,
+ * nên tách thành nhiều hộp thoại giống nhau chỉ tạo thêm chỗ để lệch nhau.
  */
 type PendingRemoval =
   | { readonly kind: 'modifier'; readonly id: string; readonly label: string }
-  | { readonly kind: 'combo'; readonly id: string; readonly label: string };
+  | { readonly kind: 'combo'; readonly id: string; readonly label: string }
+  | { readonly kind: 'price'; readonly id: string; readonly label: string };
 
 const pendingRemoval = ref<PendingRemoval | null>(null);
 const removalOpen = ref(false);
@@ -415,18 +562,26 @@ watch(removalOpen, (open) => {
   if (!open) pendingRemoval.value = null;
 });
 
+/** Nhãn hỏi lại và câu hỏi theo từng loại — chỉ khác nhau ở key i18n. */
+const REMOVAL_KEYS: Record<PendingRemoval['kind'], { title: string; message: string }> = {
+  modifier: {
+    title: 'catalog.modifier.remove',
+    message: 'catalog.modifier.removeConfirm',
+  },
+  combo: { title: 'catalog.combo.remove', message: 'catalog.combo.removeConfirm' },
+  price: { title: 'catalog.price.remove', message: 'catalog.price.removeConfirm' },
+};
+
 const removalTitle = computed(() => {
   const target = pendingRemoval.value;
   if (target === null) return '';
-  return target.kind === 'combo' ? t('catalog.combo.remove') : t('catalog.modifier.remove');
+  return t(REMOVAL_KEYS[target.kind].title);
 });
 
 const removalMessage = computed(() => {
   const target = pendingRemoval.value;
   if (target === null) return '';
-  return target.kind === 'combo'
-    ? t('catalog.combo.removeConfirm', { name: target.label })
-    : t('catalog.modifier.removeConfirm', { name: target.label });
+  return t(REMOVAL_KEYS[target.kind].message, { name: target.label });
 });
 
 function askRemove(kind: PendingRemoval['kind'], id: string, label: string): void {
@@ -440,7 +595,8 @@ async function confirmRemoval(): Promise<void> {
   if (target === null) return;
 
   if (target.kind === 'modifier') await removeGroup(target.id);
-  else await removeCombo(target.id);
+  else if (target.kind === 'combo') await removeCombo(target.id);
+  else await removePriceList(target.id);
 }
 </script>
 
@@ -629,6 +785,89 @@ async function confirmRemoval(): Promise<void> {
         </DataTable.Root>
       </template>
     </div>
+
+    <div v-if="activeTab === 'prices'" class="catalog-admin__prices">
+      <PriceListEditor
+        v-if="priceEditorOpen"
+        :price-list="editingPriceList"
+        :products="products"
+        :branch-id="branchId"
+        @save="savePriceList"
+        @cancel="closePriceEditor"
+      />
+
+      <template v-else>
+        <Button.Root type="button" data-price-create @click="createPriceList">
+          {{ t('catalog.price.new') }}
+        </Button.Root>
+
+        <DataTable.Root>
+          <DataTable.Table :aria-label="t('catalog.tab.prices')">
+            <DataTable.Header>
+              <DataTable.Row>
+                <DataTable.Column id="name">{{ t('catalog.field.name') }}</DataTable.Column>
+                <DataTable.Column id="window">
+                  {{ t('catalog.price.effectiveFrom') }} — {{ t('catalog.price.effectiveTo') }}
+                </DataTable.Column>
+                <DataTable.Column id="priority">{{ t('catalog.price.priority') }}</DataTable.Column>
+                <DataTable.Column id="entries">{{ t('catalog.price.entries') }}</DataTable.Column>
+                <DataTable.Column id="actions">{{ t('common.actions') }}</DataTable.Column>
+              </DataTable.Row>
+            </DataTable.Header>
+
+            <DataTable.Body>
+              <DataTable.Row
+                v-for="list in priceLists"
+                :id="list._id"
+                :key="list._id"
+                :value="list"
+                :data-price-row="list._id"
+              >
+                <DataTable.Cell>
+                  {{ list.name[activeLocale] }}
+                  <span v-if="list._id === activePriceListId" class="catalog-admin__active">
+                    {{ t('catalog.price.active') }}
+                  </span>
+                </DataTable.Cell>
+                <DataTable.Cell>{{ windowText(list) }}</DataTable.Cell>
+                <DataTable.Cell>{{ list.priority }}</DataTable.Cell>
+                <DataTable.Cell>{{ list.entries.length }}</DataTable.Cell>
+                <DataTable.Cell>
+                  <Button.Root
+                    type="button"
+                    :data-price-edit="list._id"
+                    @click="editPriceList(list._id)"
+                  >
+                    {{ t('common.edit') }}
+                  </Button.Root>
+
+                  <Button.Root
+                    type="button"
+                    :data-price-remove="list._id"
+                    @click="askRemove('price', list._id, list.name[activeLocale])"
+                  >
+                    {{ t('common.delete') }}
+                  </Button.Root>
+                </DataTable.Cell>
+              </DataTable.Row>
+
+              <DataTable.Empty v-slot="{ columnCount }">
+                <DataTable.Cell :colspan="columnCount">{{ t('catalog.price.empty') }}</DataTable.Cell>
+              </DataTable.Empty>
+            </DataTable.Body>
+          </DataTable.Table>
+        </DataTable.Root>
+      </template>
+    </div>
+
+    <BranchOverrideEditor
+      v-if="activeTab === 'overrides'"
+      :overrides="overrides"
+      :items="menuItems"
+      :branch-id="branchId"
+      @set="setBranchOverride"
+      @clear="clearBranchOverride"
+    />
 
     <AlertDialog.Root v-model="removalOpen">
       <AlertDialog.Content data-removal-dialog>

@@ -190,15 +190,25 @@
         "delta": "Chênh lệch giá"
       }
     },
+    "branch": "Chi nhánh",
     "price": {
       "new": "Thêm bảng giá",
+      "edit": "Sửa bảng giá",
+      "empty": "Chưa có bảng giá",
+      "remove": "Xoá bảng giá",
+      "removeConfirm": "Xoá bảng giá \"{name}\"?",
       "effectiveFrom": "Bắt đầu",
       "effectiveTo": "Kết thúc",
       "priority": "Ưu tiên",
+      "allVariants": "Mọi kích cỡ",
       "entries": "Mặt hàng trong bảng giá",
+      "entryIncomplete": "Mỗi mặt hàng cần chọn món và nhập giá",
       "entry": {
         "add": "Thêm mặt hàng",
-        "variant": "Kích cỡ"
+        "remove": "Xoá mặt hàng",
+        "product": "Món",
+        "variant": "Kích cỡ",
+        "price": "Giá trong bảng"
       },
       "active": "Đang áp dụng"
     },
@@ -206,7 +216,9 @@
       "price": "Giá riêng",
       "useGlobal": "Dùng giá chung",
       "available": "Còn bán tại chi nhánh",
-      "sortOrder": "Thứ tự riêng"
+      "sortOrder": "Thứ tự riêng",
+      "effective": "Giá đang bán",
+      "clear": "Xoá giá riêng"
     },
     "csv": {
       "export": {

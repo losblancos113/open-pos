@@ -190,15 +190,25 @@
         "delta": "Price difference"
       }
     },
+    "branch": "Branch",
     "price": {
       "new": "New price list",
+      "edit": "Edit price list",
+      "empty": "No price lists yet",
+      "remove": "Delete price list",
+      "removeConfirm": "Delete price list \"{name}\"?",
       "effectiveFrom": "Starts",
       "effectiveTo": "Ends",
       "priority": "Priority",
+      "allVariants": "All sizes",
       "entries": "Price list entries",
+      "entryIncomplete": "Each entry needs a product and a price",
       "entry": {
         "add": "Add entry",
-        "variant": "Size"
+        "remove": "Remove entry",
+        "product": "Product",
+        "variant": "Size",
+        "price": "List price"
       },
       "active": "In effect"
     },
@@ -206,7 +216,9 @@
       "price": "Branch price",
       "useGlobal": "Use global price",
       "available": "Sold at branch",
-      "sortOrder": "Branch sort order"
+      "sortOrder": "Branch sort order",
+      "effective": "Current price",
+      "clear": "Clear branch price"
     },
     "csv": {
       "export": {

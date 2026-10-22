@@ -405,20 +405,21 @@ function onSubmit(): void {
           <NumberField.Control />
         </NumberField.Root>
 
-        <Select.Root
-          data-product-category
-          :model-value="categoryModel"
-          @update:model-value="onCategoryInput"
-        >
-          <Select.Activator :label="t('catalog.field.category')">
-            {{ selectedCategoryLabel }}
-          </Select.Activator>
-          <Select.Content eager>
-            <Select.Item v-for="option in categoryOptions" :key="option.value" :value="option.value">
-              {{ option.label }}
-            </Select.Item>
-          </Select.Content>
-        </Select.Root>
+        <div data-product-category>
+          <Select.Root
+            :model-value="categoryModel"
+            @update:model-value="onCategoryInput"
+          >
+            <Select.Activator :label="t('catalog.field.category')">
+              {{ selectedCategoryLabel }}
+            </Select.Activator>
+            <Select.Content eager>
+              <Select.Item v-for="option in categoryOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </Select.Item>
+            </Select.Content>
+          </Select.Root>
+        </div>
 
         <Input.Root v-model="unit" data-product-unit type="text" :label="t('catalog.field.unit')">
           <Input.Control />
