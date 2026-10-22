@@ -143,7 +143,8 @@
       "sortOrder": "Thứ tự",
       "variants": "Kích cỡ",
       "modifierGroups": "Nhóm topping",
-      "customFields": "Thông tin thêm"
+      "customFields": "Thông tin thêm",
+      "nameRequired": "Tên không được để trống"
     },
     "variant": {
       "add": "Thêm kích cỡ",
@@ -153,21 +154,38 @@
       "delta": "Chênh lệch giá"
     },
     "modifier": {
+      "new": "Thêm nhóm topping",
+      "edit": "Sửa nhóm topping",
+      "empty": "Chưa có nhóm topping",
+      "remove": "Xoá nhóm topping",
+      "removeConfirm": "Xoá nhóm topping \"{name}\"? Món đang dùng nhóm này sẽ mất các lựa chọn đó.",
+      "options": "Lựa chọn",
       "minSelect": "Chọn ít nhất",
       "maxSelect": "Chọn nhiều nhất",
       "option": {
         "add": "Thêm lựa chọn",
+        "id": "Mã lựa chọn",
+        "delta": "Chênh lệch giá",
+        "remove": "Xoá lựa chọn",
         "default": "Mặc định"
       }
     },
     "combo": {
+      "new": "Thêm combo",
+      "edit": "Sửa combo",
+      "empty": "Chưa có combo",
+      "remove": "Xoá combo",
+      "removeConfirm": "Xoá combo \"{name}\"?",
+      "groups": "Nhóm chọn",
       "group": {
         "add": "Thêm nhóm chọn",
+        "remove": "Xoá nhóm chọn",
         "key": "Mã nhóm",
         "label": "Nhãn nhóm"
       },
       "option": {
         "add": "Thêm món trong nhóm",
+        "remove": "Xoá món trong nhóm",
         "product": "Món",
         "delta": "Chênh lệch giá"
       }

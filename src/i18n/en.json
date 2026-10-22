@@ -143,7 +143,8 @@
       "sortOrder": "Sort order",
       "variants": "Sizes",
       "modifierGroups": "Modifier groups",
-      "customFields": "Extra info"
+      "customFields": "Extra info",
+      "nameRequired": "Name must not be empty"
     },
     "variant": {
       "add": "Add size",
@@ -153,21 +154,38 @@
       "delta": "Price difference"
     },
     "modifier": {
+      "new": "New modifier group",
+      "edit": "Edit modifier group",
+      "empty": "No modifier groups yet",
+      "remove": "Delete modifier group",
+      "removeConfirm": "Delete modifier group \"{name}\"? Products using it will lose those options.",
+      "options": "Options",
       "minSelect": "Minimum selections",
       "maxSelect": "Maximum selections",
       "option": {
         "add": "Add option",
+        "id": "Option code",
+        "delta": "Price difference",
+        "remove": "Remove option",
         "default": "Default"
       }
     },
     "combo": {
+      "new": "New combo",
+      "edit": "Edit combo",
+      "empty": "No combos yet",
+      "remove": "Delete combo",
+      "removeConfirm": "Delete combo \"{name}\"?",
+      "groups": "Choice groups",
       "group": {
         "add": "Add choice group",
+        "remove": "Remove choice group",
         "key": "Group key",
         "label": "Group label"
       },
       "option": {
         "add": "Add product to group",
+        "remove": "Remove product from group",
         "product": "Product",
         "delta": "Price difference"
       }

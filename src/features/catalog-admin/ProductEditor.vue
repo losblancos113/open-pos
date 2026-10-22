@@ -472,7 +472,7 @@ function onSubmit(): void {
       <div class="product-editor__modifiers" data-product-modifiers>
         <span>{{ t('catalog.field.modifierGroups') }}</span>
 
-        <p v-if="modifierGroups.length === 0">{{ t('catalog.product.empty') }}</p>
+        <p v-if="modifierGroups.length === 0">{{ t('catalog.modifier.empty') }}</p>
         <Checkbox.Group
           v-else
           :label="t('catalog.field.modifierGroups')"
