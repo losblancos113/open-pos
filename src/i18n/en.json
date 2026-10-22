@@ -7,6 +7,8 @@
     "save": "Save",
     "cancel": "Cancel",
     "delete": "Delete",
+    "edit": "Edit",
+    "actions": "Actions",
     "confirm": "Confirm",
     "loading": "Loading…",
     "error": "Something went wrong"
@@ -104,7 +106,10 @@
     },
     "category": {
       "new": "New category",
-      "empty": "No categories yet"
+      "empty": "No categories yet",
+      "nameRequired": "Category name must not be empty",
+      "remove": "Delete category",
+      "removeConfirm": "Delete category \"{name}\"? Its products will move to \"Uncategorised\"."
     },
     "product": {
       "new": "New product",

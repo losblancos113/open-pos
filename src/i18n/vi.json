@@ -7,6 +7,8 @@
     "save": "Lưu",
     "cancel": "Huỷ",
     "delete": "Xoá",
+    "edit": "Sửa",
+    "actions": "Thao tác",
     "confirm": "Xác nhận",
     "loading": "Đang tải…",
     "error": "Đã xảy ra lỗi"
@@ -104,7 +106,10 @@
     },
     "category": {
       "new": "Thêm danh mục",
-      "empty": "Chưa có danh mục"
+      "empty": "Chưa có danh mục",
+      "nameRequired": "Tên danh mục không được để trống",
+      "remove": "Xoá danh mục",
+      "removeConfirm": "Xoá danh mục \"{name}\"? Món trong danh mục này sẽ chuyển sang \"Chưa phân loại\"."
     },
     "product": {
       "new": "Thêm món",
