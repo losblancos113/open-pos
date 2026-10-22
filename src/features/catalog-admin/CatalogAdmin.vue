@@ -8,8 +8,15 @@ import { DEFAULT_BRANCH_ID } from '@/core/db/branch';
 import type { CategoryPatch } from '@/core/catalog/catalog-repository';
 import { createCatalogRepository } from '@/core/catalog/catalog-repository';
 import type { CategoryDoc } from '@/core/catalog/category';
+import {
+  importCategoriesCsv,
+  importProductsCsv,
+  parseCategoriesCsv,
+  parseProductsCsv,
+} from '@/core/catalog/csv-catalog';
+import type { CsvRowError, ImportSummary } from '@/core/catalog/csv-catalog';
 import { format } from '@/core/money';
-import type { Money } from '@/core/money';
+import type { CurrencyCode, Money } from '@/core/money';
 import type { ComboDoc } from '@/core/catalog/combo';
 import type { BranchMenu, MenuItem } from '@/core/catalog/menu';
 import type { ModifierGroupDoc } from '@/core/catalog/modifier-group';
@@ -24,6 +31,7 @@ import BranchOverrideEditor from './BranchOverrideEditor.vue';
 import CategoryList from './CategoryList.vue';
 import ComboEditor from './ComboEditor.vue';
 import type { ComboFormValue } from './ComboEditor.vue';
+import CsvPanel from './CsvPanel.vue';
 import ModifierGroupEditor from './ModifierGroupEditor.vue';
 import type { ModifierGroupFormValue } from './ModifierGroupEditor.vue';
 import PriceListEditor from './PriceListEditor.vue';
@@ -56,7 +64,14 @@ const { t, locale } = useI18n();
 const activeLocale = computed<SupportedLocale>(() => (locale.value === 'en' ? 'en' : 'vi'));
 
 interface Tab {
-  readonly key: 'categories' | 'products' | 'modifiers' | 'combos' | 'prices' | 'overrides';
+  readonly key:
+    | 'categories'
+    | 'products'
+    | 'modifiers'
+    | 'combos'
+    | 'prices'
+    | 'overrides'
+    | 'csv';
   readonly labelKey: string;
 }
 
@@ -68,6 +83,7 @@ const TABS: readonly Tab[] = [
   { key: 'combos', labelKey: 'catalog.tab.combos' },
   { key: 'prices', labelKey: 'catalog.tab.prices' },
   { key: 'overrides', labelKey: 'catalog.tab.overrides' },
+  { key: 'csv', labelKey: 'catalog.tab.csv' },
 ];
 
 const activeTab = ref<Tab['key']>('categories');
@@ -544,6 +560,75 @@ async function clearBranchOverride(productId: string): Promise<void> {
   await run(() => repository.clearOverride(productId, props.branchId));
 }
 
+// ---- CSV (xuất / nhập cả menu) ---------------------------------------------
+
+/**
+ * Trạng thái của lượt nhập CSV gần nhất. `CsvPanel` chỉ hiển thị; "hiện gì" quyết ở đây
+ * vì chỉ chỗ này biết lượt nhập đã ghi xong hay còn đang chạy.
+ */
+const csvImporting = ref(false);
+const csvErrors = ref<readonly CsvRowError[]>([]);
+const csvImported = ref<{
+  readonly kind: 'categories' | 'products';
+  readonly summary: ImportSummary;
+} | null>(null);
+
+/** Tiền tệ của tệp CSV: theo món đầu tiên, chưa có món nào thì VND (như `PriceListEditor`). */
+const csvCurrency = computed<CurrencyCode>(() => products.value[0]?.basePrice.currency ?? 'VND');
+
+/**
+ * Nhập danh mục từ CSV.
+ *
+ * Parse **trước** để có danh sách lỗi theo dòng: lỗi `importCategoriesCsv` ném ra là một
+ * chuỗi gộp, không đủ để UI chỉ đúng dòng và cột cho người dùng sửa file. Parse là hàm
+ * thuần nên chạy thêm một lần không đáng kể so với một lượt ghi.
+ */
+async function importCategoriesFromCsv(text: string): Promise<void> {
+  csvErrors.value = [];
+  csvImported.value = null;
+
+  const { errors } = parseCategoriesCsv(text);
+  if (errors.length > 0) {
+    csvErrors.value = errors; // D7: có lỗi thì không ghi gì; file người dùng giữ nguyên.
+    return;
+  }
+
+  csvImporting.value = true;
+  try {
+    const summary = await importCategoriesCsv(repository, text);
+    csvImported.value = { kind: 'categories', summary };
+    await reload();
+  } catch (error) {
+    // Lỗi không theo dòng (ví dụ document thiếu `_rev`): thông báo của core đã đủ rõ.
+    saveError.value = messageOf(error);
+  } finally {
+    csvImporting.value = false;
+  }
+}
+
+/** Nhập món từ CSV — cùng đường với danh mục, chỉ khác hàm core và tiền tệ của tệp. */
+async function importProductsFromCsv(text: string): Promise<void> {
+  csvErrors.value = [];
+  csvImported.value = null;
+
+  const { errors } = parseProductsCsv(text, { currency: csvCurrency.value });
+  if (errors.length > 0) {
+    csvErrors.value = errors;
+    return;
+  }
+
+  csvImporting.value = true;
+  try {
+    const summary = await importProductsCsv(repository, text, { currency: csvCurrency.value });
+    csvImported.value = { kind: 'products', summary };
+    await reload();
+  } catch (error) {
+    saveError.value = messageOf(error);
+  } finally {
+    csvImporting.value = false;
+  }
+}
+
 // ---- Xác nhận xoá nhóm topping / combo / bảng giá --------------------------
 
 /**
@@ -867,6 +952,18 @@ async function confirmRemoval(): Promise<void> {
       :branch-id="branchId"
       @set="setBranchOverride"
       @clear="clearBranchOverride"
+    />
+
+    <CsvPanel
+      v-if="activeTab === 'csv'"
+      :categories="categories"
+      :products="products"
+      :currency="csvCurrency"
+      :importing="csvImporting"
+      :errors="csvErrors"
+      :imported="csvImported"
+      @import-categories="importCategoriesFromCsv"
+      @import-products="importProductsFromCsv"
     />
 
     <AlertDialog.Root v-model="removalOpen">
