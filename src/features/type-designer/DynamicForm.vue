@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { Button } from '@vuetify/v0';
 import { buildFormModel } from '@/core/types/read-model';
 import type { FormFieldModel } from '@/core/types/read-model';
 import { fieldType, formatFieldValue } from '@/core/types/field-registry';
@@ -24,6 +25,8 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const formEl = ref<HTMLFormElement | null>(null);
 
 /** Lỗi chỉ hiện sau lần submit đầu tiên — không doạ người dùng ngay khi mở form. */
 const submitted = ref(false);
@@ -98,10 +101,19 @@ function onSubmit() {
   if (hasErrors.value) return;
   emit('submit', storedValues.value);
 }
+
+/**
+ * `Button.Root` luôn render `type="button"` (Vuetify0 hardcode trong ButtonRoot), và 4.8
+ * cấm `<button>` trần. Nút lưu vì vậy tự gọi `requestSubmit()` để click của người dùng
+ * và đường submit của form chỉ còn **một** lối vào: sự kiện `submit`.
+ */
+function requestSubmit(): void {
+  formEl.value?.requestSubmit();
+}
 </script>
 
 <template>
-  <form class="dynamic-form" novalidate @submit.prevent="onSubmit">
+  <form ref="formEl" class="dynamic-form" novalidate @submit.prevent="onSubmit">
     <div
       v-for="field in fields"
       :key="field.key"
@@ -124,5 +136,7 @@ function onSubmit() {
 
       <p v-if="field.error" class="dynamic-form__error" role="alert">{{ field.error }}</p>
     </div>
+
+    <Button.Root data-form-submit @click="requestSubmit">{{ t('type.form.save') }}</Button.Root>
   </form>
 </template>

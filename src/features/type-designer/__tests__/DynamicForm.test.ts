@@ -86,4 +86,24 @@ describe('DynamicForm', () => {
     await wrapper.find('form').trigger('submit');
     expect(wrapper.emitted('submit')).toBeDefined();
   });
+
+  it('offers a save control labelled from i18n', () => {
+    const wrapper = mountForm({ name: 'Phở' });
+    const submit = wrapper.find('form [data-form-submit]');
+    expect(submit.exists()).toBe(true);
+    expect(submit.text()).toBe(i18n.global.t('type.form.save'));
+  });
+
+  it('emits submit when the save control is clicked', async () => {
+    const wrapper = mountForm({ name: 'Phở' });
+    await wrapper.find('form [data-form-submit]').trigger('click');
+    expect(wrapper.emitted('submit')?.[0]?.[0]).toMatchObject({ name: 'Phở' });
+  });
+
+  it('does not emit submit when the save control is clicked while a required field is empty', async () => {
+    const wrapper = mountForm();
+    await wrapper.find('form [data-form-submit]').trigger('click');
+    expect(wrapper.emitted('submit')).toBeUndefined();
+    expect(wrapper.text()).toContain(i18n.global.t('type.record.required'));
+  });
 });
