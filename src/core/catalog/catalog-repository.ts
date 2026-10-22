@@ -2,11 +2,26 @@ import type { DbAdapter } from '../db/adapter';
 import type { DocEnvelope } from '../db/envelope';
 import { GLOBAL_BRANCH_ID } from '../db/branch';
 import type { Money } from '../money';
-import type { LocalizedText } from '../types/definition';
+import type { LocalizedText, TypeDefinitionDoc } from '../types/definition';
+import type { CustomFieldBinding } from '../types/custom-fields';
+import {
+  applyCustomFieldsOnRead,
+  assertNoUndeclaredKeys,
+  pickCustomValues,
+  validateCustomValues,
+} from '../types/custom-fields';
+import { createTypeRegistry } from '../types/type-registry';
+import { PRODUCT_BASE_TYPE } from './product-type';
 import type { CategoryDoc, CreateCategoryInput } from './category';
 import { CATEGORY_DOC_TYPE, createCategoryDoc, validateCategory } from './category';
 import type { CreateProductInput, ProductDoc, ProductRecord, ProductVariant } from './product';
-import { PRODUCT_DOC_TYPE, createProductDoc, normalizeBarcode, validateProduct } from './product';
+import {
+  PRODUCT_DOC_TYPE,
+  PRODUCT_SYSTEM_FIELDS,
+  createProductDoc,
+  normalizeBarcode,
+  validateProduct,
+} from './product';
 import type { CreateModifierGroupInput, ModifierGroupDoc } from './modifier-group';
 import {
   MODIFIER_GROUP_DOC_TYPE,
@@ -64,6 +79,19 @@ export interface ProductPatch {
   readonly isActive?: boolean;
 }
 
+/**
+ * Field tuỳ chỉnh của type `product` — khoá động, chỉ chứa khoá mà type definition khai báo.
+ * Tầng lưu từ chối mọi khoá lạ (`assertNoUndeclaredKeys`), nên kiểu ở đây rộng một cách
+ * có chủ ý: ràng buộc thật nằm ở type definition, không nằm ở TypeScript.
+ */
+export type ProductCustomValues = Readonly<Record<string, unknown>>;
+
+/** Yêu cầu tạo sản phẩm: field hệ thống (trừ `now` do repository tự bơm) + field tuỳ chỉnh. */
+export type CreateProductRequest = CreateInput<CreateProductInput> & ProductCustomValues;
+
+/** Yêu cầu sửa sản phẩm: patch field hệ thống + field tuỳ chỉnh. */
+export type UpdateProductRequest = ProductPatch & ProductCustomValues;
+
 export interface ModifierGroupPatch {
   readonly name?: LocalizedText;
   readonly options?: readonly CreateModifierGroupInput['options'][number][];
@@ -98,8 +126,8 @@ export interface CatalogRepository {
   removeCategory(id: string, expectedRev: string): Promise<void>;
 
   // Product (global)
-  createProduct(input: CreateInput<CreateProductInput>): Promise<ProductRecord>;
-  updateProduct(id: string, patch: ProductPatch, expectedRev?: string): Promise<ProductRecord>;
+  createProduct(input: CreateProductRequest): Promise<ProductRecord>;
+  updateProduct(id: string, patch: UpdateProductRequest, expectedRev?: string): Promise<ProductRecord>;
   getProduct(id: string): Promise<ProductRecord | null>;
   listProducts(): Promise<readonly ProductRecord[]>;
   removeProduct(id: string, expectedRev: string): Promise<void>;
@@ -209,6 +237,83 @@ export function createCatalogRepository(
     return docs.filter((doc) => doc.docType === docType);
   }
 
+  // ---- Field tuỳ chỉnh của product (Type Registry M1) ------------------------
+
+  const registry = createTypeRegistry(adapter, clock);
+
+  /**
+   * Định nghĩa type của `product`; `null` khi chưa ai khai báo — khi đó không có field
+   * tuỳ chỉnh nào và mọi khoá lạ đều bị từ chối.
+   */
+  async function loadProductDefinition(): Promise<TypeDefinitionDoc | null> {
+    return registry.getType(PRODUCT_BASE_TYPE);
+  }
+
+  function productBinding(definition: TypeDefinitionDoc | null): CustomFieldBinding {
+    return { definition, systemKeys: PRODUCT_SYSTEM_FIELDS };
+  }
+
+  function isProductSystemKey(key: string): boolean {
+    return (PRODUCT_SYSTEM_FIELDS as readonly string[]).includes(key);
+  }
+
+  /** Chỉ giữ field hệ thống của product — bỏ `id`/`now` và mọi field tuỳ chỉnh. */
+  function systemValuesOf(source: Readonly<Record<string, unknown>>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(source)) {
+      if (isProductSystemKey(key)) out[key] = value;
+    }
+    return out;
+  }
+
+  /** Giữ `id` + field hệ thống — đầu vào của `createProductDoc` khi tạo mới. */
+  function createValuesOf(source: Readonly<Record<string, unknown>>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(source)) {
+      if (key === 'id' || isProductSystemKey(key)) out[key] = value;
+    }
+    return out;
+  }
+
+  /** Tách field tuỳ chỉnh khỏi input/patch của product (bỏ `id`/`now` và field hệ thống). */
+  function customValuesOf(source: Readonly<Record<string, unknown>>): Record<string, unknown> {
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(source)) {
+      if (key === 'id' || key === 'now') continue;
+      if (isProductSystemKey(key)) continue;
+      out[key] = value;
+    }
+    return out;
+  }
+
+  /**
+   * Kiểm khoá lạ rồi validate field tuỳ chỉnh của product.
+   *
+   * `existing` là giá trị tuỳ chỉnh đang có trên document (khi sửa) để merge trước khi
+   * validate — nếu không, một field bắt buộc không được gửi lại sẽ bị coi là thiếu.
+   */
+  function cleanProductCustomValues(
+    definition: TypeDefinitionDoc | null,
+    source: Readonly<Record<string, unknown>>,
+    existing: Readonly<Record<string, unknown>> | null,
+  ): Record<string, unknown> {
+    const submitted = customValuesOf(source);
+    assertNoUndeclaredKeys(productBinding(definition), submitted);
+
+    const merged = { ...pickCustomValues(definition, existing ?? {}), ...submitted };
+    return validateCustomValues(definition, merged);
+  }
+
+  /** Đọc một product qua lớp field tuỳ chỉnh: lazy migration theo version rồi tính formula. */
+  async function readProduct(
+    doc: ProductDoc,
+    definition: TypeDefinitionDoc | null,
+  ): Promise<ProductRecord> {
+    if (definition === null) return doc as ProductRecord;
+    const effective = await applyCustomFieldsOnRead({ adapter, definition, doc, clock });
+    return effective as unknown as ProductRecord;
+  }
+
   // ---- Bất biến giữa các document -------------------------------------------
 
   async function assertCategoryExists(categoryId: string | null): Promise<void> {
@@ -308,18 +413,35 @@ export function createCatalogRepository(
     // ---- Product -----------------------------------------------------------
 
     async createProduct(input) {
+      const definition = await loadProductDefinition();
+      const custom = cleanProductCustomValues(definition, input, null);
+
       await assertCategoryExists(input.categoryId ?? null);
       await assertModifierGroupsExist(input.modifierGroupIds ?? []);
       await assertBarcodeFree(normalizeBarcode(input.barcode));
 
-      const doc = await insert(createProductDoc({ ...input, now: clock() }), 'catalog_product');
+      // `input` còn mang field tuỳ chỉnh; factory chỉ đọc những field nó khai báo nên
+      // phần thừa bị bỏ lại ở đây và được ghi vào document ngay bên dưới.
+      const doc = createProductDoc({
+        ...(createValuesOf(input) as unknown as CreateProductInput),
+        now: clock(),
+      });
+
+      const record: DocEnvelope = {
+        ...doc,
+        ...(definition === null ? {} : { schemaVersion: definition.version }),
+        ...custom,
+      };
+
+      const saved = await insert(record, 'catalog_product');
       // `ProductDoc` không có index signature nên không tự nhận là `ProductRecord`;
       // ép kiểu ở đúng ranh giới này (giống cách `record-repository.ts` của M1 làm).
-      return doc as ProductRecord;
+      return readProduct(saved as ProductDoc, definition);
     },
 
     async updateProduct(id, patch, expectedRev) {
       const docId = `product:${id}`;
+      const definition = await loadProductDefinition();
 
       if (patch.categoryId !== undefined) await assertCategoryExists(patch.categoryId);
       if (patch.modifierGroupIds !== undefined) await assertModifierGroupsExist(patch.modifierGroupIds);
@@ -327,29 +449,42 @@ export function createCatalogRepository(
         await assertBarcodeFree(normalizeBarcode(patch.barcode), docId);
       }
 
+      const current = await readDoc<ProductDoc>(docId, PRODUCT_DOC_TYPE);
+      if (current === null) throw new Error(`catalog_product ${JSON.stringify(docId)} not found`);
+
+      const custom = cleanProductCustomValues(
+        definition,
+        patch,
+        current as unknown as Record<string, unknown>,
+      );
+
       const next = await update<ProductDoc>(
         docId,
         PRODUCT_DOC_TYPE,
         'catalog_product',
         {
-          ...patch,
+          ...systemValuesOf(patch),
           ...(patch.barcode === undefined ? {} : { barcode: normalizeBarcode(patch.barcode) }),
+          ...custom,
+          ...(definition === null ? {} : { schemaVersion: definition.version }),
         },
         expectedRev,
         (doc) => assertNoIssues(`catalog_product ${JSON.stringify(docId)}`, validateProduct(doc)),
       );
 
-      return next as ProductRecord;
+      return readProduct(next, definition);
     },
 
     async getProduct(id) {
       const doc = await readDoc<ProductDoc>(`product:${id}`, PRODUCT_DOC_TYPE);
-      return doc === null ? null : (doc as ProductRecord);
+      if (doc === null) return null;
+      return readProduct(doc, await loadProductDefinition());
     },
 
     async listProducts() {
+      const definition = await loadProductDefinition();
       const docs = (await globalDocs(PRODUCT_DOC_TYPE)) as ProductDoc[];
-      return sortByOrderThenName(docs) as ProductRecord[];
+      return Promise.all(sortByOrderThenName(docs).map((doc) => readProduct(doc, definition)));
     },
 
     async removeProduct(id, expectedRev) {
@@ -360,10 +495,11 @@ export function createCatalogRepository(
       const wanted = normalizeBarcode(barcode);
       if (wanted === null) return null;
 
+      const definition = await loadProductDefinition();
       for (const doc of await globalDocs(PRODUCT_DOC_TYPE)) {
         const product = doc as ProductDoc;
         if (product.isActive !== true) continue;
-        if (normalizeBarcode(product.barcode) === wanted) return product as ProductRecord;
+        if (normalizeBarcode(product.barcode) === wanted) return readProduct(product, definition);
       }
       return null;
     },

@@ -2,11 +2,15 @@ import type { DbAdapter } from '../db/adapter';
 import type { DocEnvelope } from '../db/envelope';
 import { createEnvelope } from '../db/envelope';
 import { recordDocId } from '../db/ids';
-import type { TypeDefinition, TypeDefinitionDoc } from './definition';
+import type { TypeDefinitionDoc } from './definition';
 import { SYSTEM_FIELD_KEYS } from './definition';
-import { fieldType } from './field-registry';
-import { migrateRecordOnRead } from './migration';
-import { computeFormulaFields } from './read-model';
+import type { CustomFieldBinding } from './custom-fields';
+import {
+  applyCustomFieldsOnRead,
+  assertNoUndeclaredKeys,
+  pickCustomValues,
+  validateCustomValues,
+} from './custom-fields';
 import { createTypeRegistry } from './type-registry';
 
 /**
@@ -56,14 +60,6 @@ function isConflict(error: unknown): boolean {
   return error instanceof Error && /conflict/i.test(error.message);
 }
 
-function isSystemFieldKey(key: string): boolean {
-  return (SYSTEM_FIELD_KEYS as readonly string[]).includes(key);
-}
-
-function validationError(typeKey: string, fieldKey: string, message: string): Error {
-  return new Error(`invalid record for type "${typeKey}": field "${fieldKey}": ${message}`);
-}
-
 /**
  * `DocEnvelope` không khai báo index signature, nên nó không tự nhận là
  * `Readonly<Record<string, unknown>>` dù record thật sự mang khoá động.
@@ -87,74 +83,9 @@ export function createRecordRepository(
     return definition;
   }
 
-  /**
-   * Từ chối mọi khoá không được type khai báo (kể cả field hệ thống).
-   *
-   * Chạy trên dữ liệu thô của người dùng để lỗi nêu đúng khoá họ vừa gửi,
-   * thay vì lặng lẽ bỏ qua.
-   */
-  function assertNoUndeclaredKeys(
-    definition: TypeDefinition,
-    source: Readonly<Record<string, unknown>>,
-  ): void {
-    const declared = new Set(definition.fields.map((field) => field.key));
-
-    for (const key of Object.keys(source)) {
-      if (isSystemFieldKey(key)) {
-        throw new Error(`invalid record for type "${definition.key}": "${key}" is a system field`);
-      }
-      if (!declared.has(key)) {
-        throw new Error(
-          `invalid record for type "${definition.key}": field "${key}" is not declared by the type`,
-        );
-      }
-    }
-  }
-
-  /**
-   * Validate từng field đã khai báo và trả về dữ liệu đã làm sạch.
-   *
-   * Field `formula` bị bỏ qua ở cả hai chiều: chúng là dẫn xuất, không bao giờ
-   * được lưu (Spec §R1 — bảng dữ liệu không chứa cột tính toán).
-   */
-  function validateFieldValues(
-    definition: TypeDefinition,
-    values: Readonly<Record<string, unknown>>,
-  ): Record<string, unknown> {
-    const clean: Record<string, unknown> = {};
-
-    for (const field of definition.fields) {
-      if (field.dataType === 'formula') continue;
-
-      const value = values[field.key];
-      const issues = fieldType(field.dataType).validate(value, field);
-      const first = issues[0];
-
-      if (first !== undefined) {
-        throw validationError(definition.key, field.key, first.message);
-      }
-      if (value !== undefined) {
-        clean[field.key] = value;
-      }
-    }
-
-    return clean;
-  }
-
-  /** Chỉ lấy các field dữ liệu đã khai báo từ một document (bỏ envelope + formula). */
-  function pickDataFields(
-    definition: TypeDefinition,
-    source: Readonly<Record<string, unknown>>,
-  ): Record<string, unknown> {
-    const out: Record<string, unknown> = {};
-
-    for (const field of definition.fields) {
-      if (field.dataType === 'formula') continue;
-      const value = source[field.key];
-      if (value !== undefined) out[field.key] = value;
-    }
-
-    return out;
+  /** Gắn type definition hiện tại vào lớp field tuỳ chỉnh dùng chung. */
+  function binding(definition: TypeDefinitionDoc): CustomFieldBinding {
+    return { definition, systemKeys: SYSTEM_FIELD_KEYS };
   }
 
   /**
@@ -167,15 +98,8 @@ export function createRecordRepository(
     definition: TypeDefinitionDoc,
     doc: DocEnvelope,
   ): Promise<RecordDocument> {
-    const outcome = await migrateRecordOnRead(
-      doc,
-      definition,
-      definition.migrations,
-      adapter,
-      clock,
-    );
-    const computed = computeFormulaFields(definition, asRecordDocument(outcome.doc));
-    return { ...outcome.doc, ...computed };
+    const effective = await applyCustomFieldsOnRead({ adapter, definition, doc, clock });
+    return effective as unknown as RecordDocument;
   }
 
   /**
@@ -203,8 +127,8 @@ export function createRecordRepository(
     async create({ typeKey, branchId, data }) {
       const definition = await requireDefinition(typeKey);
 
-      assertNoUndeclaredKeys(definition, data);
-      const values = validateFieldValues(definition, data);
+      assertNoUndeclaredKeys(binding(definition), data);
+      const values = validateCustomValues(definition, data);
 
       const start = await nextSequence(typeKey);
 
@@ -255,10 +179,13 @@ export function createRecordRepository(
         );
       }
 
-      assertNoUndeclaredKeys(definition, data);
+      assertNoUndeclaredKeys(binding(definition), data);
 
-      const merged = { ...pickDataFields(definition, asRecordDocument(existing)), ...data };
-      const values = validateFieldValues(definition, merged);
+      const merged = {
+        ...pickCustomValues(definition, asRecordDocument(existing)),
+        ...data,
+      };
+      const values = validateCustomValues(definition, merged);
 
       const next: DocEnvelope = {
         _id: existing._id,

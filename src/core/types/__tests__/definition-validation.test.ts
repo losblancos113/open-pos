@@ -57,6 +57,18 @@ describe('validateTypeDefinition', () => {
     );
   });
 
+  it('rejects a custom field that shadows an entity system field', () => {
+    const def = typeOf([f({ key: 'basePrice', dataType: 'money' })]);
+
+    // Không truyền `reservedKeys` thì chỉ khoá của envelope bị chặn — validator không
+    // biết entity nào đang được mở rộng, nên `basePrice` vẫn qua được.
+    expect(codes(def)).not.toContain('reserved_key');
+
+    const issues = validateTypeDefinition(def, { reservedKeys: ['basePrice'] });
+    expect(issues[0]?.code).toBe('reserved_key');
+    expect(issues[0]?.message).toContain('basePrice');
+  });
+
   it('rejects duplicate field keys', () => {
     expect(
       codes(typeOf([f({ key: 'dup', dataType: 'text' }), f({ key: 'dup', dataType: 'number' })])),

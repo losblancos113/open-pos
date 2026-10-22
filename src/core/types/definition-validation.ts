@@ -36,8 +36,12 @@ function issue(
   return { path, code, message };
 }
 
-function isReservedKey(key: string): boolean {
-  return key.startsWith('_') || (SYSTEM_FIELD_KEYS as readonly string[]).includes(key);
+function isReservedKey(key: string, extra: readonly string[]): boolean {
+  return (
+    key.startsWith('_') ||
+    (SYSTEM_FIELD_KEYS as readonly string[]).includes(key) ||
+    extra.includes(key)
+  );
 }
 
 function isKnownDataType(dataType: string): boolean {
@@ -52,14 +56,17 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function validateFieldKeys(fields: readonly FieldDefinition[]): DefinitionValidationIssue[] {
+function validateFieldKeys(
+  fields: readonly FieldDefinition[],
+  reservedKeys: readonly string[],
+): DefinitionValidationIssue[] {
   const issues: DefinitionValidationIssue[] = [];
   const declared = new Set<string>();
 
   for (const field of fields) {
     const key = field.key;
 
-    if (isReservedKey(key)) {
+    if (isReservedKey(key, reservedKeys)) {
       issues.push(
         issue(
           key,
@@ -239,9 +246,21 @@ function validateFormulaFields(
  *
  * Trả mảng rỗng khi hợp lệ; không ném lỗi — Type Designer cần hiển thị nhiều lỗi cùng lúc.
  */
-export function validateTypeDefinition(def: TypeDefinition): DefinitionValidationIssue[] {
+export interface TypeDefinitionValidationOptions {
+  /**
+   * Khoá hệ thống của **entity** đang được mở rộng (ví dụ `basePrice` của product).
+   * Validator không tự biết entity là gì — nơi gọi truyền vào. Bỏ trống thì chỉ khoá
+   * của envelope bị chặn (hành vi M1, không đổi).
+   */
+  readonly reservedKeys?: readonly string[];
+}
+
+export function validateTypeDefinition(
+  def: TypeDefinition,
+  options?: TypeDefinitionValidationOptions,
+): DefinitionValidationIssue[] {
   const issues: DefinitionValidationIssue[] = [
-    ...validateFieldKeys(def.fields),
+    ...validateFieldKeys(def.fields, options?.reservedKeys ?? []),
   ];
 
   for (const field of def.fields) {
@@ -279,8 +298,11 @@ export function validateTypeDefinition(def: TypeDefinition): DefinitionValidatio
 }
 
 /** Ném lỗi gộp mọi issue — dùng ở ranh giới tin cậy (lưu type, chạy migration). */
-export function assertValidTypeDefinition(def: TypeDefinition): void {
-  const issues = validateTypeDefinition(def);
+export function assertValidTypeDefinition(
+  def: TypeDefinition,
+  options?: TypeDefinitionValidationOptions,
+): void {
+  const issues = validateTypeDefinition(def, options);
   if (issues.length === 0) return;
 
   const details = issues.map((entry) => `  ${entry.code} at ${entry.path}: ${entry.message}`);
