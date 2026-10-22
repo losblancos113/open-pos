@@ -134,6 +134,60 @@ function describe(value: unknown): string {
 }
 
 /**
+ * Khoảng chọn của một nhóm (modifier group, combo group).
+ *
+ * Quy tắc: `minSelect`/`maxSelect` là số nguyên ≥ 0; một nhóm **có** lựa chọn thì phải
+ * cho chọn được ít nhất một cái (`maxSelect ≥ 1`) — nhóm có option mà `maxSelect = 0`
+ * là cấu hình vô nghĩa; và `minSelect ≤ maxSelect ≤ optionCount`.
+ */
+export function validateSelectRange(
+  /** Đường dẫn của **nhóm** sở hữu khoảng chọn; `''` khi nhóm chính là document. */
+  parentPath: string,
+  range: { readonly minSelect: number; readonly maxSelect: number; readonly optionCount: number },
+): CatalogIssue[] {
+  const { minSelect, maxSelect, optionCount } = range;
+  const min = parentPath === '' ? 'minSelect' : `${parentPath}.minSelect`;
+  const max = parentPath === '' ? 'maxSelect' : `${parentPath}.maxSelect`;
+  const where = parentPath === '' ? 'the group' : parentPath;
+
+  if (!Number.isInteger(minSelect) || minSelect < 0) {
+    return [
+      issue(min, 'invalid_select_range', `${min} must be a non-negative integer, got ${describe(minSelect)}`),
+    ];
+  }
+  if (!Number.isInteger(maxSelect) || maxSelect < 0) {
+    return [
+      issue(max, 'invalid_select_range', `${max} must be a non-negative integer, got ${describe(maxSelect)}`),
+    ];
+  }
+  if (optionCount > 0 && maxSelect < 1) {
+    return [
+      issue(
+        max,
+        'invalid_select_range',
+        `${where} has ${optionCount} options but maxSelect is 0, so nothing can ever be selected`,
+      ),
+    ];
+  }
+  if (minSelect > maxSelect) {
+    return [
+      issue(min, 'invalid_select_range', `${min} ${minSelect} is greater than maxSelect ${maxSelect}`),
+    ];
+  }
+  if (maxSelect > optionCount) {
+    return [
+      issue(
+        max,
+        'invalid_select_range',
+        `${max} ${maxSelect} is greater than the ${optionCount} declared options`,
+      ),
+    ];
+  }
+
+  return [];
+}
+
+/**
  * Tham chiếu tới một document khác, dạng `prefix:<id>` (ví dụ `product:pho-bo`).
  *
  * Chỉ kiểm **hình dạng**; sự tồn tại của document đích là việc của repository (nó mới
