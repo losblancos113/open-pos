@@ -5,7 +5,13 @@ import { Button, Input, Select } from '@vuetify/v0';
 import type { DbAdapter } from '@/core/db/adapter';
 import { DEFAULT_BRANCH_ID } from '@/core/db/branch';
 import { createOrderRepository } from '@/core/order/order-repository';
+import type { BranchMenu } from '@/core/catalog/menu';
+import type { ModifierGroupDoc } from '@/core/catalog/modifier-group';
+import type { ComboDoc } from '@/core/catalog/combo';
+import type { CatalogRepository } from '@/core/catalog/catalog-repository';
+import type { OrderLineItem } from '@/core/order/types';
 import FloorPlanView from './FloorPlanView.vue';
+import PosCatalogPicker from './PosCatalogPicker.vue';
 
 export type PosMode = 'floor' | 'fast_sale';
 
@@ -21,15 +27,24 @@ const props = withDefaults(
   defineProps<{
     adapter: DbAdapter;
     branchId?: string;
+    menu?: BranchMenu | null;
+    modifierGroups?: readonly ModifierGroupDoc[];
+    combos?: readonly ComboDoc[];
+    catalogRepository?: CatalogRepository | null;
   }>(),
   {
     branchId: DEFAULT_BRANCH_ID,
+    menu: null,
+    modifierGroups: () => [],
+    combos: () => [],
+    catalogRepository: null,
   },
 );
 
 const emit = defineEmits<{
   (e: 'open-bank-settings'): void;
   (e: 'select-table', tableId: string): void;
+  (e: 'add-line', item: OrderLineItem): void;
 }>();
 
 const { t } = useI18n();
@@ -88,10 +103,15 @@ watch([terminalCode, cashierName], ([newCode, newName]) => {
 });
 
 const selectedTableId = ref<string | null>(null);
+const floorSubView = ref<'tables' | 'catalog'>('tables');
 
 function handleSelectTable(tableId: string) {
   selectedTableId.value = tableId;
   emit('select-table', tableId);
+}
+
+function handleAddLine(item: OrderLineItem) {
+  emit('add-line', item);
 }
 
 defineExpose({
@@ -100,6 +120,8 @@ defineExpose({
   terminalCode,
   cashierName,
   selectedTableId,
+  floorSubView,
+  handleAddLine,
 });
 </script>
 
@@ -205,32 +227,87 @@ defineExpose({
       <section class="pos-left-panel md:w-[60%] flex-1 flex flex-col p-4 overflow-y-auto min-h-0">
         <div
           v-if="mode === 'floor'"
-          class="floor-plan-panel flex-1 panel-card flex flex-col"
+          class="floor-plan-panel flex-1 panel-card flex flex-col min-h-0"
           data-test="floor-plan-panel"
         >
-          <slot
-            name="floor-plan"
-            :select-table="handleSelectTable"
-            :selected-table-id="selectedTableId"
+          <!-- Thanh điều hướng phụ khi đang chọn bàn (Floor plan vs Table ordering) -->
+          <div
+            v-if="selectedTableId"
+            class="table-ordering-bar mb-3 flex items-center justify-between pb-2 border-b border-border shrink-0"
+            data-test="table-ordering-bar"
           >
-            <FloorPlanView
-              :order-repository="orderRepository"
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold text-text-muted">
+                {{ t('pos.receipt.table') }}:
+              </span>
+              <span class="font-bold text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                {{ selectedTableId.replace(/^table:[^:]+:/, '') }}
+              </span>
+            </div>
+
+            <div class="inline-flex gap-1">
+              <Button.Root
+                type="button"
+                class="btn text-xs px-2.5 py-1 cursor-pointer"
+                :class="floorSubView === 'tables' ? 'btn-primary' : 'btn-ghost'"
+                data-test="toggle-floor-tables"
+                @click="floorSubView = 'tables'"
+              >
+                {{ t('pos.table.backToFloor') }}
+              </Button.Root>
+              <Button.Root
+                type="button"
+                class="btn text-xs px-2.5 py-1 cursor-pointer"
+                :class="floorSubView === 'catalog' ? 'btn-primary' : 'btn-ghost'"
+                data-test="toggle-floor-catalog"
+                @click="floorSubView = 'catalog'"
+              >
+                {{ t('pos.table.order') }}
+              </Button.Root>
+            </div>
+          </div>
+
+          <div v-if="floorSubView === 'catalog' && selectedTableId" class="flex-1 min-h-0">
+            <PosCatalogPicker
+              :adapter="adapter"
               :branch-id="branchId"
-              :active-table-id="selectedTableId"
-              @select-table="handleSelectTable"
+              :menu="menu"
+              :modifier-groups="modifierGroups"
+              :combos="combos"
+              :catalog-repository="catalogRepository"
+              @add-line="handleAddLine"
             />
-          </slot>
+          </div>
+          <div v-else class="flex-1 min-h-0 flex flex-col">
+            <slot
+              name="floor-plan"
+              :select-table="handleSelectTable"
+              :selected-table-id="selectedTableId"
+            >
+              <FloorPlanView
+                :order-repository="orderRepository"
+                :branch-id="branchId"
+                :active-table-id="selectedTableId"
+                @select-table="handleSelectTable"
+              />
+            </slot>
+          </div>
         </div>
         <div
           v-else
-          class="fast-sale-panel flex-1 panel-card flex flex-col"
+          class="fast-sale-panel flex-1 panel-card flex flex-col min-h-0"
           data-test="fast-sale-panel"
         >
           <slot name="fast-sale">
-            <div class="p-6 text-center text-text-muted my-auto">
-              <p class="font-medium text-base text-text">{{ t('pos.mode.fastSale') }}</p>
-              <p class="text-sm mt-1">Khung chọn món bán nhanh (Catalog Picker) sẽ được gắn tại Task 10.</p>
-            </div>
+            <PosCatalogPicker
+              :adapter="adapter"
+              :branch-id="branchId"
+              :menu="menu"
+              :modifier-groups="modifierGroups"
+              :combos="combos"
+              :catalog-repository="catalogRepository"
+              @add-line="handleAddLine"
+            />
           </slot>
         </div>
       </section>

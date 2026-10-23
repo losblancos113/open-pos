@@ -75,7 +75,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="floor-plan-view flex flex-col gap-4 h-full">
+  <div class="floor-plan-view flex flex-col gap-4 h-full" data-test="floor-plan-view">
     <!-- Bộ lọc khu vực (Area filter tabs) -->
     <div class="area-filter-bar flex items-center gap-2 overflow-x-auto pb-1">
       <Button.Group

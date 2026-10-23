@@ -246,7 +246,9 @@
       "billPrinted": "Bill Printed",
       "allAreas": "All",
       "capacity": "{count} guests",
-      "noTables": "No tables in this area"
+      "noTables": "No tables in this area",
+      "order": "Order",
+      "backToFloor": "Floor Plan"
     },
     "guests": "Guests",
     "openTable": "Open Table",
@@ -267,7 +269,25 @@
       "toppings": "Toppings",
       "combos": "Combo Items",
       "required": "Required",
-      "maxAllowed": "Maximum allowed"
+      "maxAllowed": "Maximum allowed",
+      "size": "Size",
+      "baseSize": "Regular",
+      "selectMin": "Select at least {count}",
+      "selectMax": "Select up to {count}",
+      "confirm": "Add to Order",
+      "cancel": "Cancel"
+    },
+    "catalog": {
+      "all": "All",
+      "searchPlaceholder": "Search by name or barcode...",
+      "noItems": "No matching items found",
+      "sizesCount": "{count} sizes",
+      "comboBadge": "Combo"
+    },
+    "combo": {
+      "title": "Combo Selection",
+      "selectItems": "Please select items",
+      "badge": "Combo"
     },
     "payment": {
       "title": "Payment",

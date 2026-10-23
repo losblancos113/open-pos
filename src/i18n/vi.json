@@ -246,7 +246,9 @@
       "billPrinted": "Đã in tạm tính",
       "allAreas": "Tất cả",
       "capacity": "{count} khách",
-      "noTables": "Chưa có bàn nào trong khu vực này"
+      "noTables": "Chưa có bàn nào trong khu vực này",
+      "order": "Chọn món",
+      "backToFloor": "Sơ đồ bàn"
     },
     "guests": "Số khách",
     "openTable": "Mở bàn",
@@ -267,7 +269,25 @@
       "toppings": "Topping",
       "combos": "Món combo",
       "required": "Bắt buộc",
-      "maxAllowed": "Tối đa cho phép"
+      "maxAllowed": "Tối đa cho phép",
+      "size": "Kích cỡ",
+      "baseSize": "Tiêu chuẩn",
+      "selectMin": "Chọn tối thiểu {count}",
+      "selectMax": "Chọn tối đa {count}",
+      "confirm": "Thêm vào đơn",
+      "cancel": "Huỷ"
+    },
+    "catalog": {
+      "all": "Tất cả",
+      "searchPlaceholder": "Tìm theo tên hoặc mã vạch...",
+      "noItems": "Không tìm thấy món phù hợp",
+      "sizesCount": "{count} kích cỡ",
+      "comboBadge": "Combo"
+    },
+    "combo": {
+      "title": "Chọn món combo",
+      "selectItems": "Vui lòng chọn món",
+      "badge": "Combo"
     },
     "payment": {
       "title": "Thanh toán",
