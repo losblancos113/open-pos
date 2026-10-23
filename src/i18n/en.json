@@ -233,5 +233,69 @@
       },
       "rowError": "Row {row}, column {column}: {message}"
     }
+  },
+  "pos": {
+    "title": "POS",
+    "mode": {
+      "floor": "Floor Plan",
+      "fastSale": "Fast Sale"
+    },
+    "table": {
+      "empty": "Empty",
+      "occupied": "Occupied",
+      "billPrinted": "Bill Printed"
+    },
+    "guests": "Guests",
+    "openTable": "Open Table",
+    "ticket": {
+      "title": "Order Ticket",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "surcharge": "Surcharge",
+      "tax": "Tax",
+      "total": "Total",
+      "printDraft": "Print Draft",
+      "checkout": "Checkout",
+      "note": "Note",
+      "voidLine": "Void Item"
+    },
+    "options": {
+      "title": "Item Options",
+      "toppings": "Toppings",
+      "combos": "Combo Items",
+      "required": "Required",
+      "maxAllowed": "Maximum allowed"
+    },
+    "payment": {
+      "title": "Payment",
+      "cash": "Cash",
+      "vietqr": "VietQR",
+      "card": "Card",
+      "other": "Other",
+      "tendered": "Tendered",
+      "change": "Change",
+      "balanceRemaining": "Remaining",
+      "confirmReceived": "Confirm Received",
+      "success": "Payment Successful"
+    },
+    "bank": {
+      "title": "Bank Account Settings",
+      "selectBank": "Select Bank",
+      "bin": "BIN",
+      "accountNumber": "Account Number",
+      "accountName": "Account Name",
+      "saveSuccess": "Bank account saved"
+    },
+    "receipt": {
+      "header": "Receipt",
+      "cashier": "Cashier",
+      "table": "Table",
+      "date": "Date",
+      "item": "Item",
+      "qty": "Qty",
+      "price": "Price",
+      "amount": "Amount",
+      "thankYou": "Thank you for dining with us!"
+    }
   }
 }

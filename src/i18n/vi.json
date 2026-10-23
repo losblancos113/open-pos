@@ -233,5 +233,69 @@
       },
       "rowError": "Dòng {row}, cột {column}: {message}"
     }
+  },
+  "pos": {
+    "title": "Bán hàng",
+    "mode": {
+      "floor": "Sơ đồ bàn",
+      "fastSale": "Bán nhanh"
+    },
+    "table": {
+      "empty": "Bàn trống",
+      "occupied": "Có khách",
+      "billPrinted": "Đã in tạm tính"
+    },
+    "guests": "Số khách",
+    "openTable": "Mở bàn",
+    "ticket": {
+      "title": "Đơn hàng",
+      "subtotal": "Tiền hàng",
+      "discount": "Giảm giá",
+      "surcharge": "Phụ thu",
+      "tax": "Thuế VAT",
+      "total": "Tổng thanh toán",
+      "printDraft": "In tạm tính",
+      "checkout": "Thanh toán",
+      "note": "Ghi chú",
+      "voidLine": "Huỷ món"
+    },
+    "options": {
+      "title": "Tuỳ chọn món",
+      "toppings": "Topping",
+      "combos": "Món combo",
+      "required": "Bắt buộc",
+      "maxAllowed": "Tối đa cho phép"
+    },
+    "payment": {
+      "title": "Thanh toán",
+      "cash": "Tiền mặt",
+      "vietqr": "VietQR",
+      "card": "Thẻ",
+      "other": "Khác",
+      "tendered": "Tiền khách đưa",
+      "change": "Tiền thừa",
+      "balanceRemaining": "Còn lại",
+      "confirmReceived": "Đã nhận tiền",
+      "success": "Thanh toán thành công"
+    },
+    "bank": {
+      "title": "Cài đặt tài khoản ngân hàng",
+      "selectBank": "Chọn ngân hàng",
+      "bin": "Mã BIN",
+      "accountNumber": "Số tài khoản",
+      "accountName": "Tên chủ tài khoản",
+      "saveSuccess": "Đã lưu thông tin tài khoản"
+    },
+    "receipt": {
+      "header": "Hoá đơn thanh toán",
+      "cashier": "Thu ngân",
+      "table": "Bàn",
+      "date": "Ngày",
+      "item": "Món",
+      "qty": "SL",
+      "price": "Đơn giá",
+      "amount": "Thành tiền",
+      "thankYou": "Cảm ơn quý khách và hẹn gặp lại!"
+    }
   }
 }
