@@ -71,7 +71,8 @@ const hasLines = computed(() => {
 // --- Steppers & Actions ---
 function handleDecreaseQty(line: OrderLineItem) {
   if (props.readOnly || line.status === 'voided') return;
-  const nextQty = Math.max(0, line.qty - 1);
+  if (line.qty <= 1) return;
+  const nextQty = Math.max(1, line.qty - 1);
   emit('update-qty', line.lineId, nextQty);
 }
 
@@ -247,7 +248,7 @@ function confirmVoid() {
             <Button.Root
               type="button"
               data-test="qty-decrease-btn"
-              :disabled="props.readOnly || line.status === 'voided'"
+              :disabled="props.readOnly || line.status === 'voided' || line.qty <= 1"
               class="btn btn-ghost px-2 py-0.5 text-xs rounded border border-border font-bold hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed"
               @click="handleDecreaseQty(line)"
             >

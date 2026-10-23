@@ -80,7 +80,7 @@ watch(
 const amountToPay = computed(() => {
   const parsed = parseInt(amountToPayInput.value, 10);
   if (isNaN(parsed) || parsed < 0) return 0;
-  return parsed;
+  return Math.min(parsed, currentBalanceMinor.value);
 });
 
 // --- Cash Tab State ---
@@ -157,10 +157,23 @@ async function copyTransferContent() {
   }
 }
 
-// --- Confirm Payment ---
+// --- Validation & Confirm Payment ---
+const canConfirmPayment = computed(() => {
+  if (amountToPay.value <= 0 || amountToPay.value > currentBalanceMinor.value) {
+    return false;
+  }
+  if (activeTab.value === 'cash' && isTenderedInsufficient.value) {
+    return false;
+  }
+  if (activeTab.value === 'vietqr' && !isBankConfigured.value) {
+    return false;
+  }
+  return true;
+});
+
 function handleConfirmPayment() {
   if (!props.bill) return;
-  if (amountToPay.value <= 0) return;
+  if (!canConfirmPayment.value) return;
 
   let method: PaymentMethod = 'cash';
   let refStr: string | undefined = undefined;
@@ -220,6 +233,7 @@ defineExpose({
   qrSvg,
   setDenomination,
   handleConfirmPayment,
+  canConfirmPayment,
 });
 </script>
 
@@ -500,11 +514,7 @@ defineExpose({
           type="button"
           data-test="confirm-payment-btn"
           class="btn btn-primary text-xs px-4 py-2 cursor-pointer font-bold shadow-sm"
-          :disabled="
-            amountToPay <= 0 ||
-            (activeTab === 'cash' && isTenderedInsufficient) ||
-            (activeTab === 'vietqr' && !isBankConfigured)
-          "
+          :disabled="!canConfirmPayment"
           @click="handleConfirmPayment"
         >
           {{ t('pos.payment.confirmReceived') }}

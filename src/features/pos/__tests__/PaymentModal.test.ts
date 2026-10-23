@@ -365,6 +365,31 @@ describe('PaymentModal.vue', () => {
       expect(wrapper.emitted('complete')).toBeTruthy();
       expect(wrapper.emitted('update:open')?.[0]).toEqual([false]);
     });
+
+    it('clamps amountToPay to balanceRemaining when entering an amount greater than balance', async () => {
+      wrapper = mount(PaymentModal, {
+        props: { open: true, bill: mockBill, bankAccount: mockBankAccount },
+        global: { plugins: [i18n] },
+      });
+
+      // Total / balance remaining is 135.000
+      const amountToPayInput = wrapper.find('[data-test="amount-to-pay-input"] input');
+      await amountToPayInput.setValue('200000');
+      await nextTick();
+
+      // amountToPay is clamped to currentBalanceMinor (135000)
+      expect((wrapper.vm as any).amountToPay).toBe(135000);
+
+      // Confirm cash payment with exact tendered
+      await wrapper.find('[data-test="denom-exact"]').trigger('click');
+      await nextTick();
+
+      await wrapper.find('[data-test="confirm-payment-btn"]').trigger('click');
+      await nextTick();
+
+      const emittedPayment = wrapper.emitted('payment-added')?.[0]?.[0] as PaymentEntry;
+      expect(emittedPayment.amount).toEqual(money(135000, 'VND'));
+    });
   });
 
   it('closes dialog when cancel or close button is clicked', async () => {

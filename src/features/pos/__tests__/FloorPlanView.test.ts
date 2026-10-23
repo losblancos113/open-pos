@@ -201,4 +201,31 @@ describe('FloorPlanView.vue', () => {
     expect(wrapper.text()).toContain('Khu VIP');
     expect(wrapper.text()).toContain('VIP01');
   });
+
+  it('resets selectedAreaId to all when branchId changes', async () => {
+    const wrapper = mount(FloorPlanView, {
+      props: {
+        areas,
+        tables,
+        branchId: 'hq',
+      },
+      global: { plugins: [i18n] },
+    });
+
+    // Select specific area
+    const areaA2Tab = wrapper.find('[data-area-id="area:hq:a2"]');
+    await areaA2Tab.trigger('click');
+    await nextTick();
+
+    // Verify filter is active
+    expect(wrapper.find('[data-table-id="table:hq:t1"]').exists()).toBe(false);
+
+    // Change branchId
+    await wrapper.setProps({ branchId: 'branch-2' });
+    await nextTick();
+
+    // selectedAreaId should be reset to 'all', showing all tables
+    expect(wrapper.find('[data-table-id="table:hq:t1"]').exists()).toBe(true);
+    expect(wrapper.find('[data-table-id="table:hq:t3"]').exists()).toBe(true);
+  });
 });

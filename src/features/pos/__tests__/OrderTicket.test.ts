@@ -160,6 +160,29 @@ describe('OrderTicket.vue', () => {
     expect(wrapper.emitted('update-qty')?.[1]).toEqual(['l1', 1]);
   });
 
+  it('prevents quantity decrement below 1 and disables decrement button when qty is 1', async () => {
+    const singleQtyBill: BillDoc = {
+      ...bill,
+      lines: [
+        {
+          ...bill.lines[0]!,
+          qty: 1,
+        },
+      ],
+    };
+
+    const wrapper = mount(OrderTicket, {
+      props: { bill: singleQtyBill },
+      global: { plugins: [i18n] },
+    });
+
+    const decBtn = wrapper.find('[data-test="qty-decrease-btn"]');
+    expect(decBtn.attributes('disabled')).toBeDefined();
+
+    await decBtn.trigger('click');
+    expect(wrapper.emitted('update-qty')).toBeFalsy();
+  });
+
   it('allows setting line note via note prompt/dialog', async () => {
     const wrapper = mount(OrderTicket, {
       props: { bill },

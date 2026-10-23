@@ -538,7 +538,6 @@ function handleClose() {
   }
 
   @page {
-    size: 80mm auto;
     margin: 0;
   }
 }

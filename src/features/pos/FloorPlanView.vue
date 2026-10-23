@@ -61,6 +61,7 @@ async function loadData() {
 watch(
   () => props.branchId,
   () => {
+    selectedAreaId.value = 'all';
     if (!props.areas || !props.tables) {
       loadData();
     }

@@ -5,7 +5,6 @@ import { formatBillNumber, formatPaymentRef } from '../numbering';
 import { buildVietQrPayload } from '../../qr/vietqr';
 import { generateQrSvg } from '../../qr/qr-matrix';
 import { money } from '../../money';
-import { assembleMenu } from '../../catalog/menu';
 import type { SessionDoc, BillDoc } from '../types';
 
 describe('M3 Acceptance: End-to-End Single-Device Cafe Sales Flow', () => {

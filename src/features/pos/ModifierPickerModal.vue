@@ -276,6 +276,7 @@ function handleConfirm() {
           >
             <Checkbox.Root
               :value="opt.id"
+              :checked="isOptionSelected(group._id, opt.id)"
               :data-option-id="opt.id"
               :disabled="isOptionDisabled(group, opt.id)"
               :data-disabled="isOptionDisabled(group, opt.id) ? '' : undefined"
