@@ -242,8 +242,11 @@
     },
     "table": {
       "empty": "Empty",
-      "occupied": "Occupied",
-      "billPrinted": "Bill Printed"
+      "occupied": "In Use",
+      "billPrinted": "Bill Printed",
+      "allAreas": "All",
+      "capacity": "{count} guests",
+      "noTables": "No tables in this area"
     },
     "guests": "Guests",
     "openTable": "Open Table",

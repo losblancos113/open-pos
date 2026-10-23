@@ -5,6 +5,7 @@ import { nextTick } from 'vue';
 import type { VueWrapper } from '@vue/test-utils';
 import PosTerminal from '../PosTerminal.vue';
 import { createMemoryAdapter } from '../../../core/db/memory-adapter';
+import { createOrderRepository } from '../../../core/order/order-repository';
 import { createI18n } from 'vue-i18n';
 import vi from '../../../i18n/vi.json';
 
@@ -101,5 +102,44 @@ describe('PosTerminal.vue shell', () => {
 
     await wrapper.find('[data-test="bank-settings-trigger"]').trigger('click');
     expect(wrapper.emitted('open-bank-settings')).toBeTruthy();
+  });
+
+  it('renders floor plan tables and emits select-table when table is clicked', async () => {
+    const adapter = await createMemoryAdapter();
+    const repo = createOrderRepository(adapter);
+    await repo.saveArea({
+      _id: 'area:hq:a1',
+      branchId: 'hq',
+      name: 'Tầng 1',
+      sortOrder: 1,
+      createdAt: '2026-10-24T00:00:00.000Z',
+    });
+    await repo.saveTable({
+      _id: 'table:hq:t1',
+      branchId: 'hq',
+      areaId: 'area:hq:a1',
+      code: 'B01',
+      name: 'Bàn 1',
+      capacity: 4,
+      sortOrder: 1,
+      createdAt: '2026-10-24T00:00:00.000Z',
+    });
+
+    wrapper = mount(PosTerminal, {
+      props: { adapter, branchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 20));
+    await nextTick();
+
+    const card = wrapper.find('[data-table-id="table:hq:t1"]');
+    expect(card.exists()).toBe(true);
+    expect(card.text()).toContain('B01');
+
+    await card.trigger('click');
+    expect(wrapper.emitted('select-table')?.[0]).toEqual(['table:hq:t1']);
+    expect((wrapper.vm as unknown as { selectedTableId: string | null }).selectedTableId).toBe('table:hq:t1');
   });
 });

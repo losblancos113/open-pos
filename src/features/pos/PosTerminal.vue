@@ -5,6 +5,7 @@ import { Button, Input, Select } from '@vuetify/v0';
 import type { DbAdapter } from '@/core/db/adapter';
 import { DEFAULT_BRANCH_ID } from '@/core/db/branch';
 import { createOrderRepository } from '@/core/order/order-repository';
+import FloorPlanView from './FloorPlanView.vue';
 
 export type PosMode = 'floor' | 'fast_sale';
 
@@ -28,6 +29,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'open-bank-settings'): void;
+  (e: 'select-table', tableId: string): void;
 }>();
 
 const { t } = useI18n();
@@ -85,11 +87,19 @@ watch([terminalCode, cashierName], ([newCode, newName]) => {
   }
 });
 
+const selectedTableId = ref<string | null>(null);
+
+function handleSelectTable(tableId: string) {
+  selectedTableId.value = tableId;
+  emit('select-table', tableId);
+}
+
 defineExpose({
   orderRepository,
   mode,
   terminalCode,
   cashierName,
+  selectedTableId,
 });
 </script>
 
@@ -198,11 +208,17 @@ defineExpose({
           class="floor-plan-panel flex-1 panel-card flex flex-col"
           data-test="floor-plan-panel"
         >
-          <slot name="floor-plan">
-            <div class="p-6 text-center text-text-muted my-auto">
-              <p class="font-medium text-base text-text">{{ t('pos.mode.floor') }}</p>
-              <p class="text-sm mt-1">Khung sơ đồ bàn (Floor Plan UI) sẽ được gắn tại Task 9.</p>
-            </div>
+          <slot
+            name="floor-plan"
+            :select-table="handleSelectTable"
+            :selected-table-id="selectedTableId"
+          >
+            <FloorPlanView
+              :order-repository="orderRepository"
+              :branch-id="branchId"
+              :active-table-id="selectedTableId"
+              @select-table="handleSelectTable"
+            />
           </slot>
         </div>
         <div

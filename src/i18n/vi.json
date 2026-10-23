@@ -241,9 +241,12 @@
       "fastSale": "Bán nhanh"
     },
     "table": {
-      "empty": "Bàn trống",
-      "occupied": "Có khách",
-      "billPrinted": "Đã in tạm tính"
+      "empty": "Trống",
+      "occupied": "Đang dùng",
+      "billPrinted": "Đã in tạm tính",
+      "allAreas": "Tất cả",
+      "capacity": "{count} khách",
+      "noTables": "Chưa có bàn nào trong khu vực này"
     },
     "guests": "Số khách",
     "openTable": "Mở bàn",
