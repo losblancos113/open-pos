@@ -313,6 +313,8 @@
     "bank": {
       "title": "Cài đặt tài khoản ngân hàng",
       "selectBank": "Chọn ngân hàng",
+      "customBank": "Ngân hàng khác (Tự nhập BIN)",
+      "bankName": "Tên ngân hàng",
       "bin": "Mã BIN",
       "accountNumber": "Số tài khoản",
       "accountName": "Tên chủ tài khoản",

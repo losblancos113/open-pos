@@ -107,6 +107,58 @@ describe('PosTerminal.vue shell', () => {
     expect(wrapper.emitted('open-bank-settings')).toBeTruthy();
   });
 
+  it('opens BankSettingsModal when bank settings trigger is clicked and forwards save-bank-account', async () => {
+    const adapter = await createMemoryAdapter();
+    const repo = createOrderRepository(adapter);
+    await repo.saveBankAccount({
+      _id: 'bank_account:hq',
+      branchId: 'hq',
+      bankBin: '970422',
+      bankName: 'MBBank',
+      accountNumber: '0901234567',
+      accountName: 'NGUYEN VAN A',
+      updatedAt: '2026-10-24T00:00:00.000Z',
+    });
+
+    wrapper = mount(PosTerminal, {
+      props: { adapter, branchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 20));
+    await nextTick();
+
+    // Click bank settings button
+    await wrapper.find('[data-test="bank-settings-trigger"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-test="bank-settings-modal"]').exists()).toBe(true);
+
+    // Form should have existing account number
+    const accountNumInput = wrapper.find('[data-test="account-number"] input');
+    expect((accountNumInput.element as HTMLInputElement).value).toBe('0901234567');
+
+    // Update account number and save
+    await accountNumInput.setValue('0988776655');
+    await nextTick();
+
+    await wrapper.find('[data-test="save-bank-btn"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.emitted('save-bank-account')).toBeTruthy();
+    const emittedAccount = wrapper.emitted('save-bank-account')?.[0]?.[0];
+    expect(emittedAccount).toMatchObject({
+      accountNumber: '0988776655',
+      bankBin: '970422',
+      accountName: 'NGUYEN VAN A',
+    });
+
+    // Verify stored in DB
+    const saved = await repo.getBankAccount('hq');
+    expect(saved?.accountNumber).toBe('0988776655');
+  });
+
   it('renders floor plan tables and emits select-table when table is clicked', async () => {
     const adapter = await createMemoryAdapter();
     const repo = createOrderRepository(adapter);

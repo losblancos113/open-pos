@@ -313,6 +313,8 @@
     "bank": {
       "title": "Bank Account Settings",
       "selectBank": "Select Bank",
+      "customBank": "Other Bank (Custom BIN)",
+      "bankName": "Bank Name",
       "bin": "BIN",
       "accountNumber": "Account Number",
       "accountName": "Account Name",

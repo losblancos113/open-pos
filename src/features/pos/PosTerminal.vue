@@ -10,9 +10,11 @@ import type { ModifierGroupDoc } from '@/core/catalog/modifier-group';
 import type { ComboDoc } from '@/core/catalog/combo';
 import type { CatalogRepository } from '@/core/catalog/catalog-repository';
 import type { OrderLineItem, BillDoc, SessionDoc, TableDoc } from '@/core/order/types';
+import type { BankAccountDoc } from '@/core/qr/bank-account';
 import FloorPlanView from './FloorPlanView.vue';
 import PosCatalogPicker from './PosCatalogPicker.vue';
 import OrderTicket from './OrderTicket.vue';
+import BankSettingsModal from './BankSettingsModal.vue';
 
 export type PosMode = 'floor' | 'fast_sale';
 
@@ -54,6 +56,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'open-bank-settings'): void;
+  (e: 'save-bank-account', account: BankAccountDoc): void;
   (e: 'select-table', tableId: string): void;
   (e: 'add-line', item: OrderLineItem): void;
   (e: 'update-line-qty', lineId: string, newQty: number): void;
@@ -130,6 +133,35 @@ function handleAddLine(item: OrderLineItem) {
   emit('add-line', item);
 }
 
+const isBankSettingsOpen = ref(false);
+const currentBankAccount = ref<BankAccountDoc | null>(null);
+
+async function loadBankAccount() {
+  try {
+    currentBankAccount.value = await orderRepository.getBankAccount(props.branchId);
+  } catch {
+    currentBankAccount.value = null;
+  }
+}
+
+watch(
+  () => props.branchId,
+  () => {
+    loadBankAccount();
+  },
+  { immediate: true },
+);
+
+function handleOpenBankSettings() {
+  isBankSettingsOpen.value = true;
+  emit('open-bank-settings');
+}
+
+function handleSaveBankAccount(account: BankAccountDoc) {
+  currentBankAccount.value = account;
+  emit('save-bank-account', account);
+}
+
 defineExpose({
   orderRepository,
   mode,
@@ -137,7 +169,11 @@ defineExpose({
   cashierName,
   selectedTableId,
   floorSubView,
+  isBankSettingsOpen,
+  currentBankAccount,
   handleAddLine,
+  handleOpenBankSettings,
+  handleSaveBankAccount,
 });
 </script>
 
@@ -230,7 +266,7 @@ defineExpose({
           type="button"
           class="btn btn-ghost text-xs px-2.5 py-1.5 flex items-center gap-1 border border-border rounded-md cursor-pointer hover:bg-bg"
           data-test="bank-settings-trigger"
-          @click="emit('open-bank-settings')"
+          @click="handleOpenBankSettings"
         >
           <span>{{ t('pos.bank.title') }}</span>
         </Button.Root>
@@ -363,5 +399,14 @@ defineExpose({
         </div>
       </section>
     </div>
+
+    <!-- Modal cấu hình tài khoản ngân hàng thụ hưởng (VietQR) -->
+    <BankSettingsModal
+      v-model:open="isBankSettingsOpen"
+      :branch-id="branchId"
+      :current-account="currentBankAccount"
+      :order-repository="orderRepository"
+      @save="handleSaveBankAccount"
+    />
   </div>
 </template>
