@@ -106,3 +106,9 @@ export interface BillDoc {
   printedAt?: string;
   paidAt?: string;
 }
+
+export interface OrderAggregateState {
+  session: SessionDoc;
+  bill: BillDoc;
+  tableStatus?: TableStatus;
+}
