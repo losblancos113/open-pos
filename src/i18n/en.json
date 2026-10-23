@@ -262,7 +262,16 @@
       "printDraft": "Print Draft",
       "checkout": "Checkout",
       "note": "Note",
-      "voidLine": "Void Item"
+      "voidLine": "Void Item",
+      "empty": "No items in this order",
+      "taxInclusive": "(Tax inclusive)",
+      "taxExclusive": "(Tax exclusive)",
+      "voidedBadge": "Voided",
+      "save": "Save",
+      "cancel": "Cancel",
+      "confirmVoid": "Confirm Void",
+      "voidReasonPlaceholder": "Reason for voiding...",
+      "notePlaceholder": "Enter note for item..."
     },
     "options": {
       "title": "Item Options",

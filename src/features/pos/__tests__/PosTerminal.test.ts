@@ -8,6 +8,7 @@ import { createMemoryAdapter } from '../../../core/db/memory-adapter';
 import { createOrderRepository } from '../../../core/order/order-repository';
 import { money } from '../../../core/money';
 import type { BranchMenu } from '../../../core/catalog/menu';
+import type { BillDoc } from '../../../core/order/types';
 import { createI18n } from 'vue-i18n';
 import vi from '../../../i18n/vi.json';
 
@@ -274,5 +275,70 @@ describe('PosTerminal.vue shell', () => {
     await nextTick();
 
     expect(wrapper.find('[data-test="floor-plan-view"]').exists()).toBe(true);
+  });
+
+  it('renders OrderTicket in right panel when bill is provided and forwards events', async () => {
+    const adapter = await createMemoryAdapter();
+    const mockBill: BillDoc = {
+      _id: 'bill:hq:b1',
+      branchId: 'hq',
+      sessionId: 'session:hq:s1',
+      billNumber: 'HQ-T01-20261024-0001',
+      paymentRef: 'POSHQT010001',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'line-1',
+          productId: 'prod-1',
+          nameSnapshot: { vi: 'Cà phê sữa đá', en: 'Iced Coffee' },
+          unitPriceSnapshot: money(35000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(35000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(35000, 'VND'),
+      payments: [],
+      balanceRemaining: money(35000, 'VND'),
+      createdAt: '2026-10-24T00:00:00.000Z',
+      updatedAt: '2026-10-24T00:00:00.000Z',
+    };
+
+    wrapper = mount(PosTerminal, {
+      props: {
+        adapter,
+        branchId: 'hq',
+        bill: mockBill,
+        tableName: 'Bàn 5',
+      },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+
+    expect(wrapper.find('[data-test="table-name"]').text()).toContain('Bàn 5');
+    expect(wrapper.text()).toContain('Cà phê sữa đá');
+    expect(wrapper.text()).toContain('35.000');
+
+    // Test checkout event forwarding
+    await wrapper.find('[data-test="checkout-btn"]').trigger('click');
+    expect(wrapper.emitted('checkout')).toBeTruthy();
+
+    // Test print draft event forwarding
+    await wrapper.find('[data-test="print-draft-btn"]').trigger('click');
+    expect(wrapper.emitted('print-draft')).toBeTruthy();
+
+    // Test quantity update forwarding
+    await wrapper.find('[data-test="qty-increase-btn"]').trigger('click');
+    expect(wrapper.emitted('update-line-qty')?.[0]).toEqual(['line-1', 2]);
   });
 });

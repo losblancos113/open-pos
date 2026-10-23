@@ -9,9 +9,10 @@ import type { BranchMenu } from '@/core/catalog/menu';
 import type { ModifierGroupDoc } from '@/core/catalog/modifier-group';
 import type { ComboDoc } from '@/core/catalog/combo';
 import type { CatalogRepository } from '@/core/catalog/catalog-repository';
-import type { OrderLineItem } from '@/core/order/types';
+import type { OrderLineItem, BillDoc, SessionDoc, TableDoc } from '@/core/order/types';
 import FloorPlanView from './FloorPlanView.vue';
 import PosCatalogPicker from './PosCatalogPicker.vue';
+import OrderTicket from './OrderTicket.vue';
 
 export type PosMode = 'floor' | 'fast_sale';
 
@@ -31,6 +32,11 @@ const props = withDefaults(
     modifierGroups?: readonly ModifierGroupDoc[];
     combos?: readonly ComboDoc[];
     catalogRepository?: CatalogRepository | null;
+    bill?: BillDoc | null;
+    session?: SessionDoc | null;
+    table?: TableDoc | null;
+    tableName?: string;
+    guestCount?: number | null;
   }>(),
   {
     branchId: DEFAULT_BRANCH_ID,
@@ -38,6 +44,11 @@ const props = withDefaults(
     modifierGroups: () => [],
     combos: () => [],
     catalogRepository: null,
+    bill: null,
+    session: null,
+    table: null,
+    tableName: '',
+    guestCount: null,
   },
 );
 
@@ -45,6 +56,11 @@ const emit = defineEmits<{
   (e: 'open-bank-settings'): void;
   (e: 'select-table', tableId: string): void;
   (e: 'add-line', item: OrderLineItem): void;
+  (e: 'update-line-qty', lineId: string, newQty: number): void;
+  (e: 'set-line-note', lineId: string, note: string): void;
+  (e: 'void-line', lineId: string, reason: string): void;
+  (e: 'print-draft'): void;
+  (e: 'checkout'): void;
 }>();
 
 const { t } = useI18n();
@@ -316,12 +332,31 @@ defineExpose({
       <section
         class="pos-right-panel md:w-[40%] flex flex-col p-4 border-t md:border-t-0 md:border-l border-border overflow-y-auto min-h-0"
       >
-        <div class="ticket-panel flex-1 panel-card flex flex-col" data-test="ticket-panel">
-          <slot name="ticket">
-            <div class="p-6 text-center text-text-muted my-auto">
+        <div class="ticket-panel flex-1 panel-card flex flex-col min-h-0 p-0 overflow-hidden" data-test="ticket-panel">
+          <slot
+            name="ticket"
+            :bill="bill"
+            :session="session"
+            :table="table"
+            :table-name="tableName"
+          >
+            <OrderTicket
+              v-if="bill"
+              :bill="bill"
+              :session="session"
+              :table="table"
+              :table-name="tableName"
+              :guest-count="guestCount"
+              @update-qty="(lineId, newQty) => emit('update-line-qty', lineId, newQty)"
+              @set-line-note="(lineId, note) => emit('set-line-note', lineId, note)"
+              @void-line="(lineId, reason) => emit('void-line', lineId, reason)"
+              @print-draft="emit('print-draft')"
+              @checkout="emit('checkout')"
+            />
+            <div v-else class="p-6 text-center text-text-muted my-auto">
               <p class="font-medium text-base text-text">{{ t('pos.ticket.title') }}</p>
               <p class="text-sm mt-1">
-                Khung hoá đơn / đơn hàng (Order Ticket Panel) sẽ được gắn tại Task 11.
+                {{ t('pos.ticket.empty') }}
               </p>
             </div>
           </slot>

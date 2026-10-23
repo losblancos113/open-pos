@@ -262,7 +262,16 @@
       "printDraft": "In tạm tính",
       "checkout": "Thanh toán",
       "note": "Ghi chú",
-      "voidLine": "Huỷ món"
+      "voidLine": "Huỷ món",
+      "empty": "Chưa có món nào trong đơn",
+      "taxInclusive": "(Đã gồm thuế)",
+      "taxExclusive": "(Chưa gồm thuế)",
+      "voidedBadge": "Đã huỷ",
+      "save": "Lưu",
+      "cancel": "Huỷ",
+      "confirmVoid": "Xác nhận huỷ",
+      "voidReasonPlaceholder": "Lý do huỷ món...",
+      "notePlaceholder": "Nhập ghi chú cho món..."
     },
     "options": {
       "title": "Tuỳ chọn món",
