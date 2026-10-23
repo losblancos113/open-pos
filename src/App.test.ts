@@ -32,7 +32,7 @@ function mountApp(): VueWrapper {
   const wrapper = mount(App, {
     global: {
       plugins: [i18n, vuetifyLocale],
-      stubs: { TypeDesigner: true, CatalogAdmin: true },
+      stubs: { TypeDesigner: true, CatalogAdmin: true, PosTerminal: true },
     },
   });
   mounted.push(wrapper);
@@ -46,14 +46,17 @@ describe('App navigation', () => {
 
     const designer = wrapper.find('[data-view="designer"]');
     const catalog = wrapper.find('[data-view="catalog"]');
+    const pos = wrapper.find('[data-view="pos"]');
 
     expect(designer.exists()).toBe(true);
     expect(catalog.exists()).toBe(true);
+    expect(pos.exists()).toBe(true);
 
     // `aria-pressed` là thứ trình đọc màn hình dùng để nói "tab nào đang mở". Mất nó là
     // người dùng screen reader không biết mình đang ở màn nào (phát hiện ở Task 19 by-eye).
     expect(designer.attributes('aria-pressed')).toBe('true');
     expect(catalog.attributes('aria-pressed')).toBe('false');
+    expect(pos.attributes('aria-pressed')).toBe('false');
   });
 
   it('moves aria-pressed when the user switches views', async () => {
@@ -64,11 +67,19 @@ describe('App navigation', () => {
 
     expect(wrapper.find('[data-view="designer"]').attributes('aria-pressed')).toBe('false');
     expect(wrapper.find('[data-view="catalog"]').attributes('aria-pressed')).toBe('true');
+    expect(wrapper.find('[data-view="pos"]').attributes('aria-pressed')).toBe('false');
+
+    await wrapper.find('[data-view="pos"]').trigger('click');
+
+    expect(wrapper.find('[data-view="designer"]').attributes('aria-pressed')).toBe('false');
+    expect(wrapper.find('[data-view="catalog"]').attributes('aria-pressed')).toBe('false');
+    expect(wrapper.find('[data-view="pos"]').attributes('aria-pressed')).toBe('true');
 
     await wrapper.find('[data-view="designer"]').trigger('click');
 
     expect(wrapper.find('[data-view="designer"]').attributes('aria-pressed')).toBe('true');
     expect(wrapper.find('[data-view="catalog"]').attributes('aria-pressed')).toBe('false');
+    expect(wrapper.find('[data-view="pos"]').attributes('aria-pressed')).toBe('false');
   });
 
   it('keeps the inactive view mounted so its draft input is not lost', async () => {
@@ -78,10 +89,10 @@ describe('App navigation', () => {
     await wrapper.find('[data-view="catalog"]').trigger('click');
 
     // `v-show` (không phải `v-if`): đổi màn hình không được xoá dữ liệu đang nhập.
-    // Cả hai khung vẫn nằm trong DOM; đúng một khung bị ẩn.
+    // Cả ba khung vẫn nằm trong DOM; đúng hai khung bị ẩn.
     const views = wrapper.findAll('main.app > div');
-    expect(views).toHaveLength(2);
+    expect(views).toHaveLength(3);
     const hidden = views.filter((view) => view.attributes('style')?.includes('display: none'));
-    expect(hidden).toHaveLength(1);
+    expect(hidden).toHaveLength(2);
   });
 });

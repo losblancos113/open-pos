@@ -11,10 +11,11 @@ import type { DbAdapter } from '@/core/db/adapter';
 import { createPouchAdapter } from '@/core/db/pouch-adapter';
 import TypeDesigner from './features/type-designer/TypeDesigner.vue';
 import CatalogAdmin from './features/catalog-admin/CatalogAdmin.vue';
+import PosTerminal from './features/pos/PosTerminal.vue';
 
 const { t } = useI18n();
 
-type View = 'designer' | 'catalog';
+type View = 'designer' | 'catalog' | 'pos';
 
 /**
  * Database cục bộ của terminal. PouchDB mở nó trên IndexedDB (WebView2 trong Tauri,
@@ -85,6 +86,15 @@ onMounted(async () => {
           >
             {{ t('catalog.title') }}
           </Button.Root>
+
+          <Button.Root
+            type="button"
+            value="pos"
+            data-view="pos"
+            class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {{ t('pos.title') }}
+          </Button.Root>
         </Button.Group>
       </nav>
     </header>
@@ -97,6 +107,12 @@ onMounted(async () => {
     <div v-show="view === 'catalog'" class="px-6 pb-10">
       <p v-if="storageError !== null" role="alert">{{ storageError }}</p>
       <CatalogAdmin v-else-if="adapter !== null" :adapter="adapter" />
+      <p v-else>{{ t('common.loading') }}</p>
+    </div>
+
+    <div v-show="view === 'pos'" class="px-6 pb-10">
+      <p v-if="storageError !== null" role="alert">{{ storageError }}</p>
+      <PosTerminal v-else-if="adapter !== null" :adapter="adapter" />
       <p v-else>{{ t('common.loading') }}</p>
     </div>
   </main>
