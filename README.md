@@ -4,8 +4,8 @@ Offline-first point-of-sale for restaurants and cafés, built for the Vietnamese
 Runs as a desktop app on each terminal and syncs with the other terminals in the same
 branch over the local network — no internet connection required to sell.
 
-**Status: M0 (Foundation & Skeleton) complete.** Two terminals can sync with each other
-through the local hub. See [Milestones](#milestones) for what comes next.
+**Status: M2 (Catalog & Menu) complete.** Type Registry and Catalog Admin are operational
+offline-first with UnoCSS styling. See [Milestones](#milestones) for what comes next.
 
 ---
 
@@ -22,7 +22,7 @@ through the local hub. See [Milestones](#milestones) for what comes next.
 - [Milestones](#milestones)
 - [Documentation](#documentation)
 - [Conventions that matter](#conventions-that-matter)
-- [Known limitations (M0)](#known-limitations-m0)
+- [Known limitations (M2)](#known-limitations-m2)
 
 ---
 
@@ -263,26 +263,28 @@ binary actually links (this is where a bad app icon or a missing symbol surfaces
 
 ## Testing
 
-**68 tests across 11 files, all passing.**
+**743 tests across 56 files, all passing.**
 
-| File | Covers |
-|------|--------|
-| `src/core/__tests__/money.test.ts` | Integer minor units, currency safety |
-| `src/core/__tests__/money-allocate.test.ts` | Deterministic allocation + property tests |
-| `src/core/db/__tests__/envelope.test.ts` | Envelope shape, mandatory `branchId` |
-| `src/core/db/__tests__/ids.test.ts` | `_id` conventions and segment validation |
-| `src/core/db/__tests__/memory-adapter.test.ts` | Adapter semantics, branch filtering, conflicts |
-| `src/i18n/__tests__/i18n.test.ts` | vi/en **key parity** |
-| `src/styles/__tests__/tokens.test.ts` | `tokens.ts` ↔ `tokens.css` **drift** |
-| `src/core/__tests__/smoke.test.ts` | Toolchain smoke test |
+Major test suites covering each milestone:
+
+| Suite | Covers |
+|-------|--------|
+| `src/core/__tests__/` | Money integer units, deterministic allocation properties, Vietnamese slugify |
+| `src/core/db/__tests__/` | Document envelope, `_id` helpers, memory & PouchDB adapter contract |
+| `src/core/types/__tests__/` | M1 Type Registry: definition validation, rational math, formula evaluation, lazy migration, acceptance |
+| `src/core/catalog/__tests__/` | M2 Catalog engine: models, validation, pricing resolution, menu assembly, CSV export/import, acceptance |
+| `src/features/type-designer/__tests__/` | Type Designer UI, DynamicForm, DynamicList, FieldWidgets |
+| `src/features/catalog-admin/__tests__/` | Catalog Admin UI: CategoryList, ProductList, ProductEditor, ComboEditor, ModifierGroupEditor, PriceListEditor, BranchOverrideEditor, CsvPanel |
+| `src/styles/__tests__/` | Token-to-theme bridge, UnoCSS utility generation, token drift |
+| `src/i18n/__tests__/i18n.test.ts` | vi/en **key parity** across all modules |
 | `tests/sidecar.test.ts` | Hub protocol + security regressions |
 | `tests/hub-endpoints.test.ts` | CouchDB endpoint contract |
 | `tests/two-terminal-sync.test.ts` | **M0 acceptance** — two terminals sync through the hub |
+| `src/core/catalog/__tests__/acceptance-m2.test.ts` | **M2 acceptance** — end-to-end multi-category, modifier, combo, price list, branch override, CSV round-trip menu |
 
-The two integration suites spawn a real hub process and talk to it over HTTP, so they are
-slower than the unit tests. `tests/two-terminal-sync.test.ts` is the milestone's definition
-of done: it writes on "terminal A", replicates through the hub, and asserts the document
-arrives on "terminal B".
+The integration suites in `tests/` spawn a real hub process and talk to it over HTTP.
+`tests/two-terminal-sync.test.ts` verifies multi-terminal replication through the hub;
+`src/core/catalog/__tests__/acceptance-m2.test.ts` proves the full cafe menu workflow.
 
 ---
 
@@ -291,8 +293,8 @@ arrives on "terminal B".
 | M | Name | Delivers |
 |---|------|----------|
 | **M0** | Foundation & Skeleton | ✅ **Done.** Scaffold, storage adapter, hub sidecar, axum skeleton, CI, i18n, tokens, money type, `branchId` throughout the schema. |
-| **M1** | Type Registry & Dynamic Forms | The user-defined-types engine and Type Designer UI. |
-| **M2** | Catalog & Menu | Categories, products, variants, modifiers, combos, price lists, images, CSV import/export. |
+| **M1** | Type Registry & Dynamic Forms | ✅ **Done.** User-defined-types engine, field-type registry, formula interpreter, schema migration, Type Designer UI. |
+| **M2** | Catalog & Menu | ✅ **Done.** Categories, products, variants, modifiers, combos, price lists, branch overrides, CSV import/export, UnoCSS, Catalog Admin UI. |
 | **M3** | Order Engine & POS Terminal | Floor plan, table sessions, order entry, discounts, split payment, **VietQR**, bill PDF. |
 | **M4** | Split / Merge / Transfer | Split by item / evenly / by seat, merge tables and bills, transfer tables. |
 | **M5** | Staff Mobile, QR Order & KDS | LAN + WS hub, PIN login, QR ordering, waiter approval, kitchen display. |
@@ -310,6 +312,8 @@ Full detail, dependencies, and safe stopping points are in §9 of the design doc
 |----------|-----------|
 | `docs/superpowers/specs/2026-10-20-open-pos-design.md` | The design document (v0.5). Requirements R1–R9, data model, architecture, security, risks. **The authority on product decisions.** |
 | `docs/superpowers/plans/2026-10-20-m0-foundation.md` | The M0 implementation plan: twelve tasks with tests and commit points. |
+| `docs/superpowers/plans/2026-10-20-m1-type-registry.md` | The M1 implementation plan: type definition, formulas, migration, Type Designer UI. |
+| `docs/superpowers/plans/2026-10-22-m2-catalog.md` | The M2 implementation plan: catalog models, pricing, CSV import/export, Catalog Admin UI. |
 | [`AGENTS.md`](./AGENTS.md) | Instructions for AI coding agents working in this repo. |
 | [`CLAUDE.md`](./CLAUDE.md) | Claude Code-specific guidance. |
 
@@ -344,21 +348,21 @@ These are enforced by tests or by types. Breaking them will fail the build.
 
 ---
 
-## Known limitations (M0)
+## Known limitations (M2)
 
-M0 is a foundation milestone. Be aware of what is **not** here yet:
+M2 delivers the type registry and catalog management. Be aware of what is **not** here yet:
 
-- **No feature UI.** The app renders a title and tagline; there is no POS screen.
-- **No PouchDB `DbAdapter` implementation.** Only the in-memory adapter exists. The
-  interface is defined and tested; the PouchDB-backed adapter is still to come.
+- **No order or POS screens yet.** Floor plan, table sessions, order entry, modifiers at order time, hold/park, and checkout are M3 work.
+- **Single-branch in active UI.** `branchId` is threaded through all documents and branch overrides exist, but branch
+  switching UI, per-branch permissions and filtered replication are M6a.
 - **The hub has no authentication.** It binds to `127.0.0.1` by default. Putting it on a
   shared network without adding auth would let anyone who can reach the port read and write
   data. LAN exposure needs the token scheme from §6.3 of the design doc first.
 - **The LAN server exposes only `/api/health`.** The WebSocket hub, QR token issuance and
   KDS endpoints are M5 work.
+- **Images are reference strings only in v1.** Stored as URL / data URL strings. The media
+  storage and attachment pipeline is M6a (§13.2).
 - **No end-to-end desktop test.** The Rust binary and the webview are verified separately
   (cargo tests + browser tests); nothing yet drives the packaged app.
-- **Single-branch only in practice.** `branchId` is threaded through everything, but branch
-  switching UI, per-branch permissions and filtered replication are M6a.
 - **CI runs on Windows only.** That matches the primary target, but Linux/macOS build
   breakage would not be caught.
