@@ -372,13 +372,13 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <section class="product-editor">
-    <h3>{{ product === null ? t('catalog.product.new') : t('catalog.product.edit') }}</h3>
+  <section class="grid gap-4">
+    <h3 class="text-lg font-semibold">{{ product === null ? t('catalog.product.new') : t('catalog.product.edit') }}</h3>
 
-    <form ref="formEl" data-product-form novalidate @submit.prevent="onSubmit">
-      <div class="product-editor__row">
+    <form ref="formEl" class="form-grid" data-product-form novalidate @submit.prevent="onSubmit">
+      <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-product-name type="text" :label="t('catalog.field.name')">
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -387,11 +387,11 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
       </div>
 
-      <div class="product-editor__row">
+      <div class="flex flex-wrap gap-2">
         <NumberField.Root
           data-product-price
           :label="t('catalog.field.basePrice')"
@@ -402,7 +402,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="onPriceInput"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
 
         <div data-product-category>
@@ -410,7 +410,7 @@ function onSubmit(): void {
             :model-value="categoryModel"
             @update:model-value="onCategoryInput"
           >
-            <Select.Activator :label="t('catalog.field.category')">
+            <Select.Activator class="field-input" :label="t('catalog.field.category')">
               {{ selectedCategoryLabel }}
             </Select.Activator>
             <Select.Content eager>
@@ -422,22 +422,22 @@ function onSubmit(): void {
         </div>
 
         <Input.Root v-model="unit" data-product-unit type="text" :label="t('catalog.field.unit')">
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
       </div>
 
-      <div class="product-editor__row">
+      <div class="flex flex-wrap gap-2">
         <Input.Root
           v-model="barcode"
           data-product-barcode
           type="text"
           :label="t('catalog.field.barcode')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root v-model="sku" data-product-sku type="text" :label="t('catalog.field.sku')">
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -446,7 +446,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.imageRef')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <NumberField.Root
@@ -458,11 +458,12 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="onSortOrder"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
 
         <Checkbox.Root
           data-product-active
+          class="inline-flex cursor-pointer items-center gap-2 text-sm text-text"
           :model-value="isActive"
           @update:model-value="(value: boolean | undefined) => (isActive = value === true)"
         >
@@ -470,32 +471,38 @@ function onSubmit(): void {
         </Checkbox.Root>
       </div>
 
-      <div class="product-editor__modifiers" data-product-modifiers>
-        <span>{{ t('catalog.field.modifierGroups') }}</span>
+      <div class="mt-4 grid gap-2" data-product-modifiers>
+        <span class="text-sm font-medium text-text">{{ t('catalog.field.modifierGroups') }}</span>
 
-        <p v-if="modifierGroups.length === 0">{{ t('catalog.modifier.empty') }}</p>
+        <p v-if="modifierGroups.length === 0" class="text-sm text-text-muted">{{ t('catalog.modifier.empty') }}</p>
         <Checkbox.Group
           v-else
+          class="flex flex-wrap gap-2"
           :label="t('catalog.field.modifierGroups')"
           :model-value="modifierSelection"
           @update:model-value="onModifierInput"
         >
-          <Checkbox.Root v-for="group in modifierGroups" :key="group._id" :value="group._id">
+          <Checkbox.Root
+            v-for="group in modifierGroups"
+            :key="group._id"
+            class="inline-flex cursor-pointer items-center gap-2 text-sm text-text"
+            :value="group._id"
+          >
             {{ group.name[activeLocale] }}
           </Checkbox.Root>
         </Checkbox.Group>
       </div>
 
-      <div class="product-editor__variants">
-        <span>{{ t('catalog.field.variants') }}</span>
+      <div class="mt-4 grid gap-2">
+        <span class="text-sm font-medium text-text">{{ t('catalog.field.variants') }}</span>
 
-        <p v-if="variants.length === 0">{{ t('catalog.variant.empty') }}</p>
+        <p v-if="variants.length === 0" class="text-sm text-text-muted">{{ t('catalog.variant.empty') }}</p>
 
-        <ul class="product-editor__variant-list">
+        <ul class="grid gap-2">
           <li
             v-for="(row, index) in variants"
             :key="index"
-            class="product-editor__variant"
+            class="grid gap-2 rounded-md border border-solid border-text/15 p-3"
             data-variant-row
           >
             <Input.Root
@@ -505,7 +512,7 @@ function onSubmit(): void {
               :model-value="row.id"
               @update:model-value="(value: string) => onVariantText(index, 'id', value)"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -515,7 +522,7 @@ function onSubmit(): void {
               :model-value="row.nameVi"
               @update:model-value="(value: string) => onVariantText(index, 'nameVi', value)"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -525,7 +532,7 @@ function onSubmit(): void {
               :model-value="row.nameEn"
               @update:model-value="(value: string) => onVariantText(index, 'nameEn', value)"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <NumberField.Root
@@ -537,11 +544,12 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => onDeltaInput(index, value)"
             >
-              <NumberField.Control />
+              <NumberField.Control class="field-input" />
             </NumberField.Root>
 
             <Button.Root
               type="button"
+              class="btn-danger"
               data-variant-remove
               @click="removeVariant(index)"
             >
@@ -550,24 +558,24 @@ function onSubmit(): void {
           </li>
         </ul>
 
-        <Button.Root type="button" data-variant-add @click="addVariant">
+        <Button.Root type="button" class="btn-primary" data-variant-add @click="addVariant">
           {{ t('catalog.variant.add') }}
         </Button.Root>
       </div>
 
-      <div v-if="customFields.length > 0" class="product-editor__custom">
-        <h4>{{ t('catalog.field.customFields') }}</h4>
+      <div v-if="customFields.length > 0" class="mt-4 grid gap-2">
+        <h4 class="text-sm font-medium text-text">{{ t('catalog.field.customFields') }}</h4>
 
         <div
           v-for="entry in customFields"
           :key="entry.field.key"
-          class="product-editor__custom-field"
+          class="grid gap-2 rounded-md border border-solid border-text/15 p-3"
           :data-field="entry.field.key"
           :data-computed="entry.computed ? 'true' : undefined"
         >
           <template v-if="entry.computed">
-            <span>{{ entry.field.label[activeLocale] }}</span>
-            <output>{{ formatFieldValue(entry.value, entry.field, activeLocale) }}</output>
+            <span class="text-sm font-medium text-text">{{ entry.field.label[activeLocale] }}</span>
+            <output class="text-sm text-text">{{ formatFieldValue(entry.value, entry.field, activeLocale) }}</output>
           </template>
 
           <FieldWidgets
@@ -578,22 +586,22 @@ function onSubmit(): void {
             @update:model-value="(value: unknown) => onCustomInput(entry.field.key, value)"
           />
 
-          <p v-if="submitted && entry.error !== null" class="product-editor__error" role="alert">
+          <p v-if="submitted && entry.error !== null" class="error-text" role="alert">
             {{ customErrorText(entry) }}
           </p>
         </div>
       </div>
 
-      <ul v-if="submitted && issues.length > 0" class="product-editor__issues" role="alert">
+      <ul v-if="submitted && issues.length > 0" class="error-text grid gap-1" role="alert">
         <li v-for="issue in issues" :key="`${issue.path}:${issue.message}`">{{ issue.message }}</li>
       </ul>
 
-      <div class="product-editor__actions">
-        <Button.Root type="button" data-product-save @click="requestSubmit">
+      <div class="flex justify-end gap-2">
+        <Button.Root type="button" class="btn-primary" data-product-save @click="requestSubmit">
           {{ t('common.save') }}
         </Button.Root>
 
-        <Button.Root type="button" data-product-cancel @click="emit('cancel')">
+        <Button.Root type="button" class="btn-ghost" data-product-cancel @click="emit('cancel')">
           {{ t('common.cancel') }}
         </Button.Root>
       </div>

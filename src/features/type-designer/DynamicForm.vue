@@ -113,17 +113,17 @@ function requestSubmit(): void {
 </script>
 
 <template>
-  <form ref="formEl" class="dynamic-form" novalidate @submit.prevent="onSubmit">
+  <form ref="formEl" class="form-grid" novalidate @submit.prevent="onSubmit">
     <div
       v-for="field in fields"
       :key="field.key"
-      class="dynamic-form__field"
+      class="grid gap-1"
       :data-field="field.key"
       :data-computed="field.computed ? 'true' : undefined"
     >
       <template v-if="field.computed">
-        <span class="dynamic-form__label">{{ field.field.label[locale] }}</span>
-        <output class="dynamic-form__computed">{{ field.text }}</output>
+        <span class="field-label">{{ field.field.label[locale] }}</span>
+        <output class="block rounded-sm bg-surface px-3 py-2 text-text-muted">{{ field.text }}</output>
       </template>
 
       <FieldWidgets
@@ -134,9 +134,9 @@ function requestSubmit(): void {
         @update:model-value="(value: unknown) => onFieldInput(field.key, value)"
       />
 
-      <p v-if="field.error" class="dynamic-form__error" role="alert">{{ field.error }}</p>
+      <p v-if="field.error" class="error-text" role="alert">{{ field.error }}</p>
     </div>
 
-    <Button.Root data-form-submit @click="requestSubmit">{{ t('type.form.save') }}</Button.Root>
+    <Button.Root class="btn-primary" data-form-submit @click="requestSubmit">{{ t('type.form.save') }}</Button.Root>
   </form>
 </template>

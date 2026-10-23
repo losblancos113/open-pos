@@ -143,22 +143,23 @@ function effectiveLabel(item: MenuItem): string {
 </script>
 
 <template>
-  <section class="branch-override-editor">
-    <h3>{{ t('catalog.tab.overrides') }}</h3>
+  <section class="grid gap-4">
+    <h3 class="text-lg font-semibold">{{ t('catalog.tab.overrides') }}</h3>
 
-    <p class="branch-override-editor__branch">{{ t('catalog.branch') }}: {{ branchId }}</p>
+    <p class="text-sm text-text-muted">{{ t('catalog.branch') }}: {{ branchId }}</p>
 
-    <DataTable.Root>
-      <DataTable.Table :aria-label="t('catalog.tab.overrides')">
+    <div class="panel-card overflow-x-auto">
+      <DataTable.Root>
+        <DataTable.Table :aria-label="t('catalog.tab.overrides')" class="w-full text-sm">
         <DataTable.Header>
           <DataTable.Row>
-            <DataTable.Column id="name">{{ t('catalog.field.name') }}</DataTable.Column>
-            <DataTable.Column id="base">{{ t('catalog.priceSource.base') }}</DataTable.Column>
-            <DataTable.Column id="override">{{ t('catalog.override.price') }}</DataTable.Column>
-            <DataTable.Column id="effective">{{ t('catalog.override.effective') }}</DataTable.Column>
-            <DataTable.Column id="available">{{ t('catalog.override.available') }}</DataTable.Column>
-            <DataTable.Column id="sortOrder">{{ t('catalog.override.sortOrder') }}</DataTable.Column>
-            <DataTable.Column id="actions">{{ t('common.actions') }}</DataTable.Column>
+            <DataTable.Column id="name" class="table-cell">{{ t('catalog.field.name') }}</DataTable.Column>
+            <DataTable.Column id="base" class="table-cell">{{ t('catalog.priceSource.base') }}</DataTable.Column>
+            <DataTable.Column id="override" class="table-cell">{{ t('catalog.override.price') }}</DataTable.Column>
+            <DataTable.Column id="effective" class="table-cell">{{ t('catalog.override.effective') }}</DataTable.Column>
+            <DataTable.Column id="available" class="table-cell">{{ t('catalog.override.available') }}</DataTable.Column>
+            <DataTable.Column id="sortOrder" class="table-cell">{{ t('catalog.override.sortOrder') }}</DataTable.Column>
+            <DataTable.Column id="actions" class="table-cell">{{ t('common.actions') }}</DataTable.Column>
           </DataTable.Row>
         </DataTable.Header>
 
@@ -170,11 +171,11 @@ function effectiveLabel(item: MenuItem): string {
             :value="item"
             :data-override-row="item.product._id"
           >
-            <DataTable.Cell>{{ item.product.name[activeLocale] }}</DataTable.Cell>
+            <DataTable.Cell class="table-cell">{{ item.product.name[activeLocale] }}</DataTable.Cell>
 
-            <DataTable.Cell>{{ format(item.product.basePrice) }}</DataTable.Cell>
+            <DataTable.Cell class="table-cell">{{ format(item.product.basePrice) }}</DataTable.Cell>
 
-            <DataTable.Cell>
+            <DataTable.Cell class="table-cell">
               <NumberField.Root
                 :data-override-price="item.product._id"
                 :label="t('catalog.override.price')"
@@ -184,28 +185,29 @@ function effectiveLabel(item: MenuItem): string {
                 :step="1 / minorUnitsPerMajor(currencyOf(item))"
                 @update:model-value="(value: number | null) => emitSet(item, { price: value })"
               >
-                <NumberField.Control />
+                <NumberField.Control class="field-input" />
               </NumberField.Root>
 
               <p
                 v-if="priceErrorFor(item) !== null"
-                class="branch-override-editor__error"
+                class="error-text mt-1"
                 role="alert"
               >
                 {{ priceErrorFor(item) }}
               </p>
             </DataTable.Cell>
 
-            <DataTable.Cell>
+            <DataTable.Cell class="table-cell">
               <span :data-override-effective="item.product._id">
                 {{ format(item.price) }}
-                <span class="branch-override-editor__source">{{ effectiveLabel(item) }}</span>
+                <span class="block text-sm text-text-muted">{{ effectiveLabel(item) }}</span>
               </span>
             </DataTable.Cell>
 
-            <DataTable.Cell>
+            <DataTable.Cell class="table-cell">
               <Switch.Root
                 :data-override-available="item.product._id"
+                class="btn-ghost data-[state=checked]:bg-primary data-[state=checked]:text-primary-contrast"
                 :label="t('catalog.override.available')"
                 :model-value="draftFor(item).available"
                 @update:model-value="
@@ -220,7 +222,7 @@ function effectiveLabel(item: MenuItem): string {
               </Switch.Root>
             </DataTable.Cell>
 
-            <DataTable.Cell>
+            <DataTable.Cell class="table-cell">
               <NumberField.Root
                 :data-override-sort-order="item.product._id"
                 :label="t('catalog.override.sortOrder')"
@@ -230,14 +232,15 @@ function effectiveLabel(item: MenuItem): string {
                 :step="1"
                 @update:model-value="(value: number | null) => emitSet(item, { sortOrder: value })"
               >
-                <NumberField.Control />
+                <NumberField.Control class="field-input" />
               </NumberField.Root>
             </DataTable.Cell>
 
-            <DataTable.Cell>
+            <DataTable.Cell class="table-cell">
               <Button.Root
                 v-if="overriddenIds.has(item.product._id)"
                 type="button"
+                class="btn-danger"
                 :data-override-clear="item.product._id"
                 @click="clearOverride(item)"
               >
@@ -247,10 +250,11 @@ function effectiveLabel(item: MenuItem): string {
           </DataTable.Row>
 
           <DataTable.Empty v-slot="{ columnCount }">
-            <DataTable.Cell :colspan="columnCount">{{ t('catalog.product.empty') }}</DataTable.Cell>
+            <DataTable.Cell :colspan="columnCount" class="table-cell text-text-muted">{{ t('catalog.product.empty') }}</DataTable.Cell>
           </DataTable.Empty>
         </DataTable.Body>
       </DataTable.Table>
     </DataTable.Root>
+  </div>
   </section>
 </template>

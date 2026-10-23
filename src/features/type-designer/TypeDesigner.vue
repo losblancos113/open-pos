@@ -408,22 +408,23 @@ async function runMigration(): Promise<void> {
 </script>
 
 <template>
-  <section class="type-designer">
-    <h2>{{ t('type.designer.title') }}</h2>
+  <section class="grid gap-4">
+    <h2 class="text-xl font-semibold">{{ t('type.designer.title') }}</h2>
 
-    <p v-if="loadError !== null" role="alert">{{ loadError }}</p>
+    <p v-if="loadError !== null" class="error-text" role="alert">{{ loadError }}</p>
 
-    <div v-else-if="ready" class="type-designer__layout">
-      <aside class="type-designer__list">
-        <Button.Root type="button" @click="startNewType">
-          {{ t('type.designer.newType') }}
-        </Button.Root>
+<div v-else-if="ready" class="grid gap-4 md:grid-cols-3">
+        <aside class="panel-card grid gap-2">
+          <Button.Root type="button" class="btn" @click="startNewType">
+            {{ t('type.designer.newType') }}
+          </Button.Root>
 
-        <p v-if="types.length === 0">{{ t('type.designer.empty') }}</p>
-        <ul v-else>
-          <li v-for="type in types" :key="type.key">
+          <p v-if="types.length === 0" class="text-sm text-text-muted">{{ t('type.designer.empty') }}</p>
+          <ul v-else class="grid gap-2">
+            <li v-for="type in types" :key="type.key">
             <Button.Root
               type="button"
+              class="btn w-full justify-start"
               :data-type-key="type.key"
               :aria-label="`${t('type.designer.editType')}: ${type.name[activeLocale]}`"
               @click="selectType(type)"
@@ -434,11 +435,11 @@ async function runMigration(): Promise<void> {
         </ul>
       </aside>
 
-      <div class="type-designer__editor">
-        <h3>{{ isEditing ? t('type.designer.editType') : t('type.designer.newType') }}</h3>
+      <div class="panel-card grid gap-4">
+        <h3 class="text-lg font-semibold">{{ isEditing ? t('type.designer.editType') : t('type.designer.newType') }}</h3>
 
         <Input.Root v-model="draft.key" type="text" :label="t('type.field.key')" :disabled="isEditing">
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -448,11 +449,11 @@ async function runMigration(): Promise<void> {
           type="text"
           :label="`${t('type.designer.typeName')} (${code})`"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Select.Root :model-value="draft.kind" :disabled="isEditing" @update:model-value="setKind">
-          <Select.Activator :label="t('type.designer.kind')">{{ t(KIND_KEYS[draft.kind]) }}</Select.Activator>
+          <Select.Activator class="field-input" :label="t('type.designer.kind')">{{ t(KIND_KEYS[draft.kind]) }}</Select.Activator>
           <Select.Content eager>
             <Select.Item v-for="kind in KIND_OPTIONS" :key="kind" :value="kind">
               {{ t(KIND_KEYS[kind]) }}
@@ -467,28 +468,28 @@ async function runMigration(): Promise<void> {
           :label="t('type.designer.baseType')"
           :disabled="isEditing"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
-        <p v-if="isEditing" class="type-designer__warning" role="alert">
+        <p v-if="isEditing" class="text-sm text-text-muted" role="alert">
           {{ t('type.designer.versionWarning') }}
         </p>
 
-        <ul v-if="typeIssues.length > 0" class="type-designer__issues" role="alert">
+        <ul v-if="typeIssues.length > 0" class="error-text" role="alert">
           <li v-for="issue in typeIssues" :key="`${issue.path}:${issue.code}`">{{ issueText(issue) }}</li>
         </ul>
 
-        <h4>{{ t('type.designer.fields') }}</h4>
+        <h4 class="text-lg font-medium">{{ t('type.designer.fields') }}</h4>
 
-        <ul class="type-designer__fields">
+        <ul class="grid gap-4">
           <li
             v-for="(row, index) in rows"
             :key="index"
-            class="type-designer__field"
+            class="grid gap-2 rounded-md border border-solid border-text/15 p-3"
             :data-field-row="row.key"
           >
             <Input.Root v-model="row.key" type="text" :label="t('type.field.key')">
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -498,14 +499,14 @@ async function runMigration(): Promise<void> {
               type="text"
               :label="`${t('type.field.label')} (${code})`"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Select.Root
               :model-value="row.dataType"
               @update:model-value="(value: unknown) => setDataType(row, value)"
             >
-              <Select.Activator :label="t('type.field.dataType')">
+              <Select.Activator class="field-input" :label="t('type.field.dataType')">
                 {{ t(`type.dataType.${row.dataType}`) }}
               </Select.Activator>
               <Select.Content eager>
@@ -516,6 +517,7 @@ async function runMigration(): Promise<void> {
             </Select.Root>
 
             <Checkbox.Root
+              class="inline-flex cursor-pointer items-center gap-2"
               :model-value="row.required"
               @update:model-value="(value: boolean | undefined) => setFlag(row, 'required', value)"
             >
@@ -523,6 +525,7 @@ async function runMigration(): Promise<void> {
             </Checkbox.Root>
 
             <Checkbox.Root
+              class="inline-flex cursor-pointer items-center gap-2"
               :model-value="row.indexed"
               @update:model-value="(value: boolean | undefined) => setFlag(row, 'indexed', value)"
             >
@@ -535,7 +538,7 @@ async function runMigration(): Promise<void> {
               type="text"
               :label="t('type.field.referenceType')"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -544,18 +547,22 @@ async function runMigration(): Promise<void> {
               type="text"
               :label="t('type.field.formula')"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <div
               v-if="row.dataType === 'select' || row.dataType === 'multiselect'"
-              class="type-designer__options"
+              class="grid gap-2"
             >
               <span>{{ t('type.field.options') }}</span>
 
-              <div v-for="(option, optionIndex) in row.options" :key="optionIndex" class="type-designer__option">
+              <div
+                  v-for="(option, optionIndex) in row.options"
+                  :key="optionIndex"
+                  class="type-designer__option grid gap-2 rounded-sm border border-solid border-text/15 p-2"
+                >
                 <Input.Root v-model="option.value" type="text" :label="t('type.field.options')">
-                  <Input.Control />
+                  <Input.Control class="field-input" />
                 </Input.Root>
 
                 <Input.Root
@@ -565,40 +572,41 @@ async function runMigration(): Promise<void> {
                   type="text"
                   :label="`${t('type.field.label')} (${code})`"
                 >
-                  <Input.Control />
+                  <Input.Control class="field-input" />
                 </Input.Root>
 
-                <Button.Root type="button" @click="removeOption(row, optionIndex)">
+                <Button.Root type="button" class="btn-danger" @click="removeOption(row, optionIndex)">
                   {{ t('type.field.removeOption') }}
                 </Button.Root>
               </div>
 
-              <Button.Root type="button" @click="addOption(row)">
+              <Button.Root type="button" class="btn-ghost" @click="addOption(row)">
                 {{ t('type.field.addOption') }}
               </Button.Root>
             </div>
 
-            <Button.Root type="button" @click="removeRow(index)">
+            <Button.Root type="button" class="btn-danger" @click="removeRow(index)">
               {{ t('type.field.remove') }}
             </Button.Root>
 
-            <ul v-if="issuesForRow(row).length > 0" class="type-designer__issues" role="alert">
+            <ul v-if="issuesForRow(row).length > 0" class="error-text" role="alert">
               <li v-for="issue in issuesForRow(row)" :key="issue.code">{{ issueText(issue) }}</li>
             </ul>
           </li>
         </ul>
 
-        <Button.Root type="button" @click="addRow">{{ t('type.field.add') }}</Button.Root>
+        <Button.Root type="button" class="btn-ghost" @click="addRow">{{ t('type.field.add') }}</Button.Root>
 
-        <p v-if="saveError !== null" role="alert">{{ saveError }}</p>
+        <p v-if="saveError !== null" class="error-text" role="alert">{{ saveError }}</p>
 
-        <Button.Root type="button" :disabled="!canSave" @click="save">
+        <Button.Root type="button" class="btn-primary" :disabled="!canSave" @click="save">
           {{ t('type.form.save') }}
         </Button.Root>
 
-        <div class="type-designer__migration">
+        <div class="flex flex-wrap items-center gap-2">
           <Button.Root
             type="button"
+            class="btn"
             :disabled="!canMigrate || migrating"
             :loading="migrating"
             @click="runMigration"
@@ -618,7 +626,7 @@ async function runMigration(): Promise<void> {
           </template>
         </div>
 
-        <h4>{{ t('type.designer.record') }}</h4>
+        <h4 class="text-lg font-medium">{{ t('type.designer.record') }}</h4>
 
         <template v-if="canSave">
           <DynamicForm

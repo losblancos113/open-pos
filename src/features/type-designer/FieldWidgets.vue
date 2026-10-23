@@ -188,16 +188,17 @@ const labelTarget = computed(() => {
 </script>
 
 <template>
-  <div class="field-widget" :data-field-type="field.dataType">
-    <label v-if="labelTarget" class="field-widget__label" :for="labelTarget">{{ label }}</label>
-    <span v-else-if="field.dataType !== 'boolean'" class="field-widget__label">{{ label }}</span>
+  <div class="grid gap-1" :data-field-type="field.dataType">
+    <label v-if="labelTarget" class="field-label" :for="labelTarget">{{ label }}</label>
+    <span v-else-if="field.dataType !== 'boolean'" class="field-label">{{ label }}</span>
 
     <!-- `formula` — giá trị đã tính, không nhập được. -->
-    <output v-if="field.dataType === 'formula'" class="field-widget__computed">{{ computedDisplay }}</output>
+    <output v-if="field.dataType === 'formula'" class="block rounded-sm bg-surface px-3 py-2 text-text-muted">{{ computedDisplay }}</output>
 
     <!-- `boolean` — nhãn nằm trong chính nút để bấm vào chữ cũng bật/tắt. -->
     <Checkbox.Root
       v-else-if="field.dataType === 'boolean'"
+      class="inline-flex cursor-pointer items-center gap-2"
       :id="fieldId"
       :label="label"
       :name="field.key"
@@ -210,11 +211,17 @@ const labelTarget = computed(() => {
     <!-- `multiselect` — một checkbox mỗi lựa chọn đã khai báo. -->
     <Checkbox.Group
       v-else-if="field.dataType === 'multiselect'"
+      class="grid gap-2"
       :label="label"
       :model-value="multiValue"
       @update:model-value="onMultiInput"
     >
-      <Checkbox.Root v-for="option in options" :key="option.value" :value="option.value">
+      <Checkbox.Root
+        v-for="option in options"
+        :key="option.value"
+        class="inline-flex cursor-pointer items-center gap-2"
+        :value="option.value"
+      >
         {{ optionLabel(option) }}
       </Checkbox.Root>
     </Checkbox.Group>
@@ -232,7 +239,7 @@ const labelTarget = computed(() => {
       commit-on="input"
       @update:model-value="onNumericInput"
     >
-      <NumberField.Control />
+      <NumberField.Control class="field-input" />
     </NumberField.Root>
 
     <!-- `select` — một lựa chọn trong danh sách đã khai báo. -->
@@ -243,7 +250,7 @@ const labelTarget = computed(() => {
       :model-value="selectValue"
       @update:model-value="onSelectInput"
     >
-      <Select.Activator :label="label">{{ selectedOptionLabel }}</Select.Activator>
+      <Select.Activator class="field-input" :label="label">{{ selectedOptionLabel }}</Select.Activator>
       <Select.Content eager>
         <Select.Item v-for="option in options" :key="option.value" :value="option.value">
           {{ optionLabel(option) }}
@@ -261,7 +268,7 @@ const labelTarget = computed(() => {
       :model-value="textValue"
       @update:model-value="onTextInput"
     >
-      <Input.Control as="textarea" rows="4" />
+      <Input.Control as="textarea" rows="4" class="field-input" />
     </Input.Root>
 
     <!-- `text` / `date` / `datetime` / `color` / `reference` / `image`. -->
@@ -275,9 +282,9 @@ const labelTarget = computed(() => {
       :model-value="textValue"
       @update:model-value="onTextInput"
     >
-      <Input.Control />
+      <Input.Control class="field-input" />
     </Input.Root>
 
-    <span class="field-widget__type-hint" :data-type-hint="field.dataType">{{ typeLabel }}</span>
+    <span class="text-sm text-text-muted" :data-type-hint="field.dataType">{{ typeLabel }}</span>
   </div>
 </template>

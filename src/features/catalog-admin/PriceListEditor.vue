@@ -260,15 +260,15 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <section class="price-list-editor">
-    <h3>{{ priceList === null ? t('catalog.price.new') : t('catalog.price.edit') }}</h3>
+  <section class="grid gap-4">
+    <h3 class="text-lg font-semibold">{{ priceList === null ? t('catalog.price.new') : t('catalog.price.edit') }}</h3>
 
-    <p class="price-list-editor__branch">{{ t('catalog.branch') }}: {{ branchId }}</p>
+    <p class="text-sm text-text-muted">{{ t('catalog.branch') }}: {{ branchId }}</p>
 
-    <form ref="formEl" data-price-form novalidate @submit.prevent="onSubmit">
-      <div class="price-list-editor__row">
+    <form ref="formEl" class="form-grid" data-price-form novalidate @submit.prevent="onSubmit">
+      <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-price-name type="text" :label="t('catalog.field.name')">
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -277,7 +277,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -286,7 +286,7 @@ function onSubmit(): void {
           type="datetime-local"
           :label="t('catalog.price.effectiveFrom')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -295,7 +295,7 @@ function onSubmit(): void {
           type="datetime-local"
           :label="t('catalog.price.effectiveTo')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <NumberField.Root
@@ -308,18 +308,18 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => (priority = value ?? 0)"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
       </div>
 
-      <div class="price-list-editor__entries">
-        <span>{{ t('catalog.price.entries') }}</span>
+      <div class="mt-4 grid gap-2">
+        <span class="text-sm font-medium text-text">{{ t('catalog.price.entries') }}</span>
 
-        <ul>
+        <ul class="grid gap-2">
           <li
             v-for="(entry, index) in entries"
             :key="index"
-            class="price-list-editor__entry"
+            class="grid gap-2 rounded-md border border-solid border-text/15 p-3"
             data-entry-row
           >
             <div data-entry-product>
@@ -327,7 +327,7 @@ function onSubmit(): void {
                 :model-value="entry.productId === '' ? null : entry.productId"
                 @update:model-value="(value: unknown) => setEntryProduct(index, value)"
               >
-                <Select.Activator :label="t('catalog.price.entry.product')">
+                <Select.Activator class="field-input" :label="t('catalog.price.entry.product')">
                   {{ productLabel(entry.productId) }}
                 </Select.Activator>
                 <Select.Content eager>
@@ -343,7 +343,7 @@ function onSubmit(): void {
                 :model-value="entry.variantId"
                 @update:model-value="(value: unknown) => setEntryVariant(index, value)"
               >
-                <Select.Activator :label="t('catalog.price.entry.variant')">
+                <Select.Activator class="field-input" :label="t('catalog.price.entry.variant')">
                   {{ variantLabel(entry) }}
                 </Select.Activator>
                 <Select.Content eager>
@@ -371,30 +371,30 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => updateEntry(index, { price: value })"
             >
-              <NumberField.Control />
+              <NumberField.Control class="field-input" />
             </NumberField.Root>
 
-            <Button.Root type="button" data-entry-remove @click="removeEntry(index)">
+            <Button.Root type="button" class="btn-danger" data-entry-remove @click="removeEntry(index)">
               {{ t('catalog.price.entry.remove') }}
             </Button.Root>
           </li>
         </ul>
 
-        <Button.Root type="button" data-entry-add @click="addEntry">
+        <Button.Root type="button" class="btn-primary" data-entry-add @click="addEntry">
           {{ t('catalog.price.entry.add') }}
         </Button.Root>
       </div>
 
-      <ul v-if="submitted && issues.length > 0" class="price-list-editor__issues" role="alert">
+      <ul v-if="submitted && issues.length > 0" class="error-text grid gap-1" role="alert">
         <li v-for="issue in issues" :key="issue">{{ issue }}</li>
       </ul>
 
-      <div class="price-list-editor__actions">
-        <Button.Root type="button" data-price-save @click="requestSubmit">
+      <div class="flex justify-end gap-2">
+        <Button.Root type="button" class="btn-primary" data-price-save @click="requestSubmit">
           {{ t('common.save') }}
         </Button.Root>
 
-        <Button.Root type="button" data-price-cancel @click="emit('cancel')">
+        <Button.Root type="button" class="btn-ghost" data-price-cancel @click="emit('cancel')">
           {{ t('common.cancel') }}
         </Button.Root>
       </div>

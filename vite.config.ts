@@ -1,9 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
+import UnoCSS from 'unocss/vite';
 
 export default defineConfig({
-  plugins: [vue()],
+  // UnoCSS sau `vue()`: nhận CSS đã tách từ SFC để xử lý `@apply` trong `<style>`.
+  plugins: [vue(), UnoCSS()],
   // tsconfig khai báo `@/*` → `./src/*`; Vite/vitest cần khai báo tương ứng
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   clearScreen: false,

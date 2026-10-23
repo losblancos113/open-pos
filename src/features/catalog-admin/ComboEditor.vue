@@ -312,13 +312,13 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <section class="combo-editor">
-    <h3>{{ combo === null ? t('catalog.combo.new') : t('catalog.combo.edit') }}</h3>
+  <section class="grid gap-4">
+    <h3 class="text-lg font-semibold">{{ combo === null ? t('catalog.combo.new') : t('catalog.combo.edit') }}</h3>
 
-    <form ref="formEl" data-combo-form novalidate @submit.prevent="onSubmit">
-      <div class="combo-editor__row">
+    <form ref="formEl" class="form-grid" data-combo-form novalidate @submit.prevent="onSubmit">
+      <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-combo-name type="text" :label="t('catalog.field.name')">
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -327,7 +327,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <NumberField.Root
@@ -340,7 +340,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => (price = value)"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
 
         <Input.Root
@@ -349,7 +349,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.imageRef')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <NumberField.Root
@@ -362,11 +362,12 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => (sortOrder = value ?? 0)"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
 
         <Checkbox.Root
           data-combo-active
+          class="inline-flex cursor-pointer items-center gap-2 text-sm text-text"
           :model-value="isActive"
           @update:model-value="(value: boolean | undefined) => (isActive = value === true)"
         >
@@ -374,14 +375,14 @@ function onSubmit(): void {
         </Checkbox.Root>
       </div>
 
-      <div class="combo-editor__groups">
-        <span>{{ t('catalog.combo.groups') }}</span>
+      <div class="mt-4 grid gap-2">
+        <span class="text-sm font-medium text-text">{{ t('catalog.combo.groups') }}</span>
 
-        <ul>
+        <ul class="grid gap-2">
           <li
             v-for="(group, groupIndex) in groups"
             :key="groupIndex"
-            class="combo-editor__group"
+            class="grid gap-2 rounded-md border border-solid border-text/15 p-3"
             data-combo-group
           >
             <Input.Root
@@ -391,7 +392,7 @@ function onSubmit(): void {
               :model-value="group.key"
               @update:model-value="(value: string) => updateGroup(groupIndex, { key: value })"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -401,7 +402,7 @@ function onSubmit(): void {
               :model-value="group.labelVi"
               @update:model-value="(value: string) => updateGroup(groupIndex, { labelVi: value })"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -411,7 +412,7 @@ function onSubmit(): void {
               :model-value="group.labelEn"
               @update:model-value="(value: string) => updateGroup(groupIndex, { labelEn: value })"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <NumberField.Root
@@ -424,7 +425,7 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => updateGroup(groupIndex, { minSelect: value ?? 0 })"
             >
-              <NumberField.Control />
+              <NumberField.Control class="field-input" />
             </NumberField.Root>
 
             <NumberField.Root
@@ -437,18 +438,18 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => updateGroup(groupIndex, { maxSelect: value ?? 0 })"
             >
-              <NumberField.Control />
+              <NumberField.Control class="field-input" />
             </NumberField.Root>
 
-            <Button.Root type="button" data-combo-group-remove @click="removeGroup(groupIndex)">
+            <Button.Root type="button" class="btn-danger" data-combo-group-remove @click="removeGroup(groupIndex)">
               {{ t('catalog.combo.group.remove') }}
             </Button.Root>
 
-            <ul>
+            <ul class="grid gap-2">
               <li
                 v-for="(option, optionIndex) in group.options"
                 :key="optionIndex"
-                class="combo-editor__option"
+                class="grid gap-2 rounded-sm border border-solid border-text/15 p-2"
                 data-combo-option
               >
                 <div data-combo-option-product>
@@ -456,7 +457,7 @@ function onSubmit(): void {
                     :model-value="option.productId === '' ? null : option.productId"
                     @update:model-value="(value: unknown) => onOptionProduct(groupIndex, optionIndex, value)"
                   >
-                    <Select.Activator :label="t('catalog.combo.option.product')">
+                    <Select.Activator class="field-input" :label="t('catalog.combo.option.product')">
                       {{ productLabel(option.productId) }}
                     </Select.Activator>
                     <Select.Content eager>
@@ -476,11 +477,12 @@ function onSubmit(): void {
                   commit-on="input"
                   @update:model-value="(value: number | null) => updateOption(groupIndex, optionIndex, { delta: value })"
                 >
-                  <NumberField.Control />
+                  <NumberField.Control class="field-input" />
                 </NumberField.Root>
 
                 <Button.Root
                   type="button"
+                  class="btn-danger"
                   data-combo-option-remove
                   @click="removeOption(groupIndex, optionIndex)"
                 >
@@ -489,27 +491,27 @@ function onSubmit(): void {
               </li>
             </ul>
 
-            <Button.Root type="button" data-combo-option-add @click="addOption(groupIndex)">
+            <Button.Root type="button" class="btn-primary" data-combo-option-add @click="addOption(groupIndex)">
               {{ t('catalog.combo.option.add') }}
             </Button.Root>
           </li>
         </ul>
 
-        <Button.Root type="button" data-combo-group-add @click="addGroup">
+        <Button.Root type="button" class="btn-primary" data-combo-group-add @click="addGroup">
           {{ t('catalog.combo.group.add') }}
         </Button.Root>
       </div>
 
-      <ul v-if="submitted && issues.length > 0" class="combo-editor__issues" role="alert">
+      <ul v-if="submitted && issues.length > 0" class="error-text grid gap-1" role="alert">
         <li v-for="issue in issues" :key="issue">{{ issue }}</li>
       </ul>
 
-      <div class="combo-editor__actions">
-        <Button.Root type="button" data-combo-save @click="requestSubmit">
+      <div class="flex justify-end gap-2">
+        <Button.Root type="button" class="btn-primary" data-combo-save @click="requestSubmit">
           {{ t('common.save') }}
         </Button.Root>
 
-        <Button.Root type="button" data-combo-cancel @click="emit('cancel')">
+        <Button.Root type="button" class="btn-ghost" data-combo-cancel @click="emit('cancel')">
           {{ t('common.cancel') }}
         </Button.Root>
       </div>

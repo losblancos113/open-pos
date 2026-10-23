@@ -209,13 +209,13 @@ function onSubmit(): void {
 </script>
 
 <template>
-  <section class="modifier-group-editor">
-    <h3>{{ group === null ? t('catalog.modifier.new') : t('catalog.modifier.edit') }}</h3>
+  <section class="grid gap-4">
+    <h3 class="text-lg font-semibold">{{ group === null ? t('catalog.modifier.new') : t('catalog.modifier.edit') }}</h3>
 
-    <form ref="formEl" data-group-form novalidate @submit.prevent="onSubmit">
-      <div class="modifier-group-editor__row">
+    <form ref="formEl" class="form-grid" data-group-form novalidate @submit.prevent="onSubmit">
+      <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-group-name type="text" :label="t('catalog.field.name')">
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <Input.Root
@@ -224,7 +224,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control />
+          <Input.Control class="field-input" />
         </Input.Root>
 
         <NumberField.Root
@@ -237,7 +237,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => onNumeric('min', value)"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
 
         <NumberField.Root
@@ -250,7 +250,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => onNumeric('max', value)"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
 
         <NumberField.Root
@@ -263,18 +263,18 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => onNumeric('sortOrder', value)"
         >
-          <NumberField.Control />
+          <NumberField.Control class="field-input" />
         </NumberField.Root>
       </div>
 
-      <div class="modifier-group-editor__options">
-        <span>{{ t('catalog.modifier.options') }}</span>
+      <div class="mt-4 grid gap-2">
+        <span class="text-sm font-medium text-text">{{ t('catalog.modifier.options') }}</span>
 
-        <ul>
+        <ul class="grid gap-2">
           <li
             v-for="(row, index) in options"
             :key="index"
-            class="modifier-group-editor__option"
+            class="grid gap-2 rounded-md border border-solid border-text/15 p-3"
             data-option-row
           >
             <Input.Root
@@ -284,7 +284,7 @@ function onSubmit(): void {
               :model-value="row.id"
               @update:model-value="(value: string) => onOptionText(index, 'id', value)"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -294,7 +294,7 @@ function onSubmit(): void {
               :model-value="row.nameVi"
               @update:model-value="(value: string) => onOptionText(index, 'nameVi', value)"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <Input.Root
@@ -304,7 +304,7 @@ function onSubmit(): void {
               :model-value="row.nameEn"
               @update:model-value="(value: string) => onOptionText(index, 'nameEn', value)"
             >
-              <Input.Control />
+              <Input.Control class="field-input" />
             </Input.Root>
 
             <NumberField.Root
@@ -316,38 +316,39 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => onOptionNumeric(index, value)"
             >
-              <NumberField.Control />
+              <NumberField.Control class="field-input" />
             </NumberField.Root>
 
             <Checkbox.Root
               data-option-default
+              class="inline-flex cursor-pointer items-center gap-2 text-sm text-text"
               :model-value="row.isDefault"
               @update:model-value="(value: boolean | undefined) => onOptionDefault(index, value)"
             >
               {{ t('catalog.modifier.option.default') }}
             </Checkbox.Root>
 
-            <Button.Root type="button" data-option-remove @click="removeOption(index)">
+            <Button.Root type="button" class="btn-danger" data-option-remove @click="removeOption(index)">
               {{ t('catalog.modifier.option.remove') }}
             </Button.Root>
           </li>
         </ul>
 
-        <Button.Root type="button" data-option-add @click="addOption">
+        <Button.Root type="button" class="btn-primary" data-option-add @click="addOption">
           {{ t('catalog.modifier.option.add') }}
         </Button.Root>
       </div>
 
-      <ul v-if="submitted && issues.length > 0" class="modifier-group-editor__issues" role="alert">
+      <ul v-if="submitted && issues.length > 0" class="error-text grid gap-1" role="alert">
         <li v-for="issue in issues" :key="issue">{{ issue }}</li>
       </ul>
 
-      <div class="modifier-group-editor__actions">
-        <Button.Root type="button" data-group-save @click="requestSubmit">
+      <div class="flex justify-end gap-2">
+        <Button.Root type="button" class="btn-primary" data-group-save @click="requestSubmit">
           {{ t('common.save') }}
         </Button.Root>
 
-        <Button.Root type="button" data-group-cancel @click="emit('cancel')">
+        <Button.Root type="button" class="btn-ghost" data-group-cancel @click="emit('cancel')">
           {{ t('common.cancel') }}
         </Button.Root>
       </div>

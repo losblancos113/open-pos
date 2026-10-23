@@ -55,37 +55,40 @@ function rowId(record: Record<string, unknown>, index: number): string {
 </script>
 
 <template>
-  <DataTable.Root>
-    <DataTable.Table :aria-label="definition.name[locale]">
-      <DataTable.Header>
-        <DataTable.Row>
-          <DataTable.Column
-            v-for="column in columns"
-            :key="column.key"
-            :id="column.key"
-            :data-computed="column.computed ? 'true' : undefined"
+  <div class="panel-card overflow-x-auto">
+    <DataTable.Root>
+      <DataTable.Table :aria-label="definition.name[locale]" class="w-full text-sm">
+        <DataTable.Header>
+          <DataTable.Row>
+            <DataTable.Column
+              v-for="column in columns"
+              :key="column.key"
+              :id="column.key"
+              :data-computed="column.computed ? 'true' : undefined"
+              class="table-cell font-medium"
+            >
+              {{ column.label }}
+            </DataTable.Column>
+          </DataTable.Row>
+        </DataTable.Header>
+
+        <DataTable.Body>
+          <DataTable.Row
+            v-for="(record, index) in records"
+            :id="rowId(record, index)"
+            :key="rowId(record, index)"
+            :value="record"
           >
-            {{ column.label }}
-          </DataTable.Column>
-        </DataTable.Row>
-      </DataTable.Header>
+            <DataTable.Cell v-for="cell in cells(record)" :key="cell.key" class="table-cell">
+              {{ cell.text }}
+            </DataTable.Cell>
+          </DataTable.Row>
 
-      <DataTable.Body>
-        <DataTable.Row
-          v-for="(record, index) in records"
-          :id="rowId(record, index)"
-          :key="rowId(record, index)"
-          :value="record"
-        >
-          <DataTable.Cell v-for="cell in cells(record)" :key="cell.key">
-            {{ cell.text }}
-          </DataTable.Cell>
-        </DataTable.Row>
-
-        <DataTable.Empty v-slot="{ columnCount }">
-          <DataTable.Cell :colspan="columnCount">{{ t('type.list.empty') }}</DataTable.Cell>
-        </DataTable.Empty>
-      </DataTable.Body>
-    </DataTable.Table>
-  </DataTable.Root>
+          <DataTable.Empty v-slot="{ columnCount }">
+            <DataTable.Cell :colspan="columnCount" class="table-cell text-text-muted">{{ t('type.list.empty') }}</DataTable.Cell>
+          </DataTable.Empty>
+        </DataTable.Body>
+      </DataTable.Table>
+    </DataTable.Root>
+  </div>
 </template>

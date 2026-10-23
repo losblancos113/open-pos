@@ -138,17 +138,17 @@ function isEditing(category: CategoryDoc): boolean {
 </script>
 
 <template>
-  <section class="category-list">
-    <h3>{{ t('catalog.tab.categories') }}</h3>
+  <section class="grid gap-4">
+    <h3 class="text-lg font-semibold">{{ t('catalog.tab.categories') }}</h3>
 
-    <form ref="formEl" data-category-form novalidate @submit.prevent="onSubmit">
+    <form ref="formEl" class="form-grid" data-category-form novalidate @submit.prevent="onSubmit">
       <Input.Root
         v-model="nameVi"
         data-category-name
         type="text"
         :label="t('catalog.field.name')"
       >
-        <Input.Control />
+        <Input.Control class="field-input" />
       </Input.Root>
 
       <Input.Root
@@ -157,7 +157,7 @@ function isEditing(category: CategoryDoc): boolean {
         type="text"
         :label="t('catalog.field.nameEn')"
       >
-        <Input.Control />
+        <Input.Control class="field-input" />
       </Input.Root>
 
       <NumberField.Root
@@ -169,32 +169,33 @@ function isEditing(category: CategoryDoc): boolean {
         commit-on="input"
         @update:model-value="onSortOrder"
       >
-        <NumberField.Control />
+        <NumberField.Control class="field-input" />
       </NumberField.Root>
 
-      <p v-if="nameIssue !== null" class="category-list__error" role="alert">
+      <p v-if="nameIssue !== null" class="error-text" role="alert">
         {{ issueText(nameIssue) }}
       </p>
 
-      <div class="category-list__actions">
-        <Button.Root type="button" data-form-submit @click="requestSubmit">
+      <div class="flex flex-wrap gap-2">
+        <Button.Root type="button" class="btn-primary" data-form-submit @click="requestSubmit">
           {{ editingId === null ? t('catalog.category.new') : t('common.save') }}
         </Button.Root>
 
-        <Button.Root v-if="editingId !== null" type="button" data-category-cancel @click="resetForm">
+        <Button.Root v-if="editingId !== null" type="button" class="btn-ghost" data-category-cancel @click="resetForm">
           {{ t('common.cancel') }}
         </Button.Root>
       </div>
     </form>
 
-    <DataTable.Root>
-      <DataTable.Table :aria-label="t('catalog.tab.categories')">
+    <div class="panel-card overflow-x-auto">
+      <DataTable.Root>
+        <DataTable.Table :aria-label="t('catalog.tab.categories')" class="w-full text-sm">
         <DataTable.Header>
           <DataTable.Row>
-            <DataTable.Column id="name">{{ t('catalog.field.name') }}</DataTable.Column>
-            <DataTable.Column id="nameEn">{{ t('catalog.field.nameEn') }}</DataTable.Column>
-            <DataTable.Column id="sortOrder">{{ t('catalog.field.sortOrder') }}</DataTable.Column>
-            <DataTable.Column id="actions">{{ t('common.actions') }}</DataTable.Column>
+            <DataTable.Column id="name" class="table-cell">{{ t('catalog.field.name') }}</DataTable.Column>
+            <DataTable.Column id="nameEn" class="table-cell">{{ t('catalog.field.nameEn') }}</DataTable.Column>
+            <DataTable.Column id="sortOrder" class="table-cell">{{ t('catalog.field.sortOrder') }}</DataTable.Column>
+            <DataTable.Column id="actions" class="table-cell">{{ t('common.actions') }}</DataTable.Column>
           </DataTable.Row>
         </DataTable.Header>
 
@@ -206,12 +207,13 @@ function isEditing(category: CategoryDoc): boolean {
             :value="category"
             :data-category-row="category._id"
           >
-            <DataTable.Cell>{{ category.name.vi }}</DataTable.Cell>
-            <DataTable.Cell>{{ category.name.en }}</DataTable.Cell>
-            <DataTable.Cell>{{ category.sortOrder }}</DataTable.Cell>
-            <DataTable.Cell>
+            <DataTable.Cell class="table-cell">{{ category.name.vi }}</DataTable.Cell>
+            <DataTable.Cell class="table-cell">{{ category.name.en }}</DataTable.Cell>
+            <DataTable.Cell class="table-cell">{{ category.sortOrder }}</DataTable.Cell>
+            <DataTable.Cell class="table-cell flex flex-wrap gap-2">
               <Button.Root
                 type="button"
+                class="btn-ghost"
                 :data-category-edit="category._id"
                 :aria-pressed="isEditing(category)"
                 @click="startEdit(category)"
@@ -221,6 +223,7 @@ function isEditing(category: CategoryDoc): boolean {
 
               <Button.Root
                 type="button"
+                class="btn-danger"
                 :data-category-remove="category._id"
                 @click="askRemove(category)"
               >
@@ -230,24 +233,30 @@ function isEditing(category: CategoryDoc): boolean {
           </DataTable.Row>
 
           <DataTable.Empty v-slot="{ columnCount }">
-            <DataTable.Cell :colspan="columnCount">{{ t('catalog.category.empty') }}</DataTable.Cell>
+            <DataTable.Cell :colspan="columnCount" class="table-cell text-text-muted">{{ t('catalog.category.empty') }}</DataTable.Cell>
           </DataTable.Empty>
         </DataTable.Body>
       </DataTable.Table>
     </DataTable.Root>
+  </div>
 
     <AlertDialog.Root v-model="confirmOpen">
-      <AlertDialog.Content data-category-remove-dialog>
-        <AlertDialog.Title>{{ t('catalog.category.remove') }}</AlertDialog.Title>
-        <AlertDialog.Description>
+      <AlertDialog.Content
+        class="panel-card fixed top-1/2 left-1/2 w-96 max-w-full -translate-x-1/2 -translate-y-1/2"
+        data-category-remove-dialog
+      >
+        <AlertDialog.Title class="text-lg font-semibold">{{ t('catalog.category.remove') }}</AlertDialog.Title>
+        <AlertDialog.Description class="mt-2 text-sm text-text-muted">
           {{ t('catalog.category.removeConfirm', { name: removalTarget?.name.vi ?? '' }) }}
         </AlertDialog.Description>
-        <AlertDialog.Cancel type="button" data-category-remove-cancel>
-          {{ t('common.cancel') }}
-        </AlertDialog.Cancel>
-        <AlertDialog.Action data-category-remove-confirm @action="confirmRemove">
-          {{ t('common.delete') }}
-        </AlertDialog.Action>
+        <div class="mt-4 flex justify-end gap-2">
+          <AlertDialog.Cancel type="button" class="btn-ghost" data-category-remove-cancel>
+            {{ t('common.cancel') }}
+          </AlertDialog.Cancel>
+          <AlertDialog.Action class="btn-danger" data-category-remove-confirm @action="confirmRemove">
+            {{ t('common.delete') }}
+          </AlertDialog.Action>
+        </div>
       </AlertDialog.Content>
     </AlertDialog.Root>
   </section>

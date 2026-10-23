@@ -31,7 +31,7 @@ propose a spec change explicitly. Do not silently invent product behaviour.
 src/                Vue 3 frontend
   core/             Domain logic — MUST NOT import Vue or PouchDB
   i18n/             vi.json, en.json, i18n setup
-  styles/           tokens.ts (source of truth) + tokens.css (mirror)
+  styles/           tokens.ts (source of truth) + tokens.css (mirror) + uno-theme.ts
 src-tauri/          Rust desktop shell + axum LAN server
 sidecar/            PouchDB-server hub (own package.json, own node_modules)
 tests/              Cross-process integration tests
@@ -243,6 +243,64 @@ Rules:
 built-in rule aliases and component strings therefore default to English. Vietnamese must come
 from our own `vi.json` via the `vue-i18n` locale adapter, or from custom aliases registered
 through `createRules({ aliases })`. Do not assume a Vietnamese built-in string exists.
+
+### 4.9 Styling: UnoCSS over the design tokens
+
+Vuetify0 is headless — it ships behaviour and ARIA wiring but **no CSS at all**. The styling
+layer is **UnoCSS** with `presetWind4`, the same preset the official Vuetify0 docs site uses.
+
+Files:
+
+| File | Role |
+|------|------|
+| `src/styles/tokens.ts` | Source of truth for design tokens (4.7) |
+| `src/styles/tokens.css` | CSS-variable mirror of the tokens |
+| `src/styles/uno-theme.ts` | Derives the UnoCSS theme from `tokens.ts` |
+| `uno.config.ts` | UnoCSS config: preset, theme, `selected:` variant, transformers |
+| `src/main.ts` | Imports `virtual:uno.css` **before** `tokens.css` |
+
+Rules:
+
+- **Never hard-code a colour, radius, or font size in a utility.** Use the token-derived
+  names. `color-primary` → `bg-primary` / `text-primary` / `border-primary`; `radius-md` →
+  `rounded-md`; `font-size-sm` → `text-sm`; `font-family-base` → `font-sans`. Add a token to
+  `tokens.ts` and the utility appears; no config change needed.
+- **Use the shared shortcuts** defined in `uno.config.ts` across all components:
+  - Buttons: `btn`, `btn-primary`, `btn-danger`, `btn-ghost`
+  - Forms & Inputs: `field-input` (on the actual input element, e.g. `Input.Control`, `NumberField.Control`, `Select.Activator`), `field-label`, `form-grid` (on `<form>`), `error-text` (on alert/error text)
+  - Cards & Tables: `panel-card` (`rounded-lg bg-surface p-4 shadow-sm`), `table-cell` (`px-3 py-2 text-left`)
+- **Wrap `DataTable.Root` in `<div class="panel-card overflow-x-auto">`.** In Vuetify0,
+  `DataTable.Root` is a renderless component; putting `class` directly on it triggers Vue
+  warnings about extraneous non-props attributes.
+- **Style Vuetify0 state through its `data-*` attributes**, not by toggling classes. Vuetify0
+  sets `data-selected`, `data-disabled`, `data-state`, `data-open`, … on the element and only
+  when true. Use the custom `selected:` variant (`selected:(bg-primary text-primary-contrast)`)
+  for `data-selected`; bracket variants like `[&:not([data-selected])]:hover:text-text` also
+  work. Always spread `attrs` on the interactive element — the attributes are the styling hook.
+- **Do not add another CSS framework** or a component theme layer. `useTheme`/`createTheme`
+  and the `./palettes/*` exports stay out of scope (4.8) — `tokens.ts` is the theme.
+
+Four traps, each verified against the installed preset (the tests below pin them):
+
+1. **`presetWind4` theme keys differ from wind3.** It uses `colors`, `radius`, `text`
+   (font sizes), `font` (families). `borderRadius`/`fontSize`/`fontFamily` are silently
+   ignored.
+2. **Radius must bind raw values, not `var(--radius-md)`.** The preset itself emits
+   `--radius-md` from the theme, so referencing it there produces a CSS variable cycle
+   (`--radius-md: var(--radius-md)`) and `rounded-md` loses its radius. Colours and `font`
+   are safe to bind as `var(...)`; font sizes must be `{ fontSize: 'var(...)' }` objects or
+   the preset emits `.text-sm` without declaring the variable it reads.
+3. **Transformers do not run in `createGenerator().generate()`.** `selected:(...)` group
+   syntax is expanded by the Vite plugin on source files only. A unit test that generates CSS
+   must use the expanded form; build output is what proves the group syntax.
+4. **The variant-group transformer skips bracket variants.** `[&[data-selected]]:(...)` stays
+   a literal, broken class (`.shadow-sm\)`). That is why `selected:` is a named variant —
+   named variants expand inside groups.
+
+Tests: `src/styles/__tests__/uno-theme.test.ts` (token→theme bridge; fails if a token loses
+its utility or a reference dangles) and `uno-config.test.ts` (runs the real config through the
+generator and asserts the emitted CSS carries the token variables and the `[data-selected]`
+selector).
 
 ---
 

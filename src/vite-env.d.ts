@@ -15,3 +15,9 @@ declare module 'pouchdb/dist/pouchdb.js' {
   import PouchDB from 'pouchdb';
   export default PouchDB;
 }
+
+/**
+ * `virtual:uno.css` do plugin UnoCSS sinh lúc build. `@unocss/vite@66.11.0` chỉ export
+ * `.` và `./client`, không kèm khai báo module, nên khai tại đây.
+ */
+declare module 'virtual:uno.css';

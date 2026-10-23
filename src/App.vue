@@ -44,12 +44,12 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="app">
-    <header class="app__header">
-      <h1>{{ t('app.title') }}</h1>
-      <p>{{ t('app.tagline') }}</p>
+  <main class="app min-h-screen bg-bg text-text">
+    <header class="app__header px-6 py-6">
+      <h1 class="text-xl font-semibold">{{ t('app.title') }}</h1>
+      <p class="mt-1 text-sm text-text-muted">{{ t('app.tagline') }}</p>
 
-      <nav class="app__nav">
+      <nav class="app__nav mt-4">
         <!--
           `Button.Group` chứ không phải hai `Button.Root` rời: ButtonRoot chỉ gắn
           `aria-pressed` khi nó đăng ký với một group (`group ? isSelected.value : void 0`),
@@ -58,12 +58,31 @@ onMounted(async () => {
           trạng thái chọn, `aria-pressed` đúng theo `v-model`, và `mandatory` chặn việc bỏ
           chọn màn đang mở (bấm lại tab hiện tại không được làm màn hình trắng).
         -->
-        <Button.Group v-model="view" mandatory>
-          <Button.Root type="button" value="designer" data-view="designer">
+        <Button.Group
+          v-model="view"
+          mandatory
+          class="inline-flex gap-1 rounded-md bg-surface p-1 shadow-sm"
+        >
+          <!--
+            Tab đang mở được style qua `data-selected` do Button.Root tự gắn khi ở trong
+            group — không tự toggle class. Hover phải loại tab đang chọn
+            (`[&:not([data-selected])]:hover:*`), nếu không nó ghi đè màu chữ của tab chọn.
+          -->
+          <Button.Root
+            type="button"
+            value="designer"
+            data-view="designer"
+            class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
             {{ t('type.designer.title') }}
           </Button.Root>
 
-          <Button.Root type="button" value="catalog" data-view="catalog">
+          <Button.Root
+            type="button"
+            value="catalog"
+            data-view="catalog"
+            class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
             {{ t('catalog.title') }}
           </Button.Root>
         </Button.Group>
@@ -71,11 +90,11 @@ onMounted(async () => {
     </header>
 
     <!-- `v-show`: đổi màn hình không được làm mất dữ liệu đang nhập của màn còn lại. -->
-    <div v-show="view === 'designer'">
+    <div v-show="view === 'designer'" class="px-6 pb-10">
       <TypeDesigner />
     </div>
 
-    <div v-show="view === 'catalog'">
+    <div v-show="view === 'catalog'" class="px-6 pb-10">
       <p v-if="storageError !== null" role="alert">{{ storageError }}</p>
       <CatalogAdmin v-else-if="adapter !== null" :adapter="adapter" />
       <p v-else>{{ t('common.loading') }}</p>

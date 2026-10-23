@@ -126,26 +126,27 @@ async function onProductsFile(event: Event): Promise<void> {
 </script>
 
 <template>
-  <section class="csv-panel">
-    <h3>{{ t('catalog.csv.import.title') }}</h3>
+  <section class="grid gap-4">
+    <h3 class="text-lg font-semibold">{{ t('catalog.csv.import.title') }}</h3>
 
-    <div class="csv-panel__export">
-      <Button.Root type="button" data-csv-export-categories @click="exportCategories">
+    <div class="flex flex-wrap gap-2">
+      <Button.Root type="button" class="btn-ghost" data-csv-export-categories @click="exportCategories">
         {{ t('catalog.csv.export.categories') }}
       </Button.Root>
 
-      <Button.Root type="button" data-csv-export-products @click="exportProducts">
+      <Button.Root type="button" class="btn-ghost" data-csv-export-products @click="exportProducts">
         {{ t('catalog.csv.export.products') }}
       </Button.Root>
     </div>
 
-    <p class="csv-panel__hint">{{ t('catalog.csv.import.hint') }}</p>
+    <p class="text-sm text-text-muted">{{ t('catalog.csv.import.hint') }}</p>
 
-    <Input.Root>
-      <label class="csv-panel__file">
+    <Input.Root class="grid gap-1">
+      <label class="field-label">
         {{ t('catalog.tab.categories') }}
         <input
           type="file"
+          class="field-input"
           accept=".csv,text/csv"
           data-import-categories
           :disabled="importing"
@@ -154,11 +155,12 @@ async function onProductsFile(event: Event): Promise<void> {
       </label>
     </Input.Root>
 
-    <Input.Root>
-      <label class="csv-panel__file">
+    <Input.Root class="grid gap-1">
+      <label class="field-label">
         {{ t('catalog.tab.products') }}
         <input
           type="file"
+          class="field-input"
           accept=".csv,text/csv"
           data-import-products
           :disabled="importing"
@@ -167,17 +169,21 @@ async function onProductsFile(event: Event): Promise<void> {
       </label>
     </Input.Root>
 
-    <Progress.Root v-if="importing" :aria-label="t('catalog.csv.import.title')">
-      <Progress.Track>
-        <Progress.Fill />
+    <Progress.Root
+      v-if="importing"
+      :aria-label="t('catalog.csv.import.title')"
+      class="panel-card grid gap-2"
+    >
+      <Progress.Track class="h-2 w-full overflow-hidden rounded-sm bg-bg">
+        <Progress.Fill class="h-full bg-primary" />
       </Progress.Track>
-      <p>{{ t('catalog.csv.import.title') }}</p>
+      <p class="text-sm text-text-muted">{{ t('catalog.csv.import.title') }}</p>
     </Progress.Root>
 
-    <Alert.Root v-if="errors.length > 0" data-csv-import-failed>
-      <Alert.Title>{{ t('catalog.csv.import.failed') }}</Alert.Title>
+    <Alert.Root v-if="errors.length > 0" data-csv-import-failed class="panel-card text-danger">
+      <Alert.Title class="font-semibold">{{ t('catalog.csv.import.failed') }}</Alert.Title>
 
-      <ul class="csv-panel__errors">
+      <ul class="mt-2 flex flex-col gap-1 text-sm">
         <li v-for="(error, index) in errors" :key="index">
           {{
             t('catalog.csv.rowError', {
@@ -194,8 +200,9 @@ async function onProductsFile(event: Event): Promise<void> {
       v-else-if="imported !== null"
       role="status"
       :data-csv-imported="imported.kind"
+      class="panel-card"
     >
-      <Alert.Description>
+      <Alert.Description class="text-sm text-text-muted">
         {{
           t('catalog.csv.import.done', {
             created: imported.summary.created.length,
@@ -205,8 +212,8 @@ async function onProductsFile(event: Event): Promise<void> {
       </Alert.Description>
     </Alert.Root>
 
-    <Alert.Root v-if="exportError !== null" data-csv-export-failed>
-      <Alert.Description>{{ exportError }}</Alert.Description>
+    <Alert.Root v-if="exportError !== null" data-csv-export-failed class="panel-card text-danger">
+      <Alert.Description class="text-sm">{{ exportError }}</Alert.Description>
     </Alert.Root>
   </section>
 </template>

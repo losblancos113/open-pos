@@ -686,34 +686,35 @@ async function confirmRemoval(): Promise<void> {
 </script>
 
 <template>
-  <section class="catalog-admin">
-    <h2>{{ t('catalog.title') }}</h2>
+  <section class="grid gap-4">
+    <h2 class="text-xl font-semibold">{{ t('catalog.title') }}</h2>
 
-    <p v-if="loadError !== null" role="alert">{{ loadError }}</p>
+    <p v-if="loadError !== null" class="error-text" role="alert">{{ loadError }}</p>
 
-    <nav class="catalog-admin__tabs">
+    <nav class="flex flex-wrap gap-2">
       <!--
         `Button.Group` để `aria-pressed` sống: ButtonRoot chỉ gắn nó khi có group, và merge
         attrs của nó sau attrs người dùng — ngoài group, `aria-pressed` bind ở đây bị ghi đè
         thành `undefined` (cùng lỗi đã thấy ở nav của App.vue khi chạy by-eye Task 19).
         `mandatory` giữ một tab luôn mở.
       -->
-      <Button.Group v-model="activeTab" mandatory>
+      <Button.Group v-model="activeTab" mandatory class="inline-flex gap-1 rounded-md bg-surface p-1 shadow-sm">
         <Button.Root
           v-for="tab in TABS"
           :key="tab.key"
           type="button"
           :value="tab.key"
           :data-catalog-tab="tab.key"
+          class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {{ t(tab.labelKey) }}
         </Button.Root>
       </Button.Group>
     </nav>
 
-    <p v-if="loading">{{ t('common.loading') }}</p>
+    <p v-if="loading" class="text-sm text-text-muted">{{ t('common.loading') }}</p>
 
-    <p v-if="saveError !== null" role="alert">{{ saveError }}</p>
+    <p v-if="saveError !== null" class="error-text" role="alert">{{ saveError }}</p>
 
     <CategoryList
       v-if="activeTab === 'categories'"
@@ -723,7 +724,7 @@ async function confirmRemoval(): Promise<void> {
       @remove="removeCategory"
     />
 
-    <div v-if="activeTab === 'products'" class="catalog-admin__products">
+    <div v-if="activeTab === 'products'" class="grid gap-4">
       <ProductEditor
         v-if="editorOpen"
         :product="editingProduct"
@@ -745,7 +746,7 @@ async function confirmRemoval(): Promise<void> {
       />
     </div>
 
-    <div v-if="activeTab === 'modifiers'" class="catalog-admin__modifiers">
+    <div v-if="activeTab === 'modifiers'" class="grid gap-4">
       <ModifierGroupEditor
         v-if="groupEditorOpen"
         :group="editingGroup"
@@ -754,19 +755,22 @@ async function confirmRemoval(): Promise<void> {
       />
 
       <template v-else>
-        <Button.Root type="button" data-group-create @click="createGroup">
-          {{ t('catalog.modifier.new') }}
-        </Button.Root>
+        <div>
+          <Button.Root type="button" class="btn-primary" data-group-create @click="createGroup">
+            {{ t('catalog.modifier.new') }}
+          </Button.Root>
+        </div>
 
-        <DataTable.Root>
-          <DataTable.Table :aria-label="t('catalog.tab.modifiers')">
+        <div class="panel-card overflow-x-auto">
+          <DataTable.Root>
+            <DataTable.Table :aria-label="t('catalog.tab.modifiers')" class="w-full text-sm">
             <DataTable.Header>
               <DataTable.Row>
-                <DataTable.Column id="name">{{ t('catalog.field.name') }}</DataTable.Column>
-                <DataTable.Column id="min">{{ t('catalog.modifier.minSelect') }}</DataTable.Column>
-                <DataTable.Column id="max">{{ t('catalog.modifier.maxSelect') }}</DataTable.Column>
-                <DataTable.Column id="options">{{ t('catalog.modifier.options') }}</DataTable.Column>
-                <DataTable.Column id="actions">{{ t('common.actions') }}</DataTable.Column>
+                <DataTable.Column id="name" class="table-cell">{{ t('catalog.field.name') }}</DataTable.Column>
+                <DataTable.Column id="min" class="table-cell">{{ t('catalog.modifier.minSelect') }}</DataTable.Column>
+                <DataTable.Column id="max" class="table-cell">{{ t('catalog.modifier.maxSelect') }}</DataTable.Column>
+                <DataTable.Column id="options" class="table-cell">{{ t('catalog.modifier.options') }}</DataTable.Column>
+                <DataTable.Column id="actions" class="table-cell">{{ t('common.actions') }}</DataTable.Column>
               </DataTable.Row>
             </DataTable.Header>
 
@@ -778,39 +782,44 @@ async function confirmRemoval(): Promise<void> {
                 :value="group"
                 :data-group-row="group._id"
               >
-                <DataTable.Cell>{{ group.name[activeLocale] }}</DataTable.Cell>
-                <DataTable.Cell>{{ group.minSelect }}</DataTable.Cell>
-                <DataTable.Cell>{{ group.maxSelect }}</DataTable.Cell>
-                <DataTable.Cell>{{ group.options.length }}</DataTable.Cell>
-                <DataTable.Cell>
-                  <Button.Root
-                    type="button"
-                    :data-group-edit="group._id"
-                    @click="editGroup(group._id)"
-                  >
-                    {{ t('common.edit') }}
-                  </Button.Root>
+                <DataTable.Cell class="table-cell">{{ group.name[activeLocale] }}</DataTable.Cell>
+                <DataTable.Cell class="table-cell">{{ group.minSelect }}</DataTable.Cell>
+                <DataTable.Cell class="table-cell">{{ group.maxSelect }}</DataTable.Cell>
+                <DataTable.Cell class="table-cell">{{ group.options.length }}</DataTable.Cell>
+                <DataTable.Cell class="table-cell">
+                  <div class="flex flex-wrap gap-1">
+                    <Button.Root
+                      type="button"
+                      class="btn-ghost"
+                      :data-group-edit="group._id"
+                      @click="editGroup(group._id)"
+                    >
+                      {{ t('common.edit') }}
+                    </Button.Root>
 
-                  <Button.Root
-                    type="button"
-                    :data-group-remove="group._id"
-                    @click="askRemove('modifier', group._id, group.name[activeLocale])"
-                  >
-                    {{ t('common.delete') }}
-                  </Button.Root>
+                    <Button.Root
+                      type="button"
+                      class="btn-danger"
+                      :data-group-remove="group._id"
+                      @click="askRemove('modifier', group._id, group.name[activeLocale])"
+                    >
+                      {{ t('common.delete') }}
+                    </Button.Root>
+                  </div>
                 </DataTable.Cell>
               </DataTable.Row>
 
               <DataTable.Empty v-slot="{ columnCount }">
-                <DataTable.Cell :colspan="columnCount">{{ t('catalog.modifier.empty') }}</DataTable.Cell>
+                <DataTable.Cell :colspan="columnCount" class="table-cell text-text-muted">{{ t('catalog.modifier.empty') }}</DataTable.Cell>
               </DataTable.Empty>
             </DataTable.Body>
           </DataTable.Table>
         </DataTable.Root>
+      </div>
       </template>
     </div>
 
-    <div v-if="activeTab === 'combos'" class="catalog-admin__combos">
+    <div v-if="activeTab === 'combos'" class="grid gap-4">
       <ComboEditor
         v-if="comboEditorOpen"
         :combo="editingCombo"
@@ -820,65 +829,73 @@ async function confirmRemoval(): Promise<void> {
       />
 
       <template v-else>
-        <Button.Root type="button" data-combo-create @click="createCombo">
-          {{ t('catalog.combo.new') }}
-        </Button.Root>
+        <div>
+          <Button.Root type="button" class="btn-primary" data-combo-create @click="createCombo">
+            {{ t('catalog.combo.new') }}
+          </Button.Root>
+        </div>
 
-        <DataTable.Root>
-          <DataTable.Table :aria-label="t('catalog.tab.combos')">
-            <DataTable.Header>
-              <DataTable.Row>
-                <DataTable.Column id="name">{{ t('catalog.field.name') }}</DataTable.Column>
-                <DataTable.Column id="price">{{ t('catalog.field.basePrice') }}</DataTable.Column>
-                <DataTable.Column id="groups">{{ t('catalog.combo.groups') }}</DataTable.Column>
-                <DataTable.Column id="status">{{ t('catalog.product.active') }}</DataTable.Column>
-                <DataTable.Column id="actions">{{ t('common.actions') }}</DataTable.Column>
-              </DataTable.Row>
-            </DataTable.Header>
+        <div class="panel-card overflow-x-auto">
+          <DataTable.Root>
+            <DataTable.Table :aria-label="t('catalog.tab.combos')" class="w-full text-sm">
+              <DataTable.Header>
+                <DataTable.Row>
+                  <DataTable.Column id="name" class="table-cell">{{ t('catalog.field.name') }}</DataTable.Column>
+                  <DataTable.Column id="price" class="table-cell">{{ t('catalog.field.basePrice') }}</DataTable.Column>
+                  <DataTable.Column id="groups" class="table-cell">{{ t('catalog.combo.groups') }}</DataTable.Column>
+                  <DataTable.Column id="status" class="table-cell">{{ t('catalog.product.active') }}</DataTable.Column>
+                  <DataTable.Column id="actions" class="table-cell">{{ t('common.actions') }}</DataTable.Column>
+                </DataTable.Row>
+              </DataTable.Header>
 
-            <DataTable.Body>
-              <DataTable.Row
-                v-for="combo in combos"
-                :id="combo._id"
-                :key="combo._id"
-                :value="combo"
-                :data-combo-row="combo._id"
-              >
-                <DataTable.Cell>{{ combo.name[activeLocale] }}</DataTable.Cell>
-                <DataTable.Cell>{{ format(combo.basePrice) }}</DataTable.Cell>
-                <DataTable.Cell>{{ combo.comboGroups.length }}</DataTable.Cell>
-                <DataTable.Cell>
-                  {{ combo.isActive ? t('catalog.product.active') : t('catalog.product.inactive') }}
-                </DataTable.Cell>
-                <DataTable.Cell>
-                  <Button.Root
-                    type="button"
-                    :data-combo-edit="combo._id"
-                    @click="editCombo(combo._id)"
-                  >
-                    {{ t('common.edit') }}
-                  </Button.Root>
+              <DataTable.Body>
+                <DataTable.Row
+                  v-for="combo in combos"
+                  :id="combo._id"
+                  :key="combo._id"
+                  :value="combo"
+                  :data-combo-row="combo._id"
+                >
+                  <DataTable.Cell class="table-cell">{{ combo.name[activeLocale] }}</DataTable.Cell>
+                  <DataTable.Cell class="table-cell">{{ format(combo.basePrice) }}</DataTable.Cell>
+                  <DataTable.Cell class="table-cell">{{ combo.comboGroups.length }}</DataTable.Cell>
+                  <DataTable.Cell class="table-cell">
+                    {{ combo.isActive ? t('catalog.product.active') : t('catalog.product.inactive') }}
+                  </DataTable.Cell>
+                  <DataTable.Cell class="table-cell">
+                    <div class="flex flex-wrap gap-1">
+                      <Button.Root
+                        type="button"
+                        class="btn-ghost"
+                        :data-combo-edit="combo._id"
+                        @click="editCombo(combo._id)"
+                      >
+                        {{ t('common.edit') }}
+                      </Button.Root>
 
-                  <Button.Root
-                    type="button"
-                    :data-combo-remove="combo._id"
-                    @click="askRemove('combo', combo._id, combo.name[activeLocale])"
-                  >
-                    {{ t('common.delete') }}
-                  </Button.Root>
-                </DataTable.Cell>
-              </DataTable.Row>
+                      <Button.Root
+                        type="button"
+                        class="btn-danger"
+                        :data-combo-remove="combo._id"
+                        @click="askRemove('combo', combo._id, combo.name[activeLocale])"
+                      >
+                        {{ t('common.delete') }}
+                      </Button.Root>
+                    </div>
+                  </DataTable.Cell>
+                </DataTable.Row>
 
-              <DataTable.Empty v-slot="{ columnCount }">
-                <DataTable.Cell :colspan="columnCount">{{ t('catalog.combo.empty') }}</DataTable.Cell>
-              </DataTable.Empty>
-            </DataTable.Body>
-          </DataTable.Table>
-        </DataTable.Root>
+                <DataTable.Empty v-slot="{ columnCount }">
+                  <DataTable.Cell :colspan="columnCount" class="table-cell text-text-muted">{{ t('catalog.combo.empty') }}</DataTable.Cell>
+                </DataTable.Empty>
+              </DataTable.Body>
+            </DataTable.Table>
+          </DataTable.Root>
+        </div>
       </template>
     </div>
 
-    <div v-if="activeTab === 'prices'" class="catalog-admin__prices">
+    <div v-if="activeTab === 'prices'" class="grid gap-4">
       <PriceListEditor
         v-if="priceEditorOpen"
         :price-list="editingPriceList"
@@ -889,66 +906,74 @@ async function confirmRemoval(): Promise<void> {
       />
 
       <template v-else>
-        <Button.Root type="button" data-price-create @click="createPriceList">
-          {{ t('catalog.price.new') }}
-        </Button.Root>
+        <div>
+          <Button.Root type="button" class="btn-primary" data-price-create @click="createPriceList">
+            {{ t('catalog.price.new') }}
+          </Button.Root>
+        </div>
 
-        <DataTable.Root>
-          <DataTable.Table :aria-label="t('catalog.tab.prices')">
-            <DataTable.Header>
-              <DataTable.Row>
-                <DataTable.Column id="name">{{ t('catalog.field.name') }}</DataTable.Column>
-                <DataTable.Column id="window">
-                  {{ t('catalog.price.effectiveFrom') }} — {{ t('catalog.price.effectiveTo') }}
-                </DataTable.Column>
-                <DataTable.Column id="priority">{{ t('catalog.price.priority') }}</DataTable.Column>
-                <DataTable.Column id="entries">{{ t('catalog.price.entries') }}</DataTable.Column>
-                <DataTable.Column id="actions">{{ t('common.actions') }}</DataTable.Column>
-              </DataTable.Row>
-            </DataTable.Header>
+        <div class="panel-card overflow-x-auto">
+          <DataTable.Root>
+            <DataTable.Table :aria-label="t('catalog.tab.prices')" class="w-full text-sm">
+              <DataTable.Header>
+                <DataTable.Row>
+                  <DataTable.Column id="name" class="table-cell">{{ t('catalog.field.name') }}</DataTable.Column>
+                  <DataTable.Column id="window" class="table-cell">
+                    {{ t('catalog.price.effectiveFrom') }} — {{ t('catalog.price.effectiveTo') }}
+                  </DataTable.Column>
+                  <DataTable.Column id="priority" class="table-cell">{{ t('catalog.price.priority') }}</DataTable.Column>
+                  <DataTable.Column id="entries" class="table-cell">{{ t('catalog.price.entries') }}</DataTable.Column>
+                  <DataTable.Column id="actions" class="table-cell">{{ t('common.actions') }}</DataTable.Column>
+                </DataTable.Row>
+              </DataTable.Header>
 
-            <DataTable.Body>
-              <DataTable.Row
-                v-for="list in priceLists"
-                :id="list._id"
-                :key="list._id"
-                :value="list"
-                :data-price-row="list._id"
-              >
-                <DataTable.Cell>
-                  {{ list.name[activeLocale] }}
-                  <span v-if="list._id === activePriceListId" class="catalog-admin__active">
-                    {{ t('catalog.price.active') }}
-                  </span>
-                </DataTable.Cell>
-                <DataTable.Cell>{{ windowText(list) }}</DataTable.Cell>
-                <DataTable.Cell>{{ list.priority }}</DataTable.Cell>
-                <DataTable.Cell>{{ list.entries.length }}</DataTable.Cell>
-                <DataTable.Cell>
-                  <Button.Root
-                    type="button"
-                    :data-price-edit="list._id"
-                    @click="editPriceList(list._id)"
-                  >
-                    {{ t('common.edit') }}
-                  </Button.Root>
+              <DataTable.Body>
+                <DataTable.Row
+                  v-for="list in priceLists"
+                  :id="list._id"
+                  :key="list._id"
+                  :value="list"
+                  :data-price-row="list._id"
+                >
+                  <DataTable.Cell class="table-cell">
+                    {{ list.name[activeLocale] }}
+                    <span v-if="list._id === activePriceListId" class="ml-2 inline-block rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                      {{ t('catalog.price.active') }}
+                    </span>
+                  </DataTable.Cell>
+                  <DataTable.Cell class="table-cell">{{ windowText(list) }}</DataTable.Cell>
+                  <DataTable.Cell class="table-cell">{{ list.priority }}</DataTable.Cell>
+                  <DataTable.Cell class="table-cell">{{ list.entries.length }}</DataTable.Cell>
+                  <DataTable.Cell class="table-cell">
+                    <div class="flex flex-wrap gap-1">
+                      <Button.Root
+                        type="button"
+                        class="btn-ghost"
+                        :data-price-edit="list._id"
+                        @click="editPriceList(list._id)"
+                      >
+                        {{ t('common.edit') }}
+                      </Button.Root>
 
-                  <Button.Root
-                    type="button"
-                    :data-price-remove="list._id"
-                    @click="askRemove('price', list._id, list.name[activeLocale])"
-                  >
-                    {{ t('common.delete') }}
-                  </Button.Root>
-                </DataTable.Cell>
-              </DataTable.Row>
+                      <Button.Root
+                        type="button"
+                        class="btn-danger"
+                        :data-price-remove="list._id"
+                        @click="askRemove('price', list._id, list.name[activeLocale])"
+                      >
+                        {{ t('common.delete') }}
+                      </Button.Root>
+                    </div>
+                  </DataTable.Cell>
+                </DataTable.Row>
 
-              <DataTable.Empty v-slot="{ columnCount }">
-                <DataTable.Cell :colspan="columnCount">{{ t('catalog.price.empty') }}</DataTable.Cell>
-              </DataTable.Empty>
-            </DataTable.Body>
-          </DataTable.Table>
-        </DataTable.Root>
+                <DataTable.Empty v-slot="{ columnCount }">
+                  <DataTable.Cell :colspan="columnCount" class="table-cell text-text-muted">{{ t('catalog.price.empty') }}</DataTable.Cell>
+                </DataTable.Empty>
+              </DataTable.Body>
+            </DataTable.Table>
+          </DataTable.Root>
+        </div>
       </template>
     </div>
 
@@ -974,13 +999,18 @@ async function confirmRemoval(): Promise<void> {
     />
 
     <AlertDialog.Root v-model="removalOpen">
-      <AlertDialog.Content data-removal-dialog>
-        <AlertDialog.Title>{{ removalTitle }}</AlertDialog.Title>
-        <AlertDialog.Description>{{ removalMessage }}</AlertDialog.Description>
-        <AlertDialog.Cancel type="button">{{ t('common.cancel') }}</AlertDialog.Cancel>
-        <AlertDialog.Action data-removal-confirm @action="confirmRemoval">
-          {{ t('common.delete') }}
-        </AlertDialog.Action>
+      <AlertDialog.Content
+        class="panel-card fixed top-1/2 left-1/2 w-96 max-w-full -translate-x-1/2 -translate-y-1/2"
+        data-removal-dialog
+      >
+        <AlertDialog.Title class="text-lg font-semibold">{{ removalTitle }}</AlertDialog.Title>
+        <AlertDialog.Description class="mt-2 text-sm text-text-muted">{{ removalMessage }}</AlertDialog.Description>
+        <div class="mt-4 flex justify-end gap-2">
+          <AlertDialog.Cancel type="button" class="btn-ghost">{{ t('common.cancel') }}</AlertDialog.Cancel>
+          <AlertDialog.Action class="btn-danger" data-removal-confirm @action="confirmRemoval">
+            {{ t('common.delete') }}
+          </AlertDialog.Action>
+        </div>
       </AlertDialog.Content>
     </AlertDialog.Root>
   </section>
