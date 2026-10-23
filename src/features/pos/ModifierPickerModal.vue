@@ -159,9 +159,9 @@ function handleConfirm() {
       if (opt) {
         modifiersList.push({
           groupId: group._id,
-          groupNameSnapshot: opt.name.vi || opt.name.en,
+          groupNameSnapshot: group.name[locale.value as 'vi' | 'en'] || group.name.vi || group.name.en,
           optionId: opt.id,
-          optionNameSnapshot: opt.name.vi || opt.name.en,
+          optionNameSnapshot: opt.name[locale.value as 'vi' | 'en'] || opt.name.vi || opt.name.en,
           priceDelta: opt.priceDelta,
         });
       }

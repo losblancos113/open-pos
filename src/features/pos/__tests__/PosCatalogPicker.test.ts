@@ -392,7 +392,9 @@ describe('ModifierPickerModal.vue', () => {
       modifiers: [
         {
           groupId: 'modifier_group:mg1',
+          groupNameSnapshot: 'Topping',
           optionId: 'opt-tc',
+          optionNameSnapshot: 'Trân châu',
           priceDelta: money(5000, 'VND'),
         },
       ],
