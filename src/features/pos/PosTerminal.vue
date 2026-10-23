@@ -16,6 +16,7 @@ import PosCatalogPicker from './PosCatalogPicker.vue';
 import OrderTicket from './OrderTicket.vue';
 import BankSettingsModal from './BankSettingsModal.vue';
 import PaymentModal from './PaymentModal.vue';
+import ReceiptModal, { type StoreInfo } from './ReceiptModal.vue';
 
 export type PosMode = 'floor' | 'fast_sale';
 
@@ -40,6 +41,7 @@ const props = withDefaults(
     table?: TableDoc | null;
     tableName?: string;
     guestCount?: number | null;
+    storeInfo?: StoreInfo | null;
   }>(),
   {
     branchId: DEFAULT_BRANCH_ID,
@@ -52,6 +54,7 @@ const props = withDefaults(
     table: null,
     tableName: '',
     guestCount: null,
+    storeInfo: null,
   },
 );
 
@@ -166,6 +169,8 @@ function handleSaveBankAccount(account: BankAccountDoc) {
 }
 
 const isPaymentModalOpen = ref(false);
+const isReceiptModalOpen = ref(false);
+const receiptBill = ref<BillDoc | null>(null);
 
 function handleCheckout() {
   isPaymentModalOpen.value = true;
@@ -176,7 +181,15 @@ function handlePaymentAdded(payment: PaymentEntry) {
   emit('payment-added', payment);
 }
 
+function handlePrintDraft() {
+  receiptBill.value = props.bill;
+  isReceiptModalOpen.value = true;
+  emit('print-draft');
+}
+
 function handlePaymentComplete(completedBill: BillDoc) {
+  receiptBill.value = completedBill;
+  isReceiptModalOpen.value = true;
   emit('payment-complete', completedBill);
 }
 
@@ -190,11 +203,14 @@ defineExpose({
   isBankSettingsOpen,
   currentBankAccount,
   isPaymentModalOpen,
+  isReceiptModalOpen,
+  receiptBill,
   handleAddLine,
   handleOpenBankSettings,
   handleSaveBankAccount,
   handleCheckout,
   handlePaymentAdded,
+  handlePrintDraft,
   handlePaymentComplete,
 });
 </script>
@@ -408,7 +424,7 @@ defineExpose({
               @update-qty="(lineId, newQty) => emit('update-line-qty', lineId, newQty)"
               @set-line-note="(lineId, note) => emit('set-line-note', lineId, note)"
               @void-line="(lineId, reason) => emit('void-line', lineId, reason)"
-              @print-draft="emit('print-draft')"
+              @print-draft="handlePrintDraft"
               @checkout="handleCheckout"
             />
             <div v-else class="p-6 text-center text-text-muted my-auto">
@@ -439,6 +455,19 @@ defineExpose({
       @payment-added="handlePaymentAdded"
       @complete="handlePaymentComplete"
       @open-bank-settings="handleOpenBankSettings"
+    />
+
+    <!-- Modal xem & in hoá đơn nhiệt (ReceiptModal) -->
+    <ReceiptModal
+      v-model:open="isReceiptModalOpen"
+      :bill="receiptBill || bill"
+      :session="session"
+      :table-name="tableName"
+      :cashier-name="cashierName"
+      :branch-name="branchId ? branchId.toUpperCase() : ''"
+      :store-info="storeInfo"
+      :bank-account="currentBankAccount"
+      data-test="receipt-modal"
     />
   </div>
 </template>

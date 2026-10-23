@@ -465,5 +465,72 @@ describe('PosTerminal.vue shell', () => {
       amount: money(40000, 'VND'),
     });
     expect(wrapper.emitted('payment-complete')).toBeTruthy();
+
+    // Verify receipt modal opens upon payment complete
+    expect(wrapper.find('[data-test="receipt-modal"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="receipt-slip"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('HQ-T01-20261024-0002');
+  });
+
+  it('opens receipt modal for draft printing when print-draft is triggered', async () => {
+    const adapter = await createMemoryAdapter();
+    const mockBill: BillDoc = {
+      _id: 'bill:hq:b3',
+      branchId: 'hq',
+      sessionId: 'session:hq:s3',
+      billNumber: 'HQ-T01-20261024-0003',
+      paymentRef: 'POSHQT010003',
+      status: 'placed',
+      lines: [
+        {
+          lineId: 'line-3',
+          productId: 'prod-3',
+          nameSnapshot: { vi: 'Bạc xỉu', en: 'White Coffee' },
+          unitPriceSnapshot: money(32000, 'VND'),
+          qty: 2,
+          modifiers: [],
+          status: 'placed',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(64000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(64000, 'VND'),
+      payments: [],
+      balanceRemaining: money(64000, 'VND'),
+      createdAt: '2026-10-24T00:00:00.000Z',
+      updatedAt: '2026-10-24T00:00:00.000Z',
+    };
+
+    wrapper = mount(PosTerminal, {
+      props: {
+        adapter,
+        branchId: 'hq',
+        bill: mockBill,
+        tableName: 'Bàn 3',
+        storeInfo: { name: 'Quán Cà Phê Mở', phone: '0987654321' },
+      },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+
+    // Click print draft button
+    await wrapper.find('[data-test="print-draft-btn"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.emitted('print-draft')).toBeTruthy();
+    expect(wrapper.find('[data-test="receipt-modal"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="receipt-slip"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain('Quán Cà Phê Mở');
+    expect(wrapper.text()).toContain('HQ-T01-20261024-0003');
+    expect(wrapper.text()).toContain('Bạc xỉu');
+    expect(wrapper.find('[data-test="print-btn"]').exists()).toBe(true);
   });
 });

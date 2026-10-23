@@ -339,7 +339,27 @@
       "qty": "Qty",
       "price": "Price",
       "amount": "Amount",
-      "thankYou": "Thank you for dining with us!"
+      "thankYou": "Thank you for dining with us!",
+      "title": "Receipt",
+      "billNumber": "Bill No.",
+      "print": "Print Receipt",
+      "close": "Close",
+      "subtotal": "Subtotal",
+      "discount": "Discount",
+      "surcharge": "Surcharge",
+      "tax": "VAT",
+      "total": "Total",
+      "payment": "Payment",
+      "tendered": "Tendered",
+      "change": "Change",
+      "scanToPay": "Scan to pay",
+      "transferRef": "Transfer Reference",
+      "unpaid": "Unpaid",
+      "paid": "Paid",
+      "branch": "Branch",
+      "phone": "Phone",
+      "address": "Address",
+      "fastSale": "Fast Sale"
     }
   }
 }

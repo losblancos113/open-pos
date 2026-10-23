@@ -339,7 +339,27 @@
       "qty": "SL",
       "price": "Đơn giá",
       "amount": "Thành tiền",
-      "thankYou": "Cảm ơn quý khách và hẹn gặp lại!"
+      "thankYou": "Cảm ơn quý khách và hẹn gặp lại!",
+      "title": "Hoá đơn",
+      "billNumber": "Số hoá đơn",
+      "print": "In hoá đơn",
+      "close": "Đóng",
+      "subtotal": "Tạm tính",
+      "discount": "Giảm giá",
+      "surcharge": "Phụ thu",
+      "tax": "Thuế VAT",
+      "total": "Tổng cộng",
+      "payment": "Thanh toán",
+      "tendered": "Tiền khách đưa",
+      "change": "Tiền thừa",
+      "scanToPay": "Quét mã để thanh toán",
+      "transferRef": "Mã chuyển khoản",
+      "unpaid": "Chưa thanh toán",
+      "paid": "Đã thanh toán",
+      "branch": "Chi nhánh",
+      "phone": "Điện thoại",
+      "address": "Địa chỉ",
+      "fastSale": "Bán mang về"
     }
   }
 }
