@@ -6,6 +6,7 @@ import {
   sessionEventsDocId,
   tableDocId,
   bankAccountDocId,
+  counterDocId,
 } from '../db/ids';
 import { createInitialOrderState, reduceOrderEvents } from './reducer';
 import type {
@@ -35,8 +36,16 @@ export interface OrderRepository {
 }
 
 function isConflict(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
-  return /conflict/i.test(error.message);
+  if (typeof error === 'object' && error !== null) {
+    const errObj = error as { status?: number; name?: string; message?: string };
+    if (errObj.status === 409 || errObj.name === 'conflict') {
+      return true;
+    }
+    if (typeof errObj.message === 'string' && /conflict/i.test(errObj.message)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function extractCleanId(id: string, prefix: string, branchId: string): string {
@@ -215,8 +224,19 @@ export function createOrderRepository(
               existingDoc.snapshot.bill
             );
             finalState = eventsToAdd.length > 0 ? reduceOrderEvents(baseState, eventsToAdd) : baseState;
+          } else if (allEvents.length > 0) {
+            const base = projected.bill.lines.length > 0
+              ? createInitialOrderState(projected.session, {
+                  ...projected.bill,
+                  lines: [],
+                  discounts: [],
+                  surcharges: [],
+                  payments: [],
+                })
+              : projected;
+            finalState = reduceOrderEvents(base, allEvents);
           } else {
-            finalState = eventsToAdd.length > 0 ? reduceOrderEvents(projected, eventsToAdd) : projected;
+            finalState = projected;
           }
 
           const isClosed =
@@ -323,7 +343,7 @@ export function createOrderRepository(
     },
 
     async nextSequence(branchId: string, deviceId: string, dateStr: string): Promise<number> {
-      const id = `counter:${branchId}:${deviceId}:${dateStr}`;
+      const id = counterDocId(branchId, deviceId, dateStr);
       const MAX_ATTEMPTS = 10;
       for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
         try {

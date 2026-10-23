@@ -80,3 +80,8 @@ export function bankAccountDocId(branchId: string): string {
   return `bank_account:${requireSegment(branchId, 'branchId')}`;
 }
 
+/** `_id` của counter số thứ tự hóa đơn theo chi nhánh, thiết bị và ngày (M3). */
+export function counterDocId(branchId: string, deviceId: string, dateStr: string): string {
+  return `counter:${requireSegment(branchId, 'branchId')}:${requireSegment(deviceId, 'deviceId')}:${requireSegment(dateStr, 'dateStr')}`;
+}
+

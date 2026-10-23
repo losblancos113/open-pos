@@ -6,6 +6,7 @@ import {
   branchDocId,
   categoryDocId,
   comboDocId,
+  counterDocId,
   modifierGroupDocId,
   priceListDocId,
   productDocId,
@@ -77,11 +78,14 @@ describe('M3 order ID helpers', () => {
     expect(billDocId('hq', 'bill-456')).toBe('bill:hq:bill-456');
     expect(sessionEventsDocId('hq', 'sess-123')).toBe('session_events:hq:sess-123');
     expect(bankAccountDocId('hq')).toBe('bank_account:hq');
+    expect(counterDocId('hq', 'T01', '20261023')).toBe('counter:hq:T01:20261023');
   });
 
   it('rejects colons and empty segments in M3 IDs', () => {
     expect(() => areaDocId('hq', 'floor:1')).toThrow();
     expect(() => tableDocId('', 't01')).toThrow();
+    expect(() => counterDocId('', 'T01', '20261023')).toThrow(/branchId/);
+    expect(() => counterDocId('hq', 'T:01', '20261023')).toThrow(/deviceId/);
   });
 });
 

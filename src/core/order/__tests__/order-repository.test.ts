@@ -518,4 +518,144 @@ describe('OrderRepository', () => {
     active = await repo.getActiveSession('hq', 'table:hq:t1');
     expect(active).toBeNull();
   });
+
+  it('rejects invalid or empty branchId, deviceId, or dateStr in nextSequence', async () => {
+    await expect(repo.nextSequence('', 'T01', '20261023')).rejects.toThrow(/branchId/i);
+    await expect(repo.nextSequence('   ', 'T01', '20261023')).rejects.toThrow(/branchId/i);
+    await expect(repo.nextSequence('hq:main', 'T01', '20261023')).rejects.toThrow(/must not contain ":"/);
+    await expect(repo.nextSequence('hq', '', '20261023')).rejects.toThrow(/deviceId/i);
+    await expect(repo.nextSequence('hq', 'T:01', '20261023')).rejects.toThrow(/must not contain ":"/);
+    await expect(repo.nextSequence('hq', 'T01', '')).rejects.toThrow(/dateStr/i);
+  });
+
+  it('correctly replays historical events when snapshot is missing in session_events doc', async () => {
+    const session: SessionDoc = {
+      _id: 'session:hq:s-nosnap',
+      branchId: 'hq',
+      tableIds: ['table:hq:t2'],
+      guestCount: 1,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:hq:b-nosnap'],
+    };
+    const bill: BillDoc = {
+      _id: 'bill:hq:b-nosnap',
+      branchId: 'hq',
+      sessionId: 'session:hq:s-nosnap',
+      billNumber: 'HQ-T01-20261023-0002',
+      paymentRef: 'POSHQT010002',
+      status: 'draft',
+      lines: [],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(0, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(0, 'VND'),
+      payments: [],
+      balanceRemaining: money(0, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const initial = { session, bill };
+    const histEvent: OrderEventDoc = {
+      eventId: 'ev-hist-1',
+      type: 'LINE_ADDED',
+      sessionId: session._id,
+      billId: bill._id,
+      actorId: 'c1',
+      deviceId: 'T01',
+      payload: {
+        lineId: 'l1',
+        productId: 'p1',
+        nameSnapshot: { vi: 'Bún bò Huế', en: 'Hue beef noodle' },
+        unitPriceSnapshot: money(60000, 'VND'),
+        qty: 1,
+        modifiers: [],
+        addedAt: '2026-10-23T08:00:00.000Z',
+      },
+      createdAt: '2026-10-23T08:00:00.000Z',
+      schemaVersion: 1,
+    };
+
+    // Put SessionEventsDoc directly into adapter with NO snapshot (simulating external sync)
+    await adapter.put({
+      _id: 'session_events:hq:s-nosnap',
+      branchId: 'hq',
+      sessionId: 's-nosnap',
+      docType: 'session_events',
+      schemaVersion: 1,
+      events: [histEvent],
+      createdAt: '2026-10-23T08:00:00.000Z',
+      updatedAt: '2026-10-23T08:00:00.000Z',
+    } as any);
+
+    // Append new event
+    const newEvent: OrderEventDoc = {
+      eventId: 'ev-new-2',
+      type: 'LINE_ADDED',
+      sessionId: session._id,
+      billId: bill._id,
+      actorId: 'c1',
+      deviceId: 'T01',
+      payload: {
+        lineId: 'l2',
+        productId: 'p2',
+        nameSnapshot: { vi: 'Chanh muối', en: 'Salted lemonade' },
+        unitPriceSnapshot: money(20000, 'VND'),
+        qty: 1,
+        modifiers: [],
+        addedAt: '2026-10-23T08:05:00.000Z',
+      },
+      createdAt: '2026-10-23T08:05:00.000Z',
+      schemaVersion: 1,
+    };
+
+    const resultState = await repo.appendEvents('hq', session._id, [newEvent], initial);
+
+    // Both historical event (60k) and new event (20k) must be present
+    expect(resultState.bill.lines).toHaveLength(2);
+    expect(resultState.bill.subtotal.minor).toBe(80000);
+    expect(resultState.bill.total.minor).toBe(80000);
+
+    // Verify snapshot was created and saved in adapter
+    const savedDoc = (await adapter.get('session_events:hq:s-nosnap')) as SessionEventsDoc | null;
+    expect(savedDoc?.snapshot).toBeDefined();
+    expect(savedDoc?.snapshot?.bill.subtotal.minor).toBe(80000);
+    expect(savedDoc?.events).toHaveLength(2);
+  });
+
+  it('retries on status 409 or name conflict error objects', async () => {
+    let attempts = 0;
+    const originalPut = adapter.put.bind(adapter);
+    adapter.put = async (doc) => {
+      attempts++;
+      if (attempts === 1 && doc._id === 'bank_account:hq') {
+        const err = new Error('conflict occurred') as any;
+        err.status = 409;
+        err.name = 'conflict';
+        throw err;
+      }
+      return originalPut(doc);
+    };
+
+    await repo.saveBankAccount({
+      _id: 'bank_account:hq',
+      branchId: 'hq',
+      bankBin: '970422',
+      bankName: 'MBBank',
+      accountNumber: '123456789',
+      accountName: 'TEST USER',
+      updatedAt: new Date().toISOString(),
+    });
+
+    const acc = await repo.getBankAccount('hq');
+    expect(acc?.accountNumber).toBe('123456789');
+    expect(attempts).toBe(2);
+  });
 });
