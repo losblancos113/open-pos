@@ -385,6 +385,10 @@ describe('PosTerminal.vue shell', () => {
     await wrapper.find('[data-test="checkout-btn"]').trigger('click');
     expect(wrapper.emitted('checkout')).toBeTruthy();
 
+    // Test payment modal is opened
+    expect(wrapper.find('[data-test="payment-modal"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="balance-remaining"]').text()).toContain('35.000');
+
     // Test print draft event forwarding
     await wrapper.find('[data-test="print-draft-btn"]').trigger('click');
     expect(wrapper.emitted('print-draft')).toBeTruthy();
@@ -392,5 +396,74 @@ describe('PosTerminal.vue shell', () => {
     // Test quantity update forwarding
     await wrapper.find('[data-test="qty-increase-btn"]').trigger('click');
     expect(wrapper.emitted('update-line-qty')?.[0]).toEqual(['line-1', 2]);
+  });
+
+  it('handles payment modal completion and forwards payment-added and payment-complete events', async () => {
+    const adapter = await createMemoryAdapter();
+    const mockBill: BillDoc = {
+      _id: 'bill:hq:b2',
+      branchId: 'hq',
+      sessionId: 'session:hq:s2',
+      billNumber: 'HQ-T01-20261024-0002',
+      paymentRef: 'POSHQT010002',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'line-2',
+          productId: 'prod-2',
+          nameSnapshot: { vi: 'Trà sen', en: 'Lotus Tea' },
+          unitPriceSnapshot: money(40000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(40000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(40000, 'VND'),
+      payments: [],
+      balanceRemaining: money(40000, 'VND'),
+      createdAt: '2026-10-24T00:00:00.000Z',
+      updatedAt: '2026-10-24T00:00:00.000Z',
+    };
+
+    wrapper = mount(PosTerminal, {
+      props: {
+        adapter,
+        branchId: 'hq',
+        bill: mockBill,
+        tableName: 'Bàn 2',
+      },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+
+    // Trigger checkout
+    await wrapper.find('[data-test="checkout-btn"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.find('[data-test="payment-modal"]').exists()).toBe(true);
+
+    // Confirm cash payment with exact amount
+    await wrapper.find('[data-test="denom-exact"]').trigger('click');
+    await nextTick();
+
+    await wrapper.find('[data-test="confirm-payment-btn"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.emitted('payment-added')).toBeTruthy();
+    expect(wrapper.emitted('payment-added')?.[0]?.[0]).toMatchObject({
+      method: 'cash',
+      amount: money(40000, 'VND'),
+    });
+    expect(wrapper.emitted('payment-complete')).toBeTruthy();
   });
 });

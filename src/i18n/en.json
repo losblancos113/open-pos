@@ -308,7 +308,17 @@
       "change": "Change",
       "balanceRemaining": "Remaining",
       "confirmReceived": "Confirm Received",
-      "success": "Payment Successful"
+      "success": "Payment Successful",
+      "amountToPay": "Amount to pay",
+      "exact": "Exact",
+      "missingBankConfig": "VietQR receiving bank account not configured.",
+      "configureBank": "Configure Bank",
+      "transferContent": "Transfer content",
+      "copyRef": "Copy",
+      "copied": "Copied",
+      "insufficientTendered": "Tendered amount is insufficient",
+      "cardRefPlaceholder": "Enter transaction / card code",
+      "otherNotePlaceholder": "Enter method notes"
     },
     "bank": {
       "title": "Bank Account Settings",

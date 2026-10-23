@@ -308,7 +308,17 @@
       "change": "Tiền thừa",
       "balanceRemaining": "Còn lại",
       "confirmReceived": "Đã nhận tiền",
-      "success": "Thanh toán thành công"
+      "success": "Thanh toán thành công",
+      "amountToPay": "Số tiền thanh toán",
+      "exact": "Đúng số tiền",
+      "missingBankConfig": "Chưa thiết lập tài khoản ngân hàng nhận tiền VietQR.",
+      "configureBank": "Cài đặt ngân hàng",
+      "transferContent": "Nội dung chuyển khoản",
+      "copyRef": "Sao chép",
+      "copied": "Đã sao chép",
+      "insufficientTendered": "Tiền khách đưa chưa đủ",
+      "cardRefPlaceholder": "Nhập mã giao dịch / mã thẻ",
+      "otherNotePlaceholder": "Nhập ghi chú phương thức"
     },
     "bank": {
       "title": "Cài đặt tài khoản ngân hàng",

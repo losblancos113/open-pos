@@ -9,12 +9,13 @@ import type { BranchMenu } from '@/core/catalog/menu';
 import type { ModifierGroupDoc } from '@/core/catalog/modifier-group';
 import type { ComboDoc } from '@/core/catalog/combo';
 import type { CatalogRepository } from '@/core/catalog/catalog-repository';
-import type { OrderLineItem, BillDoc, SessionDoc, TableDoc } from '@/core/order/types';
+import type { OrderLineItem, BillDoc, SessionDoc, TableDoc, PaymentEntry } from '@/core/order/types';
 import type { BankAccountDoc } from '@/core/qr/bank-account';
 import FloorPlanView from './FloorPlanView.vue';
 import PosCatalogPicker from './PosCatalogPicker.vue';
 import OrderTicket from './OrderTicket.vue';
 import BankSettingsModal from './BankSettingsModal.vue';
+import PaymentModal from './PaymentModal.vue';
 
 export type PosMode = 'floor' | 'fast_sale';
 
@@ -64,6 +65,8 @@ const emit = defineEmits<{
   (e: 'void-line', lineId: string, reason: string): void;
   (e: 'print-draft'): void;
   (e: 'checkout'): void;
+  (e: 'payment-added', payment: PaymentEntry): void;
+  (e: 'payment-complete', bill: BillDoc): void;
 }>();
 
 const { t } = useI18n();
@@ -162,6 +165,21 @@ function handleSaveBankAccount(account: BankAccountDoc) {
   emit('save-bank-account', account);
 }
 
+const isPaymentModalOpen = ref(false);
+
+function handleCheckout() {
+  isPaymentModalOpen.value = true;
+  emit('checkout');
+}
+
+function handlePaymentAdded(payment: PaymentEntry) {
+  emit('payment-added', payment);
+}
+
+function handlePaymentComplete(completedBill: BillDoc) {
+  emit('payment-complete', completedBill);
+}
+
 defineExpose({
   orderRepository,
   mode,
@@ -171,9 +189,13 @@ defineExpose({
   floorSubView,
   isBankSettingsOpen,
   currentBankAccount,
+  isPaymentModalOpen,
   handleAddLine,
   handleOpenBankSettings,
   handleSaveBankAccount,
+  handleCheckout,
+  handlePaymentAdded,
+  handlePaymentComplete,
 });
 </script>
 
@@ -387,7 +409,7 @@ defineExpose({
               @set-line-note="(lineId, note) => emit('set-line-note', lineId, note)"
               @void-line="(lineId, reason) => emit('void-line', lineId, reason)"
               @print-draft="emit('print-draft')"
-              @checkout="emit('checkout')"
+              @checkout="handleCheckout"
             />
             <div v-else class="p-6 text-center text-text-muted my-auto">
               <p class="font-medium text-base text-text">{{ t('pos.ticket.title') }}</p>
@@ -407,6 +429,16 @@ defineExpose({
       :current-account="currentBankAccount"
       :order-repository="orderRepository"
       @save="handleSaveBankAccount"
+    />
+
+    <!-- Modal thanh toán (Tiền mặt, VietQR, Thẻ, Khác, Split Payment) -->
+    <PaymentModal
+      v-model:open="isPaymentModalOpen"
+      :bill="bill"
+      :bank-account="currentBankAccount"
+      @payment-added="handlePaymentAdded"
+      @complete="handlePaymentComplete"
+      @open-bank-settings="handleOpenBankSettings"
     />
   </div>
 </template>
