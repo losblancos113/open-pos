@@ -50,23 +50,23 @@ onMounted(async () => {
       <p>{{ t('app.tagline') }}</p>
 
       <nav class="app__nav">
-        <Button.Root
-          type="button"
-          data-view="designer"
-          :aria-pressed="view === 'designer'"
-          @click="view = 'designer'"
-        >
-          {{ t('type.designer.title') }}
-        </Button.Root>
+        <!--
+          `Button.Group` chứ không phải hai `Button.Root` rời: ButtonRoot chỉ gắn
+          `aria-pressed` khi nó đăng ký với một group (`group ? isSelected.value : void 0`),
+          và nó merge attrs của nó SAU attrs người dùng — nên ngoài group, `aria-pressed`
+          bind từ đây bị ghi đè thành `undefined` và rơi khỏi DOM. Trong group, group giữ
+          trạng thái chọn, `aria-pressed` đúng theo `v-model`, và `mandatory` chặn việc bỏ
+          chọn màn đang mở (bấm lại tab hiện tại không được làm màn hình trắng).
+        -->
+        <Button.Group v-model="view" mandatory>
+          <Button.Root type="button" value="designer" data-view="designer">
+            {{ t('type.designer.title') }}
+          </Button.Root>
 
-        <Button.Root
-          type="button"
-          data-view="catalog"
-          :aria-pressed="view === 'catalog'"
-          @click="view = 'catalog'"
-        >
-          {{ t('catalog.title') }}
-        </Button.Root>
+          <Button.Root type="button" value="catalog" data-view="catalog">
+            {{ t('catalog.title') }}
+          </Button.Root>
+        </Button.Group>
       </nav>
     </header>
 

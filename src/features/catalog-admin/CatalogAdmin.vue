@@ -692,16 +692,23 @@ async function confirmRemoval(): Promise<void> {
     <p v-if="loadError !== null" role="alert">{{ loadError }}</p>
 
     <nav class="catalog-admin__tabs">
-      <Button.Root
-        v-for="tab in TABS"
-        :key="tab.key"
-        type="button"
-        :data-catalog-tab="tab.key"
-        :aria-pressed="activeTab === tab.key"
-        @click="activeTab = tab.key"
-      >
-        {{ t(tab.labelKey) }}
-      </Button.Root>
+      <!--
+        `Button.Group` để `aria-pressed` sống: ButtonRoot chỉ gắn nó khi có group, và merge
+        attrs của nó sau attrs người dùng — ngoài group, `aria-pressed` bind ở đây bị ghi đè
+        thành `undefined` (cùng lỗi đã thấy ở nav của App.vue khi chạy by-eye Task 19).
+        `mandatory` giữ một tab luôn mở.
+      -->
+      <Button.Group v-model="activeTab" mandatory>
+        <Button.Root
+          v-for="tab in TABS"
+          :key="tab.key"
+          type="button"
+          :value="tab.key"
+          :data-catalog-tab="tab.key"
+        >
+          {{ t(tab.labelKey) }}
+        </Button.Root>
+      </Button.Group>
     </nav>
 
     <p v-if="loading">{{ t('common.loading') }}</p>
