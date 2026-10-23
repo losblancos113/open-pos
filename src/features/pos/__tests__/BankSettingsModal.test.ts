@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import type { VueWrapper } from '@vue/test-utils';
@@ -9,10 +9,10 @@ import { createOrderRepository } from '../../../core/order/order-repository';
 import type { BankAccountDoc } from '../../../core/qr/bank-account';
 import { BANK_PRESETS } from '../../../core/qr/bank-account';
 import { createI18n } from 'vue-i18n';
-import vi from '../../../i18n/vi.json';
+import viMessages from '../../../i18n/vi.json';
 
 describe('BankSettingsModal.vue', () => {
-  const i18n = createI18n({ legacy: false, locale: 'vi', messages: { vi } });
+  const i18n = createI18n({ legacy: false, locale: 'vi', messages: { vi: viMessages } });
   let wrapper: VueWrapper | null = null;
 
   afterEach(() => {
@@ -232,5 +232,103 @@ describe('BankSettingsModal.vue', () => {
 
     await wrapper.find('[data-test="cancel-bank-btn"]').trigger('click');
     expect(wrapper.emitted('update:open')?.[0]).toEqual([false]);
+  });
+
+  it('disables save button if custom BIN has fewer than 6 digits and enables when exactly 6 digits are entered', async () => {
+    wrapper = mount(BankSettingsModal, {
+      props: { open: true, currentAccount: null },
+      global: { plugins: [i18n] },
+    });
+
+    // Select custom bank
+    const presetOptions = wrapper.findAll('[role="option"]');
+    const customOption = presetOptions.find(
+      (opt) => opt.attributes('data-value') === 'custom' || opt.text().includes('khác') || opt.text().includes('Other'),
+    );
+    expect(customOption).toBeDefined();
+    await customOption!.trigger('click');
+    await nextTick();
+
+    const binInput = wrapper.find('[data-test="custom-bin"] input');
+    const bankNameInput = wrapper.find('[data-test="custom-bank-name"] input');
+    const accountNumInput = wrapper.find('[data-test="account-number"] input');
+    const accountNameInput = wrapper.find('[data-test="account-name"] input');
+    const saveBtn = wrapper.find('[data-test="save-bank-btn"]');
+
+    // Fill valid bank name, account number, account name
+    await bankNameInput.setValue('Custom Bank');
+    await accountNumInput.setValue('0123456789');
+    await accountNameInput.setValue('NGUYEN VAN A');
+    await nextTick();
+
+    // Enter 5 digits BIN -> save should remain disabled
+    await binInput.setValue('97042');
+    await nextTick();
+    expect(saveBtn.attributes('disabled')).toBeDefined();
+
+    // Enter 6th digit -> exactly 6 digits -> save should be enabled
+    await binInput.setValue('970422');
+    await nextTick();
+    expect(saveBtn.attributes('disabled')).toBeUndefined();
+  });
+
+  it('enforces maxlength attributes on inputs', () => {
+    wrapper = mount(BankSettingsModal, {
+      props: { open: true, currentAccount: null },
+      global: { plugins: [i18n] },
+    });
+
+    const accountNumInput = wrapper.find('[data-test="account-number"] input');
+    const accountNameInput = wrapper.find('[data-test="account-name"] input');
+
+    expect(accountNumInput.attributes('maxlength')).toBe('30');
+    expect(accountNameInput.attributes('maxlength')).toBe('25');
+  });
+
+  it('surfaces an error banner and does not close or emit save when orderRepository.saveBankAccount fails', async () => {
+    const adapter = await createMemoryAdapter();
+    const orderRepository = createOrderRepository(adapter);
+    orderRepository.saveBankAccount = vi.fn().mockRejectedValue(new Error('PouchDB disk error'));
+
+    wrapper = mount(BankSettingsModal, {
+      props: {
+        open: true,
+        branchId: 'branch-1',
+        orderRepository,
+        currentAccount: null,
+      },
+      global: { plugins: [i18n] },
+    });
+
+    // Select MBBank preset (970422)
+    const presetOptions = wrapper.findAll('[role="option"]');
+    const mbOption = presetOptions.find((opt) => opt.text().includes('MBBank') || opt.text().includes('970422'));
+    await mbOption!.trigger('click');
+    await nextTick();
+
+    // Enter account number & name
+    const accountNumInput = wrapper.find('[data-test="account-number"] input');
+    const accountNameInput = wrapper.find('[data-test="account-name"] input');
+
+    await accountNumInput.setValue('0987654321');
+    await accountNameInput.setValue('Nguyễn Thị Thảo');
+    await nextTick();
+
+    const saveBtn = wrapper.find('[data-test="save-bank-btn"]');
+    expect(saveBtn.attributes('disabled')).toBeUndefined();
+
+    await saveBtn.trigger('click');
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 10));
+    await nextTick();
+
+    // Error banner should be visible with error message
+    const errorBanner = wrapper.find('[data-test="bank-settings-error"]');
+    expect(errorBanner.exists()).toBe(true);
+    expect(errorBanner.text()).toContain('PouchDB disk error');
+
+    // Should NOT have emitted save or closed modal
+    expect(wrapper.emitted('save')).toBeUndefined();
+    expect(wrapper.emitted('update:open')).toBeUndefined();
   });
 });

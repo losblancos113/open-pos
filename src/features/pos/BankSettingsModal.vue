@@ -61,6 +61,7 @@ const customBankName = ref<string>('');
 const accountNumber = ref<string>('');
 const accountName = ref<string>('');
 const isSaving = ref(false);
+const saveError = ref<string | null>(null);
 
 const isCustomBank = computed(() => selectedBankKey.value === 'custom');
 
@@ -84,6 +85,7 @@ const selectedBankLabel = computed(() => {
 });
 
 function onSelectBank(key: unknown) {
+  saveError.value = null;
   const strKey = String(key ?? '');
   selectedBankKey.value = strKey;
   if (strKey === 'custom') {
@@ -108,16 +110,18 @@ function normalizeAccountNameInput(val: string): string {
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .replace(/[^a-zA-Z0-9 ]/g, '')
-    .toUpperCase();
+    .toUpperCase()
+    .slice(0, 25);
 }
 
 function onAccountNumberInput(eventOrVal: Event | unknown) {
+  saveError.value = null;
   const raw = typeof eventOrVal === 'string'
     ? eventOrVal
     : (eventOrVal as Event)?.target
       ? ((eventOrVal as Event).target as HTMLInputElement).value
       : String(eventOrVal ?? '');
-  const filtered = raw.replace(/\D/g, '');
+  const filtered = raw.replace(/\D/g, '').slice(0, 30);
   accountNumber.value = filtered;
   if (typeof eventOrVal !== 'string' && (eventOrVal as Event)?.target) {
     ((eventOrVal as Event).target as HTMLInputElement).value = filtered;
@@ -125,12 +129,13 @@ function onAccountNumberInput(eventOrVal: Event | unknown) {
 }
 
 function onCustomBinInput(eventOrVal: Event | unknown) {
+  saveError.value = null;
   const raw = typeof eventOrVal === 'string'
     ? eventOrVal
     : (eventOrVal as Event)?.target
       ? ((eventOrVal as Event).target as HTMLInputElement).value
       : String(eventOrVal ?? '');
-  const filtered = raw.replace(/\D/g, '').slice(0, 8);
+  const filtered = raw.replace(/\D/g, '').slice(0, 6);
   customBin.value = filtered;
   if (typeof eventOrVal !== 'string' && (eventOrVal as Event)?.target) {
     ((eventOrVal as Event).target as HTMLInputElement).value = filtered;
@@ -138,6 +143,7 @@ function onCustomBinInput(eventOrVal: Event | unknown) {
 }
 
 function onAccountNameInput(eventOrVal: Event | unknown) {
+  saveError.value = null;
   const raw = typeof eventOrVal === 'string'
     ? eventOrVal
     : (eventOrVal as Event)?.target
@@ -151,6 +157,7 @@ function onAccountNameInput(eventOrVal: Event | unknown) {
 }
 
 function initFromAccount() {
+  saveError.value = null;
   if (props.currentAccount) {
     const preset = BANK_PRESETS.find((p) => p.bin === props.currentAccount?.bankBin);
     if (preset) {
@@ -189,12 +196,16 @@ const canSave = computed(() => {
   const name = effectiveBankName.value;
   const num = accountNumber.value.trim();
   const accName = sanitizeAccountName(accountName.value);
+  if (isCustomBank.value && customBin.value.length !== 6) {
+    return false;
+  }
   return Boolean(bin && name && num && accName);
 });
 
 async function handleSave() {
   if (!canSave.value || isSaving.value) return;
   isSaving.value = true;
+  saveError.value = null;
   try {
     const doc: BankAccountDoc = {
       _id: bankAccountDocId(props.branchId),
@@ -207,11 +218,18 @@ async function handleSave() {
     };
 
     if (props.orderRepository) {
-      await props.orderRepository.saveBankAccount(doc);
+      try {
+        await props.orderRepository.saveBankAccount(doc);
+      } catch (err: unknown) {
+        saveError.value = err instanceof Error ? err.message : String(err ?? 'Save failed');
+        return;
+      }
     }
 
     emit('save', doc);
     isOpen.value = false;
+  } catch (err: unknown) {
+    saveError.value = err instanceof Error ? err.message : String(err ?? 'Save failed');
   } finally {
     isSaving.value = false;
   }
@@ -236,6 +254,16 @@ async function handleSave() {
 
       <!-- Biểu mẫu nhập liệu -->
       <div class="space-y-4">
+        <!-- Thông báo lỗi nếu lưu thất bại -->
+        <div
+          v-if="saveError"
+          class="error-text p-2.5 bg-danger/10 border border-danger/30 rounded-md text-xs"
+          role="alert"
+          data-test="bank-settings-error"
+        >
+          {{ saveError }}
+        </div>
+
         <!-- Ngân hàng thụ hưởng -->
         <div class="space-y-1.5">
           <label class="field-label text-xs font-semibold uppercase text-text-muted">
@@ -276,11 +304,13 @@ async function handleSave() {
               :model-value="customBin"
               data-test="custom-bin"
               type="text"
+              maxlength="6"
               class="w-full"
               @update:model-value="onCustomBinInput"
             >
               <Input.Control
                 class="field-input w-full"
+                maxlength="6"
                 :placeholder="t('pos.bank.bin')"
                 @input="onCustomBinInput"
               />
@@ -314,11 +344,13 @@ async function handleSave() {
             :model-value="accountNumber"
             data-test="account-number"
             type="text"
+            maxlength="30"
             class="w-full"
             @update:model-value="onAccountNumberInput"
           >
             <Input.Control
               class="field-input w-full"
+              maxlength="30"
               :placeholder="t('pos.bank.accountNumber')"
               @input="onAccountNumberInput"
             />
@@ -334,11 +366,13 @@ async function handleSave() {
             :model-value="accountName"
             data-test="account-name"
             type="text"
+            maxlength="25"
             class="w-full"
             @update:model-value="onAccountNameInput"
           >
             <Input.Control
               class="field-input w-full uppercase"
+              maxlength="25"
               :placeholder="t('pos.bank.accountName')"
               @input="onAccountNameInput"
             />
