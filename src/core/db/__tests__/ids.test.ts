@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  areaDocId,
+  bankAccountDocId,
+  billDocId,
   branchDocId,
   categoryDocId,
   comboDocId,
@@ -8,6 +11,9 @@ import {
   productDocId,
   productBranchOverrideId,
   recordDocId,
+  sessionDocId,
+  sessionEventsDocId,
+  tableDocId,
   typeDocId,
 } from '../ids';
 
@@ -62,3 +68,20 @@ describe('recordDocId', () => {
     expect(() => recordDocId('a', 'x:y')).toThrow(/must not contain ":"/);
   });
 });
+
+describe('M3 order ID helpers', () => {
+  it('builds area, table, session, bill, and session_events IDs', () => {
+    expect(areaDocId('hq', 'floor-1')).toBe('area:hq:floor-1');
+    expect(tableDocId('hq', 't01')).toBe('table:hq:t01');
+    expect(sessionDocId('hq', 'sess-123')).toBe('session:hq:sess-123');
+    expect(billDocId('hq', 'bill-456')).toBe('bill:hq:bill-456');
+    expect(sessionEventsDocId('hq', 'sess-123')).toBe('session_events:hq:sess-123');
+    expect(bankAccountDocId('hq')).toBe('bank_account:hq');
+  });
+
+  it('rejects colons and empty segments in M3 IDs', () => {
+    expect(() => areaDocId('hq', 'floor:1')).toThrow();
+    expect(() => tableDocId('', 't01')).toThrow();
+  });
+});
+

@@ -49,3 +49,34 @@ export function typeDocId(typeKey: string): string {
 export function recordDocId(typeKey: string, id: string): string {
   return `${requireSegment(typeKey, 'typeKey')}:${requireSegment(id, 'id')}`;
 }
+
+/** `_id` của một khu vực trong nhà hàng (M3). */
+export function areaDocId(branchId: string, areaId: string): string {
+  return `area:${requireSegment(branchId, 'branchId')}:${requireSegment(areaId, 'areaId')}`;
+}
+
+/** `_id` của một bàn trong khu vực (M3). */
+export function tableDocId(branchId: string, tableId: string): string {
+  return `table:${requireSegment(branchId, 'branchId')}:${requireSegment(tableId, 'tableId')}`;
+}
+
+/** `_id` của một phiên gọi món / session (M3). */
+export function sessionDocId(branchId: string, sessionId: string): string {
+  return `session:${requireSegment(branchId, 'branchId')}:${requireSegment(sessionId, 'sessionId')}`;
+}
+
+/** `_id` của một hóa đơn / bill (M3). */
+export function billDocId(branchId: string, billId: string): string {
+  return `bill:${requireSegment(branchId, 'branchId')}:${requireSegment(billId, 'billId')}`;
+}
+
+/** `_id` của log sự kiện gọi món / session_events (M3). */
+export function sessionEventsDocId(branchId: string, sessionId: string): string {
+  return `session_events:${requireSegment(branchId, 'branchId')}:${requireSegment(sessionId, 'sessionId')}`;
+}
+
+/** `_id` của cấu hình tài khoản VietQR theo chi nhánh (M3). */
+export function bankAccountDocId(branchId: string): string {
+  return `bank_account:${requireSegment(branchId, 'branchId')}`;
+}
+
