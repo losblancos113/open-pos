@@ -89,6 +89,93 @@ describe('Offline QR Matrix SVG generator', () => {
     expect(matrix[6]![12]).toBe(true);
   });
 
+  it('conforms to ISO/IEC 18004 Table 23 format information placement and passes BCH integrity check', () => {
+    const ecLevelMap = {
+      L: 1, // 01
+      M: 0, // 00
+      Q: 3, // 11
+      H: 2, // 10
+    } as const;
+
+    for (const [level, expectedEcBits] of Object.entries(ecLevelMap) as Array<[keyof typeof ecLevelMap, number]>) {
+      const matrix = generateQrMatrix('https://openpos.vn', level);
+      const size = matrix.length;
+
+      // Extract Copy 1 (top-left) according to ISO/IEC 18004 Table 23
+      let copy1 = 0;
+      for (let i = 0; i < 15; i++) {
+        let r: number;
+        let c: number;
+        if (i <= 5) {
+          r = i;
+          c = 8;
+        } else if (i === 6) {
+          r = 7;
+          c = 8;
+        } else if (i === 7) {
+          r = 8;
+          c = 8;
+        } else if (i === 8) {
+          r = 8;
+          c = 7;
+        } else {
+          r = 8;
+          c = 14 - i;
+        }
+        if (matrix[r]![c]) {
+          copy1 |= 1 << i;
+        }
+      }
+
+      // Extract Copy 2 (bottom-left and top-right) according to ISO/IEC 18004 Table 23
+      let copy2 = 0;
+      for (let i = 0; i < 15; i++) {
+        let r: number;
+        let c: number;
+        if (i < 8) {
+          r = 8;
+          c = size - 1 - i;
+        } else {
+          r = size - 15 + i;
+          c = 8;
+        }
+        if (matrix[r]![c]) {
+          copy2 |= 1 << i;
+        }
+      }
+
+      // Both copies must match
+      expect(copy1).toBe(copy2);
+
+      // Unmask with ISO 18004 mask 0x5412
+      const unmasked1 = copy1 ^ 0x5412;
+      const unmasked2 = copy2 ^ 0x5412;
+
+      // Calculate BCH syndrome: GF(2) division by generator polynomial 0x537 (x^10 + x^8 + x^5 + x^4 + x^2 + x + 1)
+      const getBchSyndrome = (formatBits: number): number => {
+        let rem = formatBits;
+        for (let i = 4; i >= 0; i--) {
+          if ((rem & (1 << (i + 10))) !== 0) {
+            rem ^= 0x537 << i;
+          }
+        }
+        return rem;
+      };
+
+      expect(getBchSyndrome(unmasked1)).toBe(0);
+      expect(getBchSyndrome(unmasked2)).toBe(0);
+
+      // Verify data bits (top 5 bits of unmasked format information)
+      const dataBits = unmasked1 >> 10;
+      const extractedEcBits = dataBits >> 3;
+      const extractedMask = dataBits & 0x07;
+
+      expect(extractedEcBits).toBe(expectedEcBits);
+      expect(extractedMask).toBeGreaterThanOrEqual(0);
+      expect(extractedMask).toBeLessThanOrEqual(7);
+    }
+  });
+
   it('seamlessly integrates with buildVietQrPayload to produce printable SVG', () => {
     const payload = buildVietQrPayload({
       bankBin: '970422', // MB Bank

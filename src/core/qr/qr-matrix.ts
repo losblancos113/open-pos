@@ -396,36 +396,36 @@ function applyFormatInfo(modules: boolean[][], ecBits: number, mask: number): vo
   for (let i = 0; i < 15; i++) {
     const bit = ((format >> i) & 1) === 1;
 
-    // First copy: top-left
+    // First copy: top-left (ISO/IEC 18004 Table 23)
     let r1: number;
     let c1: number;
     if (i <= 5) {
-      r1 = 8;
-      c1 = i;
+      r1 = i;
+      c1 = 8;
     } else if (i === 6) {
-      r1 = 8;
-      c1 = 7;
+      r1 = 7;
+      c1 = 8;
     } else if (i === 7) {
       r1 = 8;
       c1 = 8;
     } else if (i === 8) {
-      r1 = 7;
-      c1 = 8;
+      r1 = 8;
+      c1 = 7;
     } else {
-      r1 = 14 - i;
-      c1 = 8;
+      r1 = 8;
+      c1 = 14 - i;
     }
     modules[r1]![c1] = bit;
 
-    // Second copy: bottom-left and top-right
+    // Second copy: bottom-left and top-right (ISO/IEC 18004 Table 23)
     let r2: number;
     let c2: number;
-    if (i < 7) {
-      r2 = size - 1 - i;
-      c2 = 8;
-    } else {
+    if (i < 8) {
       r2 = 8;
-      c2 = size - 8 + (i - 7);
+      c2 = size - 1 - i;
+    } else {
+      r2 = size - 15 + i;
+      c2 = 8;
     }
     modules[r2]![c2] = bit;
   }
