@@ -350,6 +350,45 @@ describe('catalog repository — branch tier', () => {
     expect(await repo.listOverrides('hq')).toHaveLength(1);
   });
 
+  it('survives two writes racing to create the same override', async () => {
+    await seedProduct();
+
+    // Người dùng double-click nút "còn bán" khi món chưa có override: hai lần ghi cùng thấy
+    // "chưa có" rồi cùng insert. Lần thua trước đây ném lỗi conflict ra màn hình —
+    // `pouch-adapter.put(): conflict for product_override:hq:pho-bo (got _rev undefined)` —
+    // bắt được ở Task 19 by-eye.
+    const [first, second] = await Promise.all([
+      repo.setOverride({ productId: 'product:pho-bo', branchId: 'hq', price: money(69000, 'VND') }),
+      repo.setOverride({ productId: 'product:pho-bo', branchId: 'hq', available: false }),
+    ]);
+
+    expect(first._id).toBe(second._id);
+
+    const override = await repo.getOverride('product:pho-bo', 'hq');
+    expect(override).not.toBeNull();
+    // Lần thua phải đi tiếp trên bản vừa ghi: cả hai thay đổi đều sống, không mất dữ liệu.
+    expect(override?.price).toEqual(money(69000, 'VND'));
+    expect(override?.available).toBe(false);
+    expect(await repo.listOverrides('hq')).toHaveLength(1);
+  });
+
+  it('keeps both changes when two updates to an existing override race', async () => {
+    await seedProduct();
+    await repo.setOverride({ productId: 'product:pho-bo', branchId: 'hq', price: money(69000, 'VND') });
+
+    // Hai lần ghi cùng đọc một `_rev` rồi cùng put: lần thua phải đọc lại rồi hoà tiếp,
+    // không ném conflict ra màn hình. Bắt được ở Task 19 by-eye khi gõ giá riêng.
+    await Promise.all([
+      repo.setOverride({ productId: 'product:pho-bo', branchId: 'hq', price: money(71000, 'VND') }),
+      repo.setOverride({ productId: 'product:pho-bo', branchId: 'hq', available: false }),
+    ]);
+
+    const override = await repo.getOverride('product:pho-bo', 'hq');
+    expect(override?.price).toEqual(money(71000, 'VND'));
+    expect(override?.available).toBe(false);
+    expect(await repo.listOverrides('hq')).toHaveLength(1);
+  });
+
   it('leaves other override fields alone when only one is set', async () => {
     await seedProduct();
     await repo.setOverride({ productId: 'product:pho-bo', branchId: 'hq', price: money(69000, 'VND') });

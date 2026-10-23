@@ -628,23 +628,37 @@ export function createCatalogRepository(
       const docId = overrideDocId(input.productId, input.branchId);
       await assertProductExists(input.productId);
 
-      const current = await readDoc<ProductOverrideDoc>(docId, PRODUCT_OVERRIDE_DOC_TYPE);
-
-      if (current === null) {
-        return insert(createOverrideDoc({ ...input, now: clock() }), 'product_override');
-      }
-
       // `undefined` = giữ nguyên; `null` = xoá giá riêng (quay về giá global).
-      const next: ProductOverrideDoc = {
-        ...current,
-        price: input.price === undefined ? current.price : input.price,
-        available: input.available === undefined ? current.available : input.available,
-        sortOrder: input.sortOrder === undefined ? current.sortOrder : input.sortOrder,
-        updatedAt: clock(),
+      const mergeOnto = (base: ProductOverrideDoc): ProductOverrideDoc => {
+        const next: ProductOverrideDoc = {
+          ...base,
+          price: input.price === undefined ? base.price : input.price,
+          available: input.available === undefined ? base.available : input.available,
+          sortOrder: input.sortOrder === undefined ? base.sortOrder : input.sortOrder,
+          updatedAt: clock(),
+        };
+        assertNoIssues(`product_override ${JSON.stringify(docId)}`, validateOverride(next));
+        return next;
       };
 
-      assertNoIssues(`product_override ${JSON.stringify(docId)}`, validateOverride(next));
-      return (await adapter.put(next)) as ProductOverrideDoc;
+      // Đây là một **upsert**, nên phải chịu được hai lần ghi sát nhau (double-click nút "còn
+      // bán", hoặc gõ giá rồi Tab): cả hai lần cùng đọc một `_rev` rồi cùng ghi, và lần thua bị
+      // adapter trả conflict. Đọc lại rồi hoà tiếp giữ được **cả hai** thay đổi; ném lỗi ra màn
+      // hình thì người dùng tưởng thao tác hỏng trong khi dữ liệu đã đổi một nửa.
+      const attempts = 3;
+      for (let attempt = 1; ; attempt += 1) {
+        const current = await readDoc<ProductOverrideDoc>(docId, PRODUCT_OVERRIDE_DOC_TYPE);
+
+        try {
+          if (current === null) {
+            return await insert(createOverrideDoc({ ...input, now: clock() }), 'product_override');
+          }
+          return (await adapter.put(mergeOnto(current))) as ProductOverrideDoc;
+        } catch (error) {
+          // Hết lượt vẫn thua thì lỗi thật (dữ liệu hỏng, quyền, …) — ném ra, không nuốt.
+          if (attempt >= attempts) throw error;
+        }
+      }
     },
 
     async getOverride(productId, branchId) {
