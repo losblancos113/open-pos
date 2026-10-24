@@ -16,7 +16,10 @@ export type OrderEventType =
   | 'BILL_VOIDED'
   | 'PAYMENT_ADDED'
   | 'PAYMENT_VOIDED'
-  | 'BILL_CLOSED';
+  | 'BILL_CLOSED'
+  | 'BILL_SPLIT'
+  | 'BILL_MERGED'
+  | 'TABLE_TRANSFERRED';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface OrderEventDoc<T = any> {
