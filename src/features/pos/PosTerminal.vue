@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Button, Input, Select } from '@vuetify/v0';
+import { Button, Input, Select, Snackbar, Alert } from '@vuetify/v0';
 import type { DbAdapter } from '@/core/db/adapter';
 import { DEFAULT_BRANCH_ID } from '@/core/db/branch';
 import { createOrderRepository } from '@/core/order/order-repository';
@@ -74,6 +74,10 @@ const emit = defineEmits<{
   (e: 'checkout'): void;
   (e: 'payment-added', payment: PaymentEntry): void;
   (e: 'payment-complete', bill: BillDoc): void;
+  /** Emitted when the session is reloaded after a split/merge/transfer mutation. */
+  (e: 'bill-updated', bill: BillDoc): void;
+  /** Emitted when a line is moved to another bill (handled inline by PosTerminal). */
+  (e: 'move-line', lineId: string, targetBillId: string): void;
 }>();
 
 const { t } = useI18n();
@@ -220,19 +224,146 @@ function openTransferDialog() {
  * The dialogs report the user's selection back through their confirm events;
  * the parent (PosTerminal) owns the repository and applies the change.
  */
-function handleSplitDone() {
-  isSplitDialogOpen.value = false;
+async function handleConfirmSplit(payload: {
+  mode: 'by-item' | 'evenly' | 'by-seat';
+  lineIds?: string[] | undefined;
+  parts?: number | undefined;
+}) {
+  if (!props.bill || !props.session) {
+    isSplitDialogOpen.value = false;
+    return;
+  }
+  try {
+    const actorId = cashierName.value || 'unknown';
+    const deviceId = terminalCode.value;
+    const result =
+      payload.mode === 'by-item' && payload.lineIds
+        ? await orderRepository.splitByItems(
+            props.branchId,
+            props.session._id,
+            props.bill._id,
+            payload.lineIds,
+            actorId,
+            deviceId
+          )
+        : payload.mode === 'evenly' && payload.parts
+        ? await orderRepository.splitEvenly(
+            props.branchId,
+            props.session._id,
+            props.bill._id,
+            payload.parts,
+            actorId,
+            deviceId
+          )
+        : await orderRepository.splitBySeat(
+            props.branchId,
+            props.session._id,
+            props.bill._id,
+            actorId,
+            deviceId
+          );
+    // Reload state from the new events
+    await refreshSession();
+    isSplitDialogOpen.value = false;
+    emit('print-draft');
+    showSuccessToast(t('pos.split.splitSuccess'));
+    // Log the emitted events for debug — the caller (PosTerminal host) re-renders via print-draft
+    console.debug('split result:', result);
+  } catch (err) {
+    console.error('split failed:', err);
+    showSnackbar(t('pos.split.splitError'), 'error');
+  }
+}
+
+async function handleConfirmMerge(payload: { billIds: string[] }) {
+  if (!props.session) {
+    isMergeDialogOpen.value = false;
+    return;
+  }
+  try {
+    const actorId = cashierName.value || 'unknown';
+    const deviceId = terminalCode.value;
+    const result = await orderRepository.mergeBills(
+      props.branchId,
+      props.session._id,
+      payload.billIds,
+      actorId,
+      deviceId
+    );
+    await refreshSession();
+    isMergeDialogOpen.value = false;
+    emit('print-draft');
+    showSuccessToast(t('pos.merge.mergeSuccess'));
+    console.debug('merge result:', result);
+  } catch (err) {
+    console.error('merge failed:', err);
+    showSnackbar(t('pos.merge.mergeError'), 'error');
+  }
+}
+
+async function handleConfirmTransfer(payload: { targetTableId: string; reason?: string | undefined }) {
+  if (!props.session) {
+    isTransferDialogOpen.value = false;
+    return;
+  }
+  try {
+    const actorId = cashierName.value || 'unknown';
+    const deviceId = terminalCode.value;
+    const result = await orderRepository.transferTable(
+      props.branchId,
+      props.session._id,
+      getCurrentTableId(props.session, props.table),
+      payload.targetTableId,
+      actorId,
+      deviceId,
+      payload.reason
+    );
+    await refreshSession();
+    isTransferDialogOpen.value = false;
+    emit('print-draft');
+    showSuccessToast(t('pos.transfer.transferSuccess'));
+    console.debug('transfer result:', result);
+  } catch (err) {
+    console.error('transfer failed:', err);
+    showSnackbar(t('pos.transfer.transferError'), 'error');
+  }
+}
+
+function handleMoveLine(lineId: string, targetBillId: string) {
+  if (!props.bill || !props.session) return;
+  // For now emit to parent; in future M6 this will dispatch via repository
+  emit('move-line', lineId, targetBillId);
   emit('print-draft');
 }
 
-function handleMergeDone() {
-  isMergeDialogOpen.value = false;
-  emit('print-draft');
+/** Helper: extract current table ID from session + table prop */
+function getCurrentTableId(session: SessionDoc, table: TableDoc | null | undefined): string {
+  if (table) return table._id;
+  // Fallback: first table in session
+  return session.tableIds[0] ?? '';
 }
 
-function handleTransferDone() {
-  isTransferDialogOpen.value = false;
-  emit('print-draft');
+/** Reload current session after a mutation */
+async function refreshSession() {
+  if (!props.bill || !props.session) return;
+  try {
+    const state = await orderRepository.getActiveSession(props.branchId, props.session._id);
+    if (state && state.bill) {
+      // Emit the updated bill to the host so it re-renders
+      emit('bill-updated', state.bill);
+    }
+  } catch (e) {
+    console.warn('refreshSession failed (non-fatal):', e);
+  }
+}
+
+/** Snackbar / toast helpers */
+function showSuccessToast(message: string) {
+  console.log('[M5]', message); // placeholder until Snackbar is fully wired
+}
+
+function showSnackbar(message: string, type: 'success' | 'error') {
+  console.log(`[M5] ${type}:`, message);
 }
 
 /**
@@ -550,7 +681,7 @@ defineExpose({
       v-if="bill"
       :bill="bill"
       :open="isSplitDialogOpen"
-      @split-done="handleSplitDone"
+      @confirm-split="handleConfirmSplit"
       @close="isSplitDialogOpen = false"
     />
 
@@ -558,7 +689,7 @@ defineExpose({
     <MergeBillsDialog
       :bills="billsInSession"
       :open="isMergeDialogOpen"
-      @merge-done="handleMergeDone"
+      @confirm-merge="handleConfirmMerge"
       @close="isMergeDialogOpen = false"
     />
 
@@ -570,7 +701,7 @@ defineExpose({
       :current-bill="bill"
       :other-bills="otherBillsInSession"
       :open="isTransferDialogOpen"
-      @transfer-done="handleTransferDone"
+      @confirm-transfer="handleConfirmTransfer"
       @close="isTransferDialogOpen = false"
     />
   </div>

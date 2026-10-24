@@ -374,7 +374,13 @@
       "sourceBill": "Hoá đơn gốc",
       "targetBill": "Hoá đơn mới",
       "lineMoved": "Đã chuyển sang hoá đơn khác",
-      "reason": "Lý do chuyển bàn"
+      "reason": "Lý do chuyển bàn",
+      "splitSuccess": "Đã chia hoá đơn thành công",
+      "splitError": "Không thể chia hoá đơn. Vui lòng thử lại.",
+      "mergeSuccess": "Đã gộp hoá đơn thành công",
+      "mergeError": "Không thể gộp hoá đơn. Vui lòng thử lại.",
+      "transferSuccess": "Đã chuyển bàn thành công",
+      "transferError": "Không thể chuyển bàn. Vui lòng thử lại."
     }
   }
 }

@@ -4,7 +4,7 @@ import { Button, Checkbox, Input } from '@vuetify/v0';
 import { useI18n } from 'vue-i18n';
 import type { BillDoc, OrderLineItem } from '@/core/order/types';
 import { money, format } from '@/core/money';
-import { splitEvenly } from '@/core/order/split-merge';
+import { splitEvenly, splitByItems, splitBySeat } from '@/core/order/split-merge';
 
 const props = defineProps<{
   bill: BillDoc;
@@ -13,8 +13,17 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  splitDone: [];
+  /** Emits the full selection payload so the parent can dispatch the operation. */
+  confirmSplit: [payload: SplitPayload];
 }>();
+
+interface SplitPayload {
+  mode: 'by-item' | 'evenly' | 'by-seat';
+  /** For by-item: lineIds to move to the target bill. Undefined when mode is 'evenly' or 'by-seat'. */
+  lineIds?: string[] | undefined;
+  /** For evenly: number of equal parts. Undefined when mode is 'by-item' or 'by-seat'. */
+  parts?: number | undefined;
+}
 
 const { t } = useI18n();
 
@@ -81,7 +90,12 @@ function canConfirm() {
 }
 
 function handleConfirm() {
-  emit('splitDone');
+  if (!canConfirm()) return;
+  emit('confirmSplit', {
+    mode: mode.value,
+    lineIds: mode.value === 'by-item' ? [...selectedLines.value] : undefined,
+    parts: mode.value === 'evenly' ? evenlyParts.value : undefined,
+  });
   emit('close');
 }
 

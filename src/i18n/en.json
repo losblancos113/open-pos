@@ -374,7 +374,13 @@
       "sourceBill": "Source Bill",
       "targetBill": "Target Bill",
       "lineMoved": "Moved to another bill",
-      "reason": "Transfer reason"
+      "reason": "Transfer reason",
+      "splitSuccess": "Bill split successfully",
+      "splitError": "Could not split the bill. Please try again.",
+      "mergeSuccess": "Bills merged successfully",
+      "mergeError": "Could not merge bills. Please try again.",
+      "transferSuccess": "Table transferred successfully",
+      "transferError": "Could not transfer table. Please try again."
     }
   }
 }

@@ -12,7 +12,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  mergeDone: [];
+  /** Emits the full selection payload so the parent can dispatch the merge. */
+  confirmMerge: [payload: { billIds: string[] }];
 }>();
 
 const { t } = useI18n();
@@ -47,7 +48,8 @@ function canConfirm() {
 }
 
 function handleConfirm() {
-  emit('mergeDone');
+  if (!canConfirm()) return;
+  emit('confirmMerge', { billIds: [...selectedBillIds.value] });
   emit('close');
 }
 

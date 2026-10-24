@@ -15,7 +15,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  transferDone: [];
+  /** Emits the full selection payload so the parent can dispatch the transfer. */
+  confirmTransfer: [payload: { targetTableId: string; reason?: string | undefined }];
 }>();
 
 const { t } = useI18n();
@@ -36,7 +37,8 @@ function canConfirm() {
 }
 
 function handleConfirm() {
-  emit('transferDone');
+  if (!canConfirm()) return;
+  emit('confirmTransfer', { targetTableId: targetTableId.value, reason: reason.value || undefined });
   emit('close');
 }
 
