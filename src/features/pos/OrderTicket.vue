@@ -14,6 +14,7 @@ const props = withDefaults(
     tableName?: string;
     guestCount?: number | null;
     readOnly?: boolean;
+    otherBills?: BillDoc[];
   }>(),
   {
     bill: null,
@@ -22,6 +23,7 @@ const props = withDefaults(
     tableName: '',
     guestCount: null,
     readOnly: false,
+    otherBills: () => [],
   },
 );
 
@@ -29,6 +31,7 @@ const emit = defineEmits<{
   (e: 'update-qty', lineId: string, newQty: number): void;
   (e: 'set-line-note', lineId: string, note: string): void;
   (e: 'void-line', lineId: string, reason: string): void;
+  (e: 'move-line', lineId: string, targetBillId: string): void;
   (e: 'print-draft'): void;
   (e: 'checkout'): void;
 }>();
@@ -119,6 +122,27 @@ function confirmVoid() {
   }
   isVoidOpen.value = false;
   voidingLineId.value = null;
+}
+
+// --- Move Line Dialog ---
+const isMoveDialogOpen = ref(false);
+const movingLineId = ref<string | null>(null);
+const selectedTargetBillId = ref<string>('');
+
+function openMoveDialog(line: OrderLineItem) {
+  if (props.readOnly || line.status === 'voided') return;
+  movingLineId.value = line.lineId;
+  selectedTargetBillId.value = '';
+  isMoveDialogOpen.value = true;
+}
+
+function confirmMove() {
+  if (movingLineId.value && selectedTargetBillId.value) {
+    emit('move-line', movingLineId.value, selectedTargetBillId.value);
+  }
+  isMoveDialogOpen.value = false;
+  movingLineId.value = null;
+  selectedTargetBillId.value = '';
 }
 </script>
 
@@ -290,6 +314,16 @@ function confirmVoid() {
               @click="openVoidDialog(line)"
             >
               {{ t('pos.ticket.voidLine') }}
+            </Button.Root>
+            <Button.Root
+              v-if="otherBills.length > 0"
+              type="button"
+              data-test="line-move-btn"
+              :disabled="props.readOnly || line.status === 'voided'"
+              class="btn btn-ghost text-xs px-2 py-1 rounded text-text-muted hover:text-text hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed"
+              @click="openMoveDialog(line)"
+            >
+              {{ t('pos.split.moveLine') }}
             </Button.Root>
           </div>
         </div>
@@ -469,6 +503,49 @@ function confirmVoid() {
             @click="confirmVoid"
           >
             {{ t('pos.ticket.confirmVoid') }}
+          </Button.Root>
+        </div>
+      </Dialog.Content>
+    </Dialog.Root>
+
+    <!-- Dialog chọn hoá đơn đích để chuyển món -->
+    <Dialog.Root v-model="isMoveDialogOpen">
+      <Dialog.Content class="panel-card max-w-sm w-full p-4 space-y-3" data-test="move-line-dialog">
+        <Dialog.Title class="text-sm font-bold text-text">
+          {{ t('pos.split.moveLine') }}
+        </Dialog.Title>
+
+        <div class="space-y-2">
+          <p class="text-xs text-text-muted">Chọn hoá đơn đích:</p>
+          <div
+            v-for="targetBill in otherBills"
+            :key="targetBill._id"
+            data-test="move-line-target"
+            class="flex items-center justify-between p-2 rounded border border-border hover:bg-bg cursor-pointer"
+            :class="{ 'border-primary bg-primary/5': selectedTargetBillId === targetBill._id }"
+            @click="selectedTargetBillId = targetBill._id"
+          >
+            <span class="text-xs font-medium">{{ targetBill.billNumber }}</span>
+            <span class="text-xs text-primary">{{ format(targetBill.balanceRemaining, formatLocale) }}</span>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <Button.Root
+            type="button"
+            class="btn btn-ghost text-xs px-3 py-1 cursor-pointer"
+            @click="isMoveDialogOpen = false"
+          >
+            {{ t('pos.ticket.cancel') }}
+          </Button.Root>
+          <Button.Root
+            type="button"
+            data-test="confirm-move-btn"
+            :disabled="!selectedTargetBillId"
+            class="btn btn-primary text-xs px-3 py-1 cursor-pointer font-medium disabled:opacity-40"
+            @click="confirmMove"
+          >
+            {{ t('pos.split.confirm') }}
           </Button.Root>
         </div>
       </Dialog.Content>

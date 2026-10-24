@@ -318,4 +318,42 @@ describe('OrderTicket.vue', () => {
     expect(wrapper.find('[data-test="qty-increase-btn"]').attributes('disabled')).toBeDefined();
     expect(wrapper.find('[data-test="qty-decrease-btn"]').attributes('disabled')).toBeDefined();
   });
+
+  it('emits move-line event when move-line button clicked and target selected', async () => {
+    const otherBill: BillDoc = {
+      _id: 'bill:hq:b2',
+      branchId: 'hq',
+      sessionId: 'session:hq:s1',
+      billNumber: 'HQ-T01-20261023-0002',
+      paymentRef: 'POSHQT010002',
+      status: 'draft',
+      lines: [],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(40000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(40000, 'VND'),
+      payments: [],
+      balanceRemaining: money(40000, 'VND'),
+      createdAt: '2026-10-24T00:00:00.000Z',
+      updatedAt: '2026-10-24T00:00:00.000Z',
+    };
+
+    const wrapper = mount(OrderTicket, {
+      props: { bill, session: { _id: 'session:hq:s1', branchId: 'hq', tableIds: ['table:hq:t1'], guestCount: 2, status: 'open', openedAt: '', openedBy: '', billIds: [] }, otherBills: [otherBill] },
+      global: { plugins: [i18n] },
+    });
+
+    await wrapper.find('[data-test="line-move-btn"]').trigger('click');
+    // Select the only target bill
+    await wrapper.find('[data-test="move-line-target"]').trigger('click');
+    await wrapper.find('[data-test="confirm-move-btn"]').trigger('click');
+
+    expect(wrapper.emitted('move-line')).toBeTruthy();
+    expect(wrapper.emitted('move-line')?.[0]).toEqual(['l1', 'bill:hq:b2']);
+  });
 });
