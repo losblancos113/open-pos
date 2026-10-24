@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import type { VueWrapper } from '@vue/test-utils';
 import PosTerminal from '../PosTerminal.vue';
+import SplitBillDialog from '../SplitBillDialog.vue';
 import { createMemoryAdapter } from '../../../core/db/memory-adapter';
 import { createOrderRepository } from '../../../core/order/order-repository';
 import { money } from '../../../core/money';
@@ -532,5 +533,60 @@ describe('PosTerminal.vue shell', () => {
     expect(wrapper.text()).toContain('HQ-T01-20261024-0003');
     expect(wrapper.text()).toContain('Bạc xỉu');
     expect(wrapper.find('[data-test="print-btn"]').exists()).toBe(true);
+  });
+
+  it('opens split bill dialog when split button clicked', async () => {
+    const adapter = await createMemoryAdapter();
+    const mockBill: BillDoc = {
+      _id: 'bill:hq:b1',
+      branchId: 'hq',
+      sessionId: 'session:hq:s1',
+      billNumber: 'HQ-T01-20261024-0001',
+      paymentRef: 'POSHQT010001',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'line-1',
+          productId: 'prod-1',
+          nameSnapshot: { vi: 'Cà phê sữa đá', en: 'Iced Coffee' },
+          unitPriceSnapshot: money(35000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(35000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(35000, 'VND'),
+      payments: [],
+      balanceRemaining: money(35000, 'VND'),
+      createdAt: '2026-10-24T00:00:00.000Z',
+      updatedAt: '2026-10-24T00:00:00.000Z',
+    };
+
+    wrapper = mount(PosTerminal, {
+      props: {
+        adapter,
+        branchId: 'hq',
+        bill: mockBill,
+        tableName: 'Bàn 5',
+      },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+
+    expect(wrapper.findComponent(SplitBillDialog).props('open')).toBe(false);
+    await wrapper.find('[data-test="split-btn"]').trigger('click');
+    await nextTick();
+
+    expect(wrapper.findComponent(SplitBillDialog).props('open')).toBe(true);
   });
 });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input, Select } from '@vuetify/v0';
 import type { DbAdapter } from '@/core/db/adapter';
@@ -17,6 +17,10 @@ import OrderTicket from './OrderTicket.vue';
 import BankSettingsModal from './BankSettingsModal.vue';
 import PaymentModal from './PaymentModal.vue';
 import ReceiptModal, { type StoreInfo } from './ReceiptModal.vue';
+import BillMenuItem from './BillMenuItem.vue';
+import SplitBillDialog from './SplitBillDialog.vue';
+import MergeBillsDialog from './MergeBillsDialog.vue';
+import TransferTableDialog from './TransferTableDialog.vue';
 
 export type PosMode = 'floor' | 'fast_sale';
 
@@ -192,6 +196,69 @@ function handlePaymentComplete(completedBill: BillDoc) {
   isReceiptModalOpen.value = true;
   emit('payment-complete', completedBill);
 }
+
+// ─── M5: Split / Merge / Transfer ───────────────────────────────────────────
+
+const isSplitDialogOpen = ref(false);
+const isMergeDialogOpen = ref(false);
+const isTransferDialogOpen = ref(false);
+
+function openSplitDialog() {
+  isSplitDialogOpen.value = true;
+}
+
+function openMergeDialog() {
+  isMergeDialogOpen.value = true;
+}
+
+function openTransferDialog() {
+  isTransferDialogOpen.value = true;
+}
+
+/**
+ * M5 split/merge/transfer actions are delegated to the M4 repository methods.
+ * The dialogs report the user's selection back through their confirm events;
+ * the parent (PosTerminal) owns the repository and applies the change.
+ */
+function handleSplitDone() {
+  isSplitDialogOpen.value = false;
+  emit('print-draft');
+}
+
+function handleMergeDone() {
+  isMergeDialogOpen.value = false;
+  emit('print-draft');
+}
+
+function handleTransferDone() {
+  isTransferDialogOpen.value = false;
+  emit('print-draft');
+}
+
+/**
+ * Danh sách bàn hiện có, nạp từ repository để phục vụ dialog chuyển bàn.
+ * Lỗi nạp (ví dụ chưa có bàn nào) được bỏ qua có chủ ý — dialog vẫn mở được.
+ */
+const floorTables = ref<TableDoc[]>([]);
+
+async function loadFloorTables() {
+  try {
+    const { tables } = await orderRepository.getAreasAndTables(props.branchId);
+    floorTables.value = tables;
+  } catch {
+    floorTables.value = [];
+  }
+}
+
+watch(() => props.branchId, () => { loadFloorTables(); }, { immediate: true });
+
+/**
+ * PosTerminal chỉ nhận một `bill` duy nhất qua props. Danh sách hoá đơn
+ * trong phiên và các hoá đơn khác suy ra từ bill đó — khi nào có nhiều
+ * hoá đơn trên cùng phiên thì mở rộng props tại đây.
+ */
+const billsInSession = computed<BillDoc[]>(() => (props.bill ? [props.bill] : []));
+const otherBillsInSession = computed<BillDoc[]>(() => []);
 
 defineExpose({
   orderRepository,
@@ -414,6 +481,14 @@ defineExpose({
             :table="table"
             :table-name="tableName"
           >
+            <BillMenuItem
+              v-if="bill"
+              :bill="bill"
+              data-test="bill-menu-item"
+              @split="openSplitDialog"
+              @merge-bills="openMergeDialog"
+              @transfer-table="openTransferDialog"
+            />
             <OrderTicket
               v-if="bill"
               :bill="bill"
@@ -468,6 +543,35 @@ defineExpose({
       :store-info="storeInfo"
       :bank-account="currentBankAccount"
       data-test="receipt-modal"
+    />
+
+    <!-- M5: Chia hoá đơn (theo món / đều / theo ghế) -->
+    <SplitBillDialog
+      v-if="bill"
+      :bill="bill"
+      :open="isSplitDialogOpen"
+      @split-done="handleSplitDone"
+      @close="isSplitDialogOpen = false"
+    />
+
+    <!-- M5: Gộp hoá đơn -->
+    <MergeBillsDialog
+      :bills="billsInSession"
+      :open="isMergeDialogOpen"
+      @merge-done="handleMergeDone"
+      @close="isMergeDialogOpen = false"
+    />
+
+    <!-- M5: Chuyển bàn -->
+    <TransferTableDialog
+      v-if="session && bill"
+      :session="session"
+      :tables="floorTables"
+      :current-bill="bill"
+      :other-bills="otherBillsInSession"
+      :open="isTransferDialogOpen"
+      @transfer-done="handleTransferDone"
+      @close="isTransferDialogOpen = false"
     />
   </div>
 </template>
