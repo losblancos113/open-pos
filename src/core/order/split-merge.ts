@@ -249,15 +249,15 @@ export function splitEvenly(
   const src = cloneBill(sourceBill);
 
   // Rebuild source bill with proportional quantities (first allocation)
+  // Use Math.floor to ensure rebuiltMinor <= original total, so remainder flows to targets
   let rebuiltMinor = 0;
   const rebuiltLines: OrderLineItem[] = [];
   for (const line of sourceBill.lines) {
     if (line.status === 'voided') continue;
     const lineTotal = calculateLineTotalRaw(line);
-    const ratio = sourceBill.total.minor > 0 ? allocations[0]!.minor / sourceBill.total.minor : 0;
     const newQty = line.qty; // keep qty, adjust price proportionally
     const proportionalUnitPrice = lineTotal > 0
-      ? Math.round((line.unitPriceSnapshot.minor * allocations[0]!.minor) / sourceBill.total.minor)
+      ? Math.floor((line.unitPriceSnapshot.minor * allocations[0]!.minor) / sourceBill.total.minor)
       : 0;
     const newLine: OrderLineItem = {
       ...cloneLine(line),
@@ -267,6 +267,13 @@ export function splitEvenly(
     };
     rebuiltLines.push(newLine);
     rebuiltMinor += calculateLineTotalRaw(newLine);
+  }
+  // Apply any rounding shortfall to the last line so source is as close to allocation[0] as possible
+  const sourceShortfall = allocations[0]!.minor - rebuiltMinor;
+  if (sourceShortfall !== 0 && rebuiltLines.length > 0) {
+    const last = rebuiltLines[rebuiltLines.length - 1]!;
+    last.unitPriceSnapshot = money(last.unitPriceSnapshot.minor + sourceShortfall, currency);
+    rebuiltMinor += sourceShortfall;
   }
   src.lines = rebuiltLines;
   recalculateBillInPlace(src);
