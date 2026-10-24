@@ -366,6 +366,7 @@
       "byItem": "Split by Item",
       "evenly": "Split Evenly",
       "bySeat": "Split by Seat",
+      "parts": "Number of parts",
       "merge": "Merge Bills",
       "transfer": "Transfer Table",
       "moveLine": "Move Line",
