@@ -360,6 +360,20 @@
       "phone": "Phone",
       "address": "Address",
       "fastSale": "Fast Sale"
+    },
+    "split": {
+      "title": "Split Bill",
+      "byItem": "Split by Item",
+      "evenly": "Split Evenly",
+      "bySeat": "Split by Seat",
+      "merge": "Merge Bills",
+      "transfer": "Transfer Table",
+      "moveLine": "Move Line",
+      "confirm": "Confirm",
+      "sourceBill": "Source Bill",
+      "targetBill": "Target Bill",
+      "lineMoved": "Moved to another bill",
+      "reason": "Transfer reason"
     }
   }
 }

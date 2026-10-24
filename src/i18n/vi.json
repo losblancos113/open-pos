@@ -360,6 +360,20 @@
       "phone": "Điện thoại",
       "address": "Địa chỉ",
       "fastSale": "Bán mang về"
+    },
+    "split": {
+      "title": "Chia hoá đơn",
+      "byItem": "Chia theo món",
+      "evenly": "Chia đều",
+      "bySeat": "Chia theo ghế",
+      "merge": "Gộp hoá đơn",
+      "transfer": "Chuyển bàn",
+      "moveLine": "Chuyển món",
+      "confirm": "Xác nhận",
+      "sourceBill": "Hoá đơn gốc",
+      "targetBill": "Hoá đơn mới",
+      "lineMoved": "Đã chuyển sang hoá đơn khác",
+      "reason": "Lý do chuyển bàn"
     }
   }
 }

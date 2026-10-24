@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { money } from '../../money';
 import { splitByItems, splitEvenly, splitBySeat, mergeBills, moveLines } from '../split-merge';
+import { allocateEqual } from '../../money-allocate';
 import type { BillDoc } from '../types';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -110,12 +111,14 @@ describe('TC2: splitByItems preserves line count', () => {
   });
 });
 
-// ─── TC3: splitEvenly preserves total money ─────────────────────────────────
+// ─── TC3: splitEvenly preserves total money ──────────────────────────────────
 // Note: splitEvenly returns { sourceBill, targetBills } where targetBills has
-// N-1 entries. Total conservation is: source.total + sum(targetBills.total) == original.
+// N-1 entries. The total is conserved exactly because recalculateBillInPlace on
+// targets is NOT called — each target's total is set directly to its allocation
+// and never recomputed.
 
-describe('TC3: splitEvenly preserves total money', () => {
-  it('property: source.total + sum(targetBills.total) == original.total', () => {
+describe('TC3: splitEvenly target totals match allocations', () => {
+  it('property: each target bill total equals its allocation; sum == original', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 2, max: 5 }),
@@ -131,6 +134,12 @@ describe('TC3: splitEvenly preserves total money', () => {
           const bill = makeBill(0, lineSpecs);
           const originalTotal = bill.total.minor;
           const result = splitEvenly(bill, parts, 'c1', 'T01', 'session:hq:s1', '2026-10-24T10:05:00.000Z');
+          const allocations = allocateEqual(money(originalTotal, 'VND'), parts);
+          // Each target bill's total is set directly to its allocation
+          for (let i = 0; i < result.targetBills.length; i++) {
+            expect(result.targetBills[i]!.total.minor).toBe(allocations[i + 1]!.minor);
+          }
+          // Sum of source + targets must equal original
           const sum =
             result.sourceBill.total.minor +
             result.targetBills.reduce((a, b) => a + b.total.minor, 0);

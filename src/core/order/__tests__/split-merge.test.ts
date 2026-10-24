@@ -178,7 +178,7 @@ describe('mergeBills', () => {
 
 describe('transferTable', () => {
   it('moves fromTableId and adds toTableId', () => {
-    const session: BillDoc = {
+    const session = {
       _id: 'session:hq:s1',
       branchId: 'hq',
       tableIds: ['table:hq:t1'],
@@ -187,23 +187,9 @@ describe('transferTable', () => {
       openedAt: '2026-10-24T10:00:00.000Z',
       openedBy: 'c1',
       billIds: [],
-      lines: [],
-      discounts: [],
-      surcharges: [],
-      taxMode: 'inclusive',
-      taxLines: [],
-      taxTotal: money(0, 'VND'),
-      subtotal: money(0, 'VND'),
-      discountTotal: money(0, 'VND'),
-      surchargeTotal: money(0, 'VND'),
-      total: money(0, 'VND'),
-      payments: [],
-      balanceRemaining: money(0, 'VND'),
-      createdAt: '2026-10-24T10:00:00.000Z',
-      updatedAt: '2026-10-24T10:00:00.000Z',
-    } as unknown as import('../types').SessionDoc;
+    } as import('../types').SessionDoc;
     const { session: next } = transferTable(
-      session as import('../types').SessionDoc,
+      session,
       'table:hq:t1',
       'table:hq:t2',
       'c1',

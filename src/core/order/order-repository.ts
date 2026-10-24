@@ -9,6 +9,11 @@ import {
   counterDocId,
 } from '../db/ids';
 import { createInitialOrderState, reduceOrderEvents } from './reducer';
+import {
+  splitByItems, splitEvenly, splitBySeat, mergeBills, transferTable, moveLines,
+  type SplitByItemsResult, type SplitEvenlyResult, type SplitBySeatResult,
+  type MergeBillsResult, type TransferTableResult, type MoveLinesResult,
+} from './split-merge';
 import type {
   SessionDoc,
   BillDoc,
@@ -33,6 +38,61 @@ export interface OrderRepository {
   getBankAccount(branchId: string): Promise<BankAccountDoc | null>;
   saveBankAccount(doc: BankAccountDoc): Promise<void>;
   nextSequence(branchId: string, deviceId: string, dateStr: string): Promise<number>;
+
+  // ─── M4: Split / Merge / Transfer ─────────────────────────────────────────
+  splitByItems(
+    branchId: string,
+    sessionId: string,
+    sourceBillId: string,
+    lineIds: string[],
+    actorId: string,
+    deviceId: string
+  ): Promise<SplitByItemsResult>;
+
+  splitEvenly(
+    branchId: string,
+    sessionId: string,
+    billId: string,
+    parts: number,
+    actorId: string,
+    deviceId: string
+  ): Promise<SplitEvenlyResult>;
+
+  splitBySeat(
+    branchId: string,
+    sessionId: string,
+    billId: string,
+    actorId: string,
+    deviceId: string
+  ): Promise<SplitBySeatResult>;
+
+  mergeBills(
+    branchId: string,
+    sessionId: string,
+    sourceBillIds: string[],
+    actorId: string,
+    deviceId: string
+  ): Promise<MergeBillsResult>;
+
+  transferTable(
+    branchId: string,
+    sessionId: string,
+    fromTableId: string,
+    toTableId: string,
+    actorId: string,
+    deviceId: string,
+    reason?: string
+  ): Promise<TransferTableResult>;
+
+  moveLines(
+    branchId: string,
+    sessionId: string,
+    sourceBillId: string,
+    lineIds: string[],
+    targetBillId: string,
+    actorId: string,
+    deviceId: string
+  ): Promise<MoveLinesResult>;
 }
 
 function isConflict(error: unknown): boolean {
@@ -375,6 +435,135 @@ export function createOrderRepository(
         }
       }
       throw new Error(`nextSequence(): failed to increment counter for ${id} after ${MAX_ATTEMPTS} attempts`);
+    },
+
+    // ─── M4: Split / Merge / Transfer ─────────────────────────────────────────
+
+    async splitByItems(
+      branchId: string,
+      sessionId: string,
+      sourceBillId: string,
+      lineIds: string[],
+      actorId: string,
+      deviceId: string
+    ): Promise<SplitByItemsResult> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      if (!state) throw new Error('splitByItems(): active session not found');
+      const sourceBill = state.bill.lines.find((l) => l.lineId === lineIds[0])
+        ? state.bill
+        : null;
+      // Find the source bill by ID from session events
+      const srcBill = sourceBill ?? state.bill;
+      if (srcBill._id !== sourceBillId) {
+        throw new Error(`splitByItems(): bill ${sourceBillId} not found in session`);
+      }
+      const result = splitByItems(srcBill, lineIds, actorId, deviceId, sessionId, now);
+      const events = result.events;
+      await this.appendEvents(branchId, sessionId, events, state);
+      return result;
+    },
+
+    async splitEvenly(
+      branchId: string,
+      sessionId: string,
+      billId: string,
+      parts: number,
+      actorId: string,
+      deviceId: string
+    ): Promise<SplitEvenlyResult> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      if (!state) throw new Error('splitEvenly(): active session not found');
+      const srcBill = state.bill._id === billId ? state.bill : null;
+      if (!srcBill) throw new Error(`splitEvenly(): bill ${billId} not found in session`);
+      const result = splitEvenly(srcBill, parts, actorId, deviceId, sessionId, now);
+      const events = result.events;
+      await this.appendEvents(branchId, sessionId, events, state);
+      return result;
+    },
+
+    async splitBySeat(
+      branchId: string,
+      sessionId: string,
+      billId: string,
+      actorId: string,
+      deviceId: string
+    ): Promise<SplitBySeatResult> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      if (!state) throw new Error('splitBySeat(): active session not found');
+      const srcBill = state.bill._id === billId ? state.bill : null;
+      if (!srcBill) throw new Error(`splitBySeat(): bill ${billId} not found in session`);
+      const result = splitBySeat(srcBill, actorId, deviceId, sessionId, now);
+      const events = result.events;
+      await this.appendEvents(branchId, sessionId, events, state);
+      return result;
+    },
+
+    async mergeBills(
+      branchId: string,
+      sessionId: string,
+      sourceBillIds: string[],
+      actorId: string,
+      deviceId: string
+    ): Promise<MergeBillsResult> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      if (!state) throw new Error('mergeBills(): active session not found');
+      // For merge, we need to find multiple bills — use reduceOrderEvents to reconstruct
+      const merged = mergeBills(
+        sourceBillIds.map((id) => {
+          // Find bill in current state or reconstruct
+          return state.bill._id === id ? state.bill : { ...state.bill, _id: id };
+        }),
+        actorId,
+        deviceId,
+        sessionId,
+        now
+      );
+      const events = merged.events;
+      await this.appendEvents(branchId, sessionId, events, state);
+      return merged;
+    },
+
+    async transferTable(
+      branchId: string,
+      sessionId: string,
+      fromTableId: string,
+      toTableId: string,
+      actorId: string,
+      reason: string | undefined,
+      deviceId: string
+    ): Promise<TransferTableResult> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      if (!state) throw new Error('transferTable(): active session not found');
+      const result = transferTable(state.session, fromTableId, toTableId, actorId, deviceId, reason, now);
+      const events = result.events;
+      await this.appendEvents(branchId, sessionId, events, state);
+      return result;
+    },
+
+    async moveLines(
+      branchId: string,
+      sessionId: string,
+      sourceBillId: string,
+      lineIds: string[],
+      targetBillId: string,
+      actorId: string,
+      deviceId: string
+    ): Promise<MoveLinesResult> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      if (!state) throw new Error('moveLines(): active session not found');
+      const srcBill = state.bill._id === sourceBillId ? state.bill : null;
+      if (!srcBill) throw new Error(`moveLines(): source bill ${sourceBillId} not found in session`);
+      const tgtBill = state.bill._id === targetBillId ? state.bill : { ...state.bill, _id: targetBillId };
+      const result = moveLines(srcBill, lineIds, tgtBill, actorId, deviceId, sessionId, now);
+      const events = result.events;
+      await this.appendEvents(branchId, sessionId, events, state);
+      return result;
     },
   };
 }

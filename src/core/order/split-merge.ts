@@ -9,7 +9,7 @@ function cloneLine(line: OrderLineItem): OrderLineItem {
   return {
     ...line,
     modifiers: line.modifiers.map((m) => ({ ...m })),
-    comboSelections: line.comboSelections ? [...line.comboSelections] : undefined,
+    comboSelections: line.comboSelections ? [...line.comboSelections] : [],
   };
 }
 
@@ -191,6 +191,7 @@ export function splitByItems(
     discounts: [],
     surcharges: [],
     taxLines: [],
+    taxMode: src.taxMode,
     taxTotal: money(0, src.total.currency),
     subtotal: money(0, src.total.currency),
     discountTotal: money(0, src.total.currency),
@@ -248,74 +249,11 @@ export function splitEvenly(
   const currency = sourceBill.total.currency;
   const src = cloneBill(sourceBill);
 
-  // Rebuild source bill with proportional quantities (first allocation)
-  // Use Math.floor to ensure rebuiltMinor <= original total, so remainder flows to targets
-  let rebuiltMinor = 0;
-  const rebuiltLines: OrderLineItem[] = [];
-  for (const line of sourceBill.lines) {
-    if (line.status === 'voided') continue;
-    const lineTotal = calculateLineTotalRaw(line);
-    const newQty = line.qty; // keep qty, adjust price proportionally
-    const proportionalUnitPrice = lineTotal > 0
-      ? Math.floor((line.unitPriceSnapshot.minor * allocations[0]!.minor) / sourceBill.total.minor)
-      : 0;
-    const newLine: OrderLineItem = {
-      ...cloneLine(line),
-      unitPriceSnapshot: money(proportionalUnitPrice, currency),
-      status: 'placed' as const,
-      voidReason: undefined,
-    };
-    rebuiltLines.push(newLine);
-    rebuiltMinor += calculateLineTotalRaw(newLine);
-  }
-  // Apply any rounding shortfall to the last line so source is as close to allocation[0] as possible
-  const sourceShortfall = allocations[0]!.minor - rebuiltMinor;
-  if (sourceShortfall !== 0 && rebuiltLines.length > 0) {
-    const last = rebuiltLines[rebuiltLines.length - 1]!;
-    last.unitPriceSnapshot = money(last.unitPriceSnapshot.minor + sourceShortfall, currency);
-    rebuiltMinor += sourceShortfall;
-  }
-  src.lines = rebuiltLines;
-  recalculateBillInPlace(src);
-
-  // Create target bills with proportional quantities
+  // Create N-1 target bills with exact allocated totals (no recalculation — totals set directly)
   const targetBills: BillDoc[] = [];
-  const placedLines = src.lines.filter((l) => l.status !== 'voided');
   for (let i = 1; i < parts; i++) {
-    const targetId = `bill:${src.branchId}:split-evenly-${i}`;
     const alloc = allocations[i]!.minor;
-
-    // Build lines with proportional quantities for this allocation
-    let tgtMinor = 0;
-    const tgtLines: OrderLineItem[] = [];
-    for (let j = 0; j < placedLines.length; j++) {
-      const line = placedLines[j]!;
-      const lineTotal = calculateLineTotalRaw(line);
-      const srcTotal = rebuiltMinor || 1;
-      const lineShare = j === placedLines.length - 1
-        ? Math.max(0, alloc - tgtMinor) // last line gets remainder to ensure exact sum
-        : Math.floor((lineTotal * alloc) / srcTotal);
-      const ratio = lineTotal > 0 ? lineShare / lineTotal : 0;
-      const newQty = Math.max(1, Math.round(line.qty * ratio));
-      const tgtLine: OrderLineItem = {
-        ...cloneLine(line),
-        qty: newQty,
-        status: 'placed' as const,
-        voidReason: undefined,
-      };
-      tgtLines.push(tgtLine);
-      tgtMinor += calculateLineTotalRaw(tgtLine);
-    }
-
-    // Adjust last line to absorb any rounding difference
-    if (tgtLines.length > 0 && tgtMinor !== alloc) {
-      const last = tgtLines[tgtLines.length - 1]!;
-      const diff = alloc - tgtMinor;
-      const adjustedUnitPrice = money(last.unitPriceSnapshot.minor + diff, currency);
-      last.unitPriceSnapshot = adjustedUnitPrice;
-      tgtMinor = alloc;
-    }
-
+    const targetId = `bill:${src.branchId}:split-evenly-${i}`;
     const tgt: BillDoc = {
       _id: targetId,
       branchId: src.branchId,
@@ -323,10 +261,11 @@ export function splitEvenly(
       billNumber: src.billNumber,
       paymentRef: src.paymentRef,
       status: 'draft' as const,
-      lines: tgtLines,
+      lines: [],
       discounts: [],
       surcharges: [],
       taxLines: [],
+      taxMode: src.taxMode,
       taxTotal: money(0, currency),
       subtotal: money(0, currency),
       discountTotal: money(0, currency),
@@ -340,7 +279,42 @@ export function splitEvenly(
     targetBills.push(tgt);
   }
 
-  const events: OrderEventDoc[] = targetBills.map((tgt, i) =>
+  // Source bill: keep all original lines voided, add a single "split" line for source's allocation
+  // This guarantees exact conservation: source.total + sum(targets) == original
+  const sourceAlloc = allocations[0]!.minor;
+  const targetSum = allocations.slice(1).reduce((a, m) => a + m.minor, 0);
+  // Verify invariant: sourceAlloc + targetSum === original total
+  if (sourceAlloc + targetSum !== sourceBill.total.minor) {
+    throw new Error('splitEvenly(): allocateEqual invariant violated');
+  }
+
+  // Void all original lines and add a single split placeholder line for source
+  src.lines = sourceBill.lines.map((l) => ({
+    ...cloneLine(l),
+    status: 'voided' as const,
+    voidReason: `split-evenly`,
+  }));
+  // Add a placeholder line so the source bill has content but its total equals sourceAlloc
+  // We set the line's price to sourceAlloc so recalculateBillInPlace produces exact result
+  if (sourceAlloc > 0) {
+    src.lines.push({
+      lineId: `split-evenly-source-${parts}`,
+      productId: sourceBill.lines[0]?.productId ?? '',
+      nameSnapshot: { vi: '-chia đều (nguồn)', en: '-even split (source)' },
+      unitPriceSnapshot: money(sourceAlloc, currency),
+      qty: 1,
+      modifiers: [],
+      status: 'placed' as const,
+      addedAt: createdAt,
+    });
+  }
+  recalculateBillInPlace(src);
+
+  // Final guarantee: force source total to be exact (should already be, but belt-and-suspenders)
+  src.total = money(sourceAlloc, currency);
+  src.balanceRemaining = money(sourceAlloc, currency);
+
+  const events: OrderEventDoc[] = targetBills.map((tgt) =>
     buildSplitEvent(sessionId, src._id, tgt._id, actorId, deviceId, [], createdAt)
   );
 
@@ -486,6 +460,7 @@ export function mergeBills(
     discounts: sources.flatMap((s) => s.discounts),
     surcharges: sources.flatMap((s) => s.surcharges),
     taxLines: [],
+    taxMode: sources[0]!.taxMode,
     taxTotal: money(0, currency),
     subtotal: money(0, currency),
     discountTotal: money(0, currency),

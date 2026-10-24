@@ -443,6 +443,36 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
       break;
     }
 
+    case 'BILL_SPLIT': {
+      // Void selected lines in the current bill
+      const movedLineIds = new Set<string>(payload.movedLineIds ?? []);
+      for (const line of nextBill.lines) {
+        if (movedLineIds.has(line.lineId)) {
+          line.status = 'voided';
+          line.voidReason = 'split';
+        }
+      }
+      nextBill.updatedAt = event.createdAt;
+      break;
+    }
+
+    case 'BILL_MERGED': {
+      // Mark the current bill as voided — it has been merged into another
+      nextBill.status = 'voided';
+      nextBill.updatedAt = event.createdAt;
+      break;
+    }
+
+    case 'TABLE_TRANSFERRED': {
+      const fromTableId = payload.fromTableId as string;
+      const toTableId = payload.toTableId as string;
+      nextSession.tableIds = nextSession.tableIds.filter((t) => t !== fromTableId);
+      if (!nextSession.tableIds.includes(toTableId)) {
+        nextSession.tableIds.push(toTableId);
+      }
+      break;
+    }
+
     default:
       break;
   }
