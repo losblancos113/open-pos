@@ -90,3 +90,28 @@ export function userDocId(userId: string): string {
   return `user:${requireSegment(userId, 'userId')}`;
 }
 
+/** `_id` của một nguyên liệu tồn kho trong hệ thống (M6b). */
+export function inventoryItemDocId(itemId: string): string {
+  return `inventory_item:${requireSegment(itemId, 'itemId')}`;
+}
+
+/** `_id` của một công thức định lượng (recipe / BOM) cho món, biến thể hoặc topping (M6b). */
+export function inventoryRecipeDocId(targetType: 'product' | 'variant' | 'modifier', targetId: string): string {
+  return `inventory_recipe:${requireSegment(targetType, 'targetType')}:${requireSegment(targetId, 'targetId')}`;
+}
+
+/** `_id` của một bản ghi xuất/nhập kho (append-only movement) tại một chi nhánh (M6b). */
+export function inventoryMovementDocId(branchId: string, movementId: string): string {
+  return `inventory_movement:${requireSegment(branchId, 'branchId')}:${requireSegment(movementId, 'movementId')}`;
+}
+
+/** `_id` của một nhà cung cấp nguyên liệu (M6b). */
+export function supplierDocId(supplierId: string): string {
+  return `supplier:${requireSegment(supplierId, 'supplierId')}`;
+}
+
+/** `_id` của một phiếu nhập hàng tại chi nhánh (M6b). */
+export function purchaseOrderDocId(branchId: string, poId: string): string {
+  return `purchase_order:${requireSegment(branchId, 'branchId')}:${requireSegment(poId, 'poId')}`;
+}
+
