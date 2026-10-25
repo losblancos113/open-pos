@@ -12,7 +12,6 @@ const props = withDefaults(
   }>(),
   {
     open: false,
-    branchRepo: undefined,
   },
 );
 

@@ -7,6 +7,7 @@ import { createMemoryAdapter } from '@/core/db/memory-adapter';
 import { createBranchRepository } from '@/core/branch/branch-repository';
 import { money } from '@/core/money';
 import type { BillDoc } from '@/core/order/types';
+import type { DocEnvelope } from '@/core/db/envelope';
 import { createI18n } from 'vue-i18n';
 import viMessages from '@/i18n/vi.json';
 
@@ -24,9 +25,11 @@ describe('CrossBranchReportModal.vue', () => {
     const branchRepo = createBranchRepository(adapter);
     await branchRepo.createBranch({ code: 'HQ', name: 'Trụ sở chính' });
 
-    const bill: BillDoc = {
+    const bill: BillDoc & DocEnvelope = {
       _id: 'bill:hq:b1',
       branchId: 'hq',
+      docType: 'bill',
+      schemaVersion: 1,
       sessionId: 'session:hq:s1',
       billNumber: 'HQ-001',
       paymentRef: 'P1',

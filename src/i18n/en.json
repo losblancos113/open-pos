@@ -10,6 +10,7 @@
     "edit": "Edit",
     "actions": "Actions",
     "confirm": "Confirm",
+    "close": "Close",
     "loading": "Loading…",
     "error": "Something went wrong"
   },
@@ -382,5 +383,36 @@
       "transferSuccess": "Table transferred successfully",
       "transferError": "Could not transfer table. Please try again."
     }
+  },
+  "branch": {
+    "title": "Branch",
+    "switch": "Switch Branch",
+    "manage": "Manage Branches",
+    "code": "Branch Code",
+    "name": "Branch Name",
+    "address": "Address",
+    "phone": "Phone Number",
+    "add": "Add Branch",
+    "statusActive": "Active",
+    "statusInactive": "Paused"
+  },
+  "auth": {
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "enterPin": "Enter PIN",
+    "invalidPin": "Incorrect PIN",
+    "lockedOut": "Account temporarily locked due to too many failed attempts",
+    "role": {
+      "owner": "Owner",
+      "manager": "Manager",
+      "cashier": "Cashier",
+      "staff": "Staff"
+    }
+  },
+  "report": {
+    "crossBranch": "Cross-Branch Report",
+    "consolidatedRevenue": "Consolidated Chain Revenue",
+    "totalOrders": "Total Chain Orders",
+    "averageTicket": "Average Order Value"
   }
 }

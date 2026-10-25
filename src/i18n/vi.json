@@ -10,6 +10,7 @@
     "edit": "Sửa",
     "actions": "Thao tác",
     "confirm": "Xác nhận",
+    "close": "Đóng",
     "loading": "Đang tải…",
     "error": "Đã xảy ra lỗi"
   },
@@ -382,5 +383,36 @@
       "transferSuccess": "Đã chuyển bàn thành công",
       "transferError": "Không thể chuyển bàn. Vui lòng thử lại."
     }
+  },
+  "branch": {
+    "title": "Chi nhánh",
+    "switch": "Chuyển chi nhánh",
+    "manage": "Quản lý chi nhánh",
+    "code": "Mã chi nhánh",
+    "name": "Tên chi nhánh",
+    "address": "Địa chỉ",
+    "phone": "Số điện thoại",
+    "add": "Thêm chi nhánh",
+    "statusActive": "Đang hoạt động",
+    "statusInactive": "Tạm dừng"
+  },
+  "auth": {
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "enterPin": "Nhập mã PIN",
+    "invalidPin": "Mã PIN không đúng",
+    "lockedOut": "Tài khoản bị khoá tạm thời do nhập sai quá nhiều lần",
+    "role": {
+      "owner": "Chủ nhà hàng",
+      "manager": "Quản lý",
+      "cashier": "Thu ngân",
+      "staff": "Nhân viên"
+    }
+  },
+  "report": {
+    "crossBranch": "Báo cáo chuỗi chi nhánh",
+    "consolidatedRevenue": "Tổng doanh thu chuỗi",
+    "totalOrders": "Tổng đơn hàng",
+    "averageTicket": "Giá trị trung bình đơn"
   }
 }

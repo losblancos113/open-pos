@@ -37,20 +37,20 @@ export async function generateCrossBranchReport(
 
   const timestamp = options.now ?? new Date().toISOString();
   const branches = await branchRepo.listBranches({ includeInactive: true });
-  const allDocs = await adapter.allDocs({ branchId: undefined });
+  const allDocs = await adapter.allDocs();
 
-  const paidBills = allDocs.filter((doc): doc is BillDoc => {
-    if (doc.deletedAt !== undefined) return false;
+  const paidBills: BillDoc[] = [];
+  for (const doc of allDocs) {
+    if (doc.deletedAt !== undefined) continue;
     if (doc._id.startsWith('bill:') || (doc as any).docType === 'bill') {
       const b = doc as unknown as BillDoc;
-      if (b.status !== 'paid') return false;
+      if (b.status !== 'paid') continue;
       const paidTime = b.paidAt ?? b.createdAt;
-      if (options.dateRange?.start && paidTime < options.dateRange.start) return false;
-      if (options.dateRange?.end && paidTime > options.dateRange.end) return false;
-      return true;
+      if (options.dateRange?.start && paidTime < options.dateRange.start) continue;
+      if (options.dateRange?.end && paidTime > options.dateRange.end) continue;
+      paidBills.push(b);
     }
-    return false;
-  });
+  }
 
   const branchSummaries: BranchSummaryReport[] = [];
   let consolidated = money(0, 'VND');

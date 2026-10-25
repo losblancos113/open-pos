@@ -95,12 +95,10 @@ function sha256(data: Uint8Array): Uint8Array {
 
 function hmacSha256(keyStr: string, msgStr: string): Uint8Array {
   const enc = new TextEncoder();
-  let key = enc.encode(keyStr);
+  const rawKey = enc.encode(keyStr);
   const msg = enc.encode(msgStr);
 
-  if (key.length > 64) {
-    key = sha256(key);
-  }
+  const key: Uint8Array = rawKey.length > 64 ? sha256(rawKey) : rawKey;
   const paddedKey = new Uint8Array(64);
   paddedKey.set(key);
 

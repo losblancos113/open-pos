@@ -4,11 +4,14 @@ import { createBranchRepository } from '../../branch/branch-repository';
 import { generateCrossBranchReport } from '../cross-branch';
 import { money } from '../../money';
 import type { BillDoc } from '../../order/types';
+import type { DocEnvelope } from '../../db/envelope';
 
-function makePaidBill(branchId: string, id: string, totalMinor: number): BillDoc {
+function makePaidBill(branchId: string, id: string, totalMinor: number): BillDoc & DocEnvelope {
   return {
     _id: `bill:${branchId}:${id}`,
     branchId,
+    docType: 'bill',
+    schemaVersion: 1,
     sessionId: `session:${branchId}:s1`,
     billNumber: `${branchId}-0001`,
     paymentRef: 'POS1',

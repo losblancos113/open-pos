@@ -56,6 +56,7 @@ export function createBranchRepository(
 
       const doc: BranchDoc = {
         ...envelope,
+        branchId: GLOBAL_BRANCH_ID,
         code,
         name,
         address: input.address?.trim() ?? '',
