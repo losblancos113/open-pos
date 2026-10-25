@@ -85,3 +85,8 @@ export function counterDocId(branchId: string, deviceId: string, dateStr: string
   return `counter:${requireSegment(branchId, 'branchId')}:${requireSegment(deviceId, 'deviceId')}:${requireSegment(dateStr, 'dateStr')}`;
 }
 
+/** `_id` của một tài khoản người dùng trong hệ thống (M6a). */
+export function userDocId(userId: string): string {
+  return `user:${requireSegment(userId, 'userId')}`;
+}
+
