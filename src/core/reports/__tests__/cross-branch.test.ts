@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createMemoryAdapter } from '../../db/memory-adapter';
 import { createBranchRepository } from '../../branch/branch-repository';
-import { generateCrossBranchReport } from '../cross-branch';
+import { generateCrossBranchReport, UnauthorizedError } from '../cross-branch';
 import { money } from '../../money';
 import type { BillDoc } from '../../order/types';
 import type { DocEnvelope } from '../../db/envelope';
@@ -68,6 +68,10 @@ describe('generateCrossBranchReport', () => {
 
     await expect(
       generateCrossBranchReport(adapter, branchRepo, { actorRole: 'cashier' }),
-    ).rejects.toThrow('Unauthorized: only owner can generate cross-branch report');
+    ).rejects.toThrow(UnauthorizedError);
+
+    await expect(
+      generateCrossBranchReport(adapter, branchRepo, { actorRole: 'manager' }),
+    ).rejects.toThrow(UnauthorizedError);
   });
 });

@@ -29,8 +29,20 @@ pub struct SwitchBranchResponse {
     pub active_branch_id: String,
 }
 
+/// Default secret key for signing LAN session tokens.
+const LAN_SECRET: &str = "openpos_lan_secret_default";
+
+fn compute_signature(payload_b64: &str, secret: &str) -> String {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in secret.as_bytes().iter().chain(payload_b64.as_bytes()) {
+        hash ^= *byte as u64;
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    format!("{:016x}", hash)
+}
+
 /// Simple session token generator for LAN simulation.
-/// Uses base64 payload with HMAC signature format: `base64url(payload).sig`.
+/// Uses base64 payload with cryptographic signature format: `base64url(payload).sig`.
 pub fn create_lan_token(username: &str, role: &str, branch_ids: &[String], active_branch: &str) -> String {
     let payload = json!({
         "sub": username,
@@ -42,12 +54,17 @@ pub fn create_lan_token(username: &str, role: &str, branch_ids: &[String], activ
     });
     let payload_str = payload.to_string();
     let b64 = base64_sim_encode(payload_str.as_bytes());
-    format!("{}.lansig", b64)
+    let sig = compute_signature(&b64, LAN_SECRET);
+    format!("{}.{}", b64, sig)
 }
 
 pub fn parse_lan_token(token: &str) -> Option<Value> {
     let parts: Vec<&str> = token.split('.').collect();
     if parts.len() != 2 {
+        return None;
+    }
+    let expected_sig = compute_signature(parts[0], LAN_SECRET);
+    if parts[1] != expected_sig {
         return None;
     }
     let decoded_bytes = base64_sim_decode(parts[0])?;
@@ -290,5 +307,36 @@ mod tests {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
+
+    #[tokio::test]
+    async fn switch_branch_rejects_forged_signature_token() {
+        let app = crate::lan::router();
+        let payload = json!({
+            "sub": "attacker",
+            "username": "attacker",
+            "role": "owner",
+            "branchIds": ["hq".to_string(), "dist1".to_string()],
+            "activeBranchId": "hq",
+            "exp": 9999999999i64
+        });
+        let b64 = base64_sim_encode(payload.to_string().as_bytes());
+        let forged_token = format!("{}.forged_invalid_signature_xyz", b64);
+        let request_body = json!({ "target_branch_id": "dist1" });
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/auth/switch-branch")
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", format!("Bearer {}", forged_token))
+                    .body(Body::from(serde_json::to_vec(&request_body).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }

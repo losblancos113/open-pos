@@ -249,14 +249,21 @@ export function checkPinRateLimit(
 }
 
 export function recordFailedPinAttempt(userId: string, nowEpochMs: number = Date.now()): void {
-  const entry = pinAttempts.get(userId) ?? { attempts: 0, lockedUntilMs: 0 };
-  entry.attempts += 1;
+  let entry = pinAttempts.get(userId);
 
-  if (entry.attempts >= 5) {
-    entry.lockedUntilMs = nowEpochMs + 5 * 60 * 1000; // 5 minute lockout
+  // If lockout expired, reset attempts so user gets a fresh window
+  if (entry && entry.lockedUntilMs > 0 && entry.lockedUntilMs <= nowEpochMs) {
+    entry = { attempts: 0, lockedUntilMs: 0 };
   }
 
-  pinAttempts.set(userId, entry);
+  const current = entry ?? { attempts: 0, lockedUntilMs: 0 };
+  current.attempts += 1;
+
+  if (current.attempts >= 5) {
+    current.lockedUntilMs = nowEpochMs + 5 * 60 * 1000; // 5 minute lockout
+  }
+
+  pinAttempts.set(userId, current);
 }
 
 export function resetPinAttempts(userId: string): void {

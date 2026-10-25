@@ -33,6 +33,23 @@ const cashierHq: UserDoc = {
 
 const tokenHq = generateSessionToken(cashierHq, 'hq', HUB_SECRET, 3600);
 
+const ownerUser: UserDoc = {
+  _id: 'user:admin',
+  docType: 'user',
+  branchId: GLOBAL_BRANCH_ID,
+  username: 'admin',
+  displayName: 'Admin Owner',
+  pinHash: hashPin('8888'),
+  role: 'owner',
+  branchIds: ['hq', 'dist1'],
+  isActive: true,
+  schemaVersion: 1,
+  createdAt: '2026-10-25T00:00:00Z',
+  updatedAt: '2026-10-25T00:00:00Z',
+};
+
+const tokenOwner = generateSessionToken(ownerUser, 'dist1', HUB_SECRET, 3600);
+
 function waitForHubUrl(proc: ChildProcess, timeoutMs = 15000): Promise<string> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('hub did not report URL in time')), timeoutMs);
@@ -120,11 +137,22 @@ describe('Sidecar Bearer Auth & Branch Isolation', () => {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${tokenHq}`,
+        Authorization: `Bearer ${tokenOwner}`,
       },
       body: JSON.stringify({ _id: 'doc_global', branchId: '*', title: 'Global Doc' }),
     });
     expect(resGlobal.status).toBe(201);
+
+    // Seed doc_dist1 using owner token
+    const resDist1 = await fetch(`${hubUrl}/test_db/doc_dist1`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenOwner}`,
+      },
+      body: JSON.stringify({ _id: 'doc_dist1', branchId: 'dist1', title: 'Dist1 Doc' }),
+    });
+    expect(resDist1.status).toBe(201);
   });
 
   it('Review Focus 2: filtered changes feed only emits active branch and global docs', async () => {
@@ -138,5 +166,45 @@ describe('Sidecar Bearer Auth & Branch Isolation', () => {
     expect(docIds).toContain('doc_hq');
     expect(docIds).toContain('doc_global');
     expect(docIds).not.toContain('doc_dist1');
+  });
+
+  it('Finding 1: rejects unauthenticated DELETE and cross-branch DELETE', async () => {
+    const getRes = await fetch(`${hubUrl}/test_db/doc_dist1`, {
+      headers: { Authorization: `Bearer ${tokenOwner}` },
+    });
+    const docDist1 = await getRes.json();
+
+    // Unauthenticated delete
+    const resUnauth = await fetch(`${hubUrl}/test_db/doc_dist1?rev=${docDist1._rev}`, {
+      method: 'DELETE',
+    });
+    expect(resUnauth.status).toBe(401);
+
+    // Cross-branch delete with HQ cashier token against doc_dist1
+    const resForbidden = await fetch(`${hubUrl}/test_db/doc_dist1?rev=${docDist1._rev}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${tokenHq}` },
+    });
+    expect(resForbidden.status).toBe(403);
+  });
+
+  it('Finding 1: rejects cross-branch direct GET /:db/:id', async () => {
+    // Attempting to read another branch's doc directly by ID
+    const res = await fetch(`${hubUrl}/test_db/doc_dist1`, {
+      headers: { Authorization: `Bearer ${tokenHq}` },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('Finding 3: rejects non-owner attempting to write global document (branchId: "*")', async () => {
+    const res = await fetch(`${hubUrl}/test_db/injected_global`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tokenHq}`,
+      },
+      body: JSON.stringify({ _id: 'injected_global', branchId: '*', title: 'Pollution' }),
+    });
+    expect(res.status).toBe(403);
   });
 });

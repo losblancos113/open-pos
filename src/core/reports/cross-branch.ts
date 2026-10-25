@@ -26,13 +26,20 @@ export interface GenerateReportOptions {
   now?: string;
 }
 
+export class UnauthorizedError extends Error {
+  constructor(message = 'Unauthorized: only owner can generate cross-branch report') {
+    super(message);
+    this.name = 'UnauthorizedError';
+  }
+}
+
 export async function generateCrossBranchReport(
   adapter: DbAdapter,
   branchRepo: BranchRepository,
   options: GenerateReportOptions = {},
 ): Promise<CrossBranchReport> {
   if (options.actorRole !== 'owner') {
-    throw new Error('Unauthorized: only owner can generate cross-branch report');
+    throw new UnauthorizedError();
   }
 
   const timestamp = options.now ?? new Date().toISOString();

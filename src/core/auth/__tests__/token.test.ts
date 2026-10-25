@@ -80,5 +80,10 @@ describe('Auth Token & PIN Security', () => {
     // After 5 minutes (300,000ms), lockout expires
     const checkExpired = checkPinRateLimit('cashier1', now + 301000);
     expect(checkExpired.allowed).toBe(true);
+
+    // Finding 4: After lockout expires, attempts should reset so a single new failure does not immediately relock
+    recordFailedPinAttempt('cashier1', now + 301000);
+    const checkAfterOneFailure = checkPinRateLimit('cashier1', now + 301000);
+    expect(checkAfterOneFailure.allowed).toBe(true);
   });
 });

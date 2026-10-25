@@ -55,10 +55,10 @@ describe('useActiveBranch', () => {
     const { activeBranchId, currentBranch, switchBranch, init } = useActiveBranch(repo);
     await init();
 
-    await switchBranch('d1');
-    expect(activeBranchId.value).toBe('d1');
-    expect(currentBranch.value?.code).toBe('D1');
-    expect(localStorage.getItem('openpos_active_branch')).toBe('d1');
+    await switchBranch('dist1');
+    expect(activeBranchId.value).toBe('dist1');
+    expect(currentBranch.value?.code).toBe('DIST1');
+    expect(localStorage.getItem('openpos_active_branch')).toBe('dist1');
   });
 
   it('Review Focus 4: prevents switching to branch user is not authorized for', async () => {
@@ -90,6 +90,6 @@ describe('useActiveBranch', () => {
     const { switchBranch, init } = useActiveBranch(repo);
     await init();
 
-    await expect(switchBranch('d1')).rejects.toThrow('User is not authorized for branch "d1"');
+    await expect(switchBranch('dist1')).rejects.toThrow('User is not authorized for branch "dist1"');
   });
 });

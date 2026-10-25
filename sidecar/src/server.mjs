@@ -91,7 +91,14 @@ function authenticateRequest(req) {
 function assertBranchWriteAccess(doc, claims) {
   if (!claims || claims.role === 'owner') return;
   const docBranchId = doc && doc.branchId;
-  if (docBranchId !== '*' && docBranchId !== claims.activeBranchId) {
+  if (docBranchId === '*') {
+    const err = new Error('Only owners can create or modify global documents');
+    err.status = 403;
+    err.error = 'branch_access_denied';
+    err.reason = 'Global document writes restricted to owner';
+    throw err;
+  }
+  if (docBranchId !== claims.activeBranchId) {
     const err = new Error(
       `Cannot write document for branch "${docBranchId}" with token active for "${claims.activeBranchId}"`,
     );
@@ -328,14 +335,35 @@ app.post('/:db/_bulk_docs', async (req, res) => {
 // PouchDB replication đọc document từ hub qua `_bulk_get`.
 app.post('/:db/_bulk_get', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
     const docs = Array.isArray(req.body?.docs) ? req.body.docs : [];
+    const mustFilter = claims.role !== 'owner' && claims.activeBranchId !== '*';
+
     const results = await Promise.all(
       docs.map(async (entry) => {
         const id = entry.id;
         const rev = entry.rev;
         try {
           const doc = await db.get(id, rev ? { rev, revs: true } : { revs: true });
+          if (mustFilter) {
+            const branchId = doc && doc.branchId;
+            if (branchId !== undefined && branchId !== '*' && branchId !== claims.activeBranchId) {
+              return {
+                id,
+                docs: [
+                  {
+                    error: {
+                      id,
+                      rev: doc._rev,
+                      error: 'forbidden',
+                      reason: 'branch_access_denied',
+                    },
+                  },
+                ],
+              };
+            }
+          }
           return { id, docs: [{ ok: doc }] };
         } catch (err) {
           const is404 = err && err.status === 404;
@@ -451,6 +479,14 @@ app.put('/:db', async (req, res) => {
 // báo thành công mà dữ liệu vẫn nằm nguyên trên đĩa.
 app.delete('/:db', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
+    if (claims.role !== 'owner') {
+      const err = new Error('Database deletion restricted to owner');
+      err.status = 403;
+      err.error = 'forbidden';
+      err.reason = 'Database deletion restricted to owner';
+      throw err;
+    }
     const name = req.params.db;
     const db = getDb(name);
     await db.destroy();
@@ -494,8 +530,20 @@ app.put('/:db/:id', async (req, res) => {
 
 app.delete('/:db/:id', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
     const id = assertDocId(req.params.id);
+
+    // Verify branch write access on the document being deleted
+    if (claims.role !== 'owner') {
+      try {
+        const existing = await db.get(id);
+        assertBranchWriteAccess(existing, claims);
+      } catch (err) {
+        if (err && err.status === 403) throw err;
+      }
+    }
+
     const rev = typeof req.query.rev === 'string' ? req.query.rev : '';
     if (!rev) {
       throw badRequest('You must supply the revision to delete a document.');
@@ -510,6 +558,7 @@ app.delete('/:db/:id', async (req, res) => {
 // Phải đăng ký CUỐI CÙNG: route này khớp mọi path hai segment.
 app.get('/:db/:id', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
     const opts = {};
     if (typeof req.query.rev === 'string') opts.rev = req.query.rev;
@@ -519,6 +568,19 @@ app.get('/:db/:id', async (req, res) => {
     if (req.query.attachments === 'true') opts.attachments = true;
     if (req.query.open_revs !== undefined) opts.open_revs = req.query.open_revs;
     const doc = await db.get(req.params.id, opts);
+
+    // Branch read isolation check
+    if (claims.role !== 'owner' && claims.activeBranchId !== '*') {
+      const branchId = doc && doc.branchId;
+      if (branchId !== undefined && branchId !== '*' && branchId !== claims.activeBranchId) {
+        const err = new Error('Access denied to other branch document');
+        err.status = 403;
+        err.error = 'branch_access_denied';
+        err.reason = 'Access denied to other branch document';
+        throw err;
+      }
+    }
+
     res.json(doc);
   } catch (err) {
     errorResponse(res, err);

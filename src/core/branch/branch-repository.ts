@@ -128,10 +128,10 @@ export function createBranchRepository(
         });
       }
 
-      let dist1 = await this.getBranch('d1');
+      let dist1 = await this.getBranch('dist1');
       if (!dist1) {
         dist1 = await this.createBranch({
-          code: 'D1',
+          code: 'DIST1',
           name: 'Chi nhánh Quận 1',
           address: '456 Hai Bà Trưng, Tân Định, Quận 1, TP. Hồ Chí Minh',
           phone: '02898765432',
