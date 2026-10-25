@@ -1,0 +1,207 @@
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { Button } from '@vuetify/v0';
+import type { UserDoc } from '@/core/auth/types';
+import { useCurrentUser } from './use-current-user';
+
+const props = withDefaults(
+  defineProps<{
+    open?: boolean;
+    users?: UserDoc[];
+    activeBranchId?: string;
+  }>(),
+  {
+    open: false,
+    users: () => [],
+    activeBranchId: 'hq',
+  },
+);
+
+const emit = defineEmits<{
+  (e: 'loginSuccess', user: UserDoc, token: string): void;
+  (e: 'cancel'): void;
+}>();
+
+const { t } = useI18n();
+const { login, sessionToken } = useCurrentUser();
+
+const selectedUserId = ref<string>('');
+const enteredPin = ref<string>('');
+const errorMessage = ref<string | null>(null);
+
+watch(
+  () => props.users,
+  (newUsers) => {
+    if (newUsers.length > 0 && !selectedUserId.value) {
+      selectedUserId.value = newUsers[0]!._id;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      enteredPin.value = '';
+      errorMessage.value = null;
+      if (props.users.length > 0 && !selectedUserId.value) {
+        selectedUserId.value = props.users[0]!._id;
+      }
+    }
+  },
+);
+
+const selectedUser = computed(() =>
+  props.users.find((u) => u._id === selectedUserId.value) ?? props.users[0] ?? null,
+);
+
+const pinMask = computed(() => {
+  if (!enteredPin.value) return '';
+  return '• '.repeat(enteredPin.value.length).trim();
+});
+
+function appendDigit(digit: number) {
+  errorMessage.value = null;
+  if (enteredPin.value.length < 6) {
+    enteredPin.value += String(digit);
+  }
+}
+
+function handleClear() {
+  errorMessage.value = null;
+  enteredPin.value = '';
+}
+
+function handleBackspace() {
+  errorMessage.value = null;
+  if (enteredPin.value.length > 0) {
+    enteredPin.value = enteredPin.value.slice(0, -1);
+  }
+}
+
+async function handleLogin() {
+  if (!selectedUser.value) {
+    errorMessage.value = 'Chưa chọn tài khoản';
+    return;
+  }
+  if (!enteredPin.value) {
+    errorMessage.value = t('auth.enterPin');
+    return;
+  }
+
+  const result = await login(selectedUser.value, enteredPin.value, props.activeBranchId);
+  if (result.success && sessionToken.value) {
+    emit('loginSuccess', selectedUser.value, sessionToken.value);
+  } else {
+    if (result.error?.startsWith('locked_out:')) {
+      errorMessage.value = t('auth.lockedOut');
+    } else {
+      errorMessage.value = t('auth.invalidPin');
+    }
+    enteredPin.value = '';
+  }
+}
+</script>
+
+<template>
+  <div
+    v-if="open"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+  >
+    <div class="panel-card w-full max-w-sm p-6 space-y-4 shadow-xl">
+      <div class="text-center">
+        <h2 class="text-lg font-bold text-text">{{ t('auth.login') }}</h2>
+        <p class="text-xs text-text-muted mt-1">{{ t('auth.enterPin') }}</p>
+      </div>
+
+      <!-- User selection -->
+      <div class="space-y-1">
+        <label class="field-label text-xs font-medium text-text-muted">Tài khoản</label>
+        <select
+          v-model="selectedUserId"
+          data-test="user-select"
+          class="field-input w-full p-2 border border-border rounded bg-surface text-sm"
+        >
+          <option
+            v-for="user in users"
+            :key="user._id"
+            :value="user._id"
+          >
+            {{ user.displayName }} ({{ t(`auth.role.${user.role}`) }})
+          </option>
+        </select>
+      </div>
+
+      <!-- PIN Display -->
+      <div
+        data-test="pin-display"
+        class="h-12 flex items-center justify-center text-xl font-mono tracking-widest border border-border rounded bg-bg text-primary font-bold select-none"
+      >
+        <span v-if="enteredPin">{{ pinMask }}</span>
+        <span v-else class="text-xs text-text-muted font-normal">Chạm phím số bên dưới</span>
+      </div>
+
+      <!-- Error message -->
+      <div
+        v-if="errorMessage"
+        data-test="login-error"
+        class="p-2 text-xs text-danger bg-danger/10 border border-danger/20 rounded text-center"
+      >
+        {{ errorMessage }}
+      </div>
+
+      <!-- Keypad grid -->
+      <div class="grid grid-cols-3 gap-2">
+        <Button.Root
+          v-for="n in 9"
+          :key="n"
+          type="button"
+          :data-test="`keypad-${n}`"
+          class="btn btn-ghost h-12 text-lg font-semibold rounded bg-surface hover:bg-bg border border-border flex items-center justify-center select-none"
+          @click="appendDigit(n)"
+        >
+          <Button.Content>{{ n }}</Button.Content>
+        </Button.Root>
+
+        <Button.Root
+          type="button"
+          data-test="keypad-clear"
+          class="btn btn-ghost h-12 text-sm font-medium rounded text-text-muted hover:bg-bg border border-border flex items-center justify-center select-none"
+          @click="handleClear"
+        >
+          <Button.Content>C</Button.Content>
+        </Button.Root>
+
+        <Button.Root
+          type="button"
+          data-test="keypad-0"
+          class="btn btn-ghost h-12 text-lg font-semibold rounded bg-surface hover:bg-bg border border-border flex items-center justify-center select-none"
+          @click="appendDigit(0)"
+        >
+          <Button.Content>0</Button.Content>
+        </Button.Root>
+
+        <Button.Root
+          type="button"
+          data-test="keypad-backspace"
+          class="btn btn-ghost h-12 text-lg font-medium rounded text-text-muted hover:bg-bg border border-border flex items-center justify-center select-none"
+          @click="handleBackspace"
+        >
+          <Button.Content>⌫</Button.Content>
+        </Button.Root>
+      </div>
+
+      <!-- Submit button -->
+      <Button.Root
+        type="button"
+        data-test="login-submit-btn"
+        class="btn btn-primary w-full py-2.5 text-sm font-medium rounded"
+        @click="handleLogin"
+      >
+        <Button.Content>{{ t('auth.login') }}</Button.Content>
+      </Button.Root>
+    </div>
+  </div>
+</template>
