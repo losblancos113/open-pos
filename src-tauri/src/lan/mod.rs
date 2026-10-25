@@ -1,9 +1,16 @@
-use axum::{routing::get, Router};
+use axum::{
+    routing::{get, post},
+    Router,
+};
 
+pub mod auth;
 pub mod health;
 
 pub fn router() -> Router {
-    Router::new().route("/api/health", get(health::health))
+    Router::new()
+        .route("/api/health", get(health::health))
+        .route("/api/auth/login", post(auth::login))
+        .route("/api/auth/switch-branch", post(auth::switch_branch))
 }
 
 #[cfg(test)]
