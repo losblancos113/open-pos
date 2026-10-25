@@ -414,5 +414,96 @@
     "consolidatedRevenue": "Consolidated Chain Revenue",
     "totalOrders": "Total Chain Orders",
     "averageTicket": "Average Order Value"
+  },
+  "inventory": {
+    "title": "Inventory & Recipe Control",
+    "tabs": {
+      "stock": "Stock & Alerts",
+      "recipes": "Recipes (BOM)",
+      "movements": "Movements Log",
+      "waste": "Waste & Spoilage",
+      "stocktake": "Stocktake",
+      "suppliers": "Suppliers"
+    },
+    "kpi": {
+      "totalItems": "Total Ingredients",
+      "lowStockAlerts": "Low-Stock Alerts",
+      "totalValue": "Total Stock Value"
+    },
+    "filter": {
+      "all": "All",
+      "lowStock": "Low Stock",
+      "searchPlaceholder": "Search by name or SKU..."
+    },
+    "item": {
+      "sku": "SKU",
+      "name": "Ingredient Name",
+      "unit": "Unit",
+      "currentStock": "Current Stock",
+      "minThreshold": "Min Threshold",
+      "costPerUnit": "Unit Cost",
+      "status": "Status",
+      "lowStockBadge": "Low Stock",
+      "normalBadge": "In Stock",
+      "add": "Add Ingredient"
+    },
+    "recipe": {
+      "title": "Product Recipe / BOM",
+      "target": "Applied Product / Modifier",
+      "yield": "Yield Portions",
+      "ingredients": "Ingredients",
+      "addIngredient": "Add Ingredient",
+      "empty": "No recipes found",
+      "add": "Create Recipe"
+    },
+    "movement": {
+      "title": "Inventory Movements History",
+      "date": "Date & Time",
+      "type": "Transaction Type",
+      "item": "Ingredient",
+      "delta": "Quantity",
+      "ref": "Reference ID",
+      "actor": "Performed By",
+      "types": {
+        "purchase": "Purchase",
+        "sale_deduction": "Sale Deduction (Auto)",
+        "waste": "Waste",
+        "adjust": "Adjustment",
+        "stocktake": "Stocktake"
+      }
+    },
+    "waste": {
+      "title": "Record Waste & Spoilage",
+      "item": "Select Ingredient",
+      "qty": "Waste Quantity",
+      "reason": "Waste Reason",
+      "note": "Additional Notes",
+      "submit": "Confirm Waste",
+      "reasons": {
+        "expired": "Expired",
+        "damaged": "Damaged / Broken",
+        "burnt_mistake": "Preparation Mistake",
+        "quality_reject": "Quality Rejected",
+        "staff_meal": "Internal Consumption",
+        "other": "Other Reason"
+      }
+    },
+    "stocktake": {
+      "title": "Physical Stocktake",
+      "expected": "System Expected",
+      "counted": "Physical Counted",
+      "variance": "Variance",
+      "reconcile": "Reconcile Stock",
+      "submit": "Complete Stocktake",
+      "noDiscrepancy": "All stock levels match"
+    },
+    "supplier": {
+      "title": "Suppliers",
+      "name": "Supplier Name",
+      "contact": "Contact Person",
+      "phone": "Phone Number",
+      "add": "Add Supplier",
+      "receivePo": "Receive Delivery"
+    }
   }
 }

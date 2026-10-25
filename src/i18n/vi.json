@@ -414,5 +414,96 @@
     "consolidatedRevenue": "Tổng doanh thu chuỗi",
     "totalOrders": "Tổng đơn hàng",
     "averageTicket": "Giá trị trung bình đơn"
+  },
+  "inventory": {
+    "title": "Quản lý kho & Định lượng",
+    "tabs": {
+      "stock": "Tồn kho & Cảnh báo",
+      "recipes": "Định lượng (BOM)",
+      "movements": "Thẻ kho",
+      "waste": "Xuất hủy / Hao hụt",
+      "stocktake": "Kiểm kê",
+      "suppliers": "Nhà cung cấp"
+    },
+    "kpi": {
+      "totalItems": "Tổng nguyên liệu",
+      "lowStockAlerts": "Cảnh báo sắp hết",
+      "totalValue": "Tổng giá trị tồn"
+    },
+    "filter": {
+      "all": "Tất cả",
+      "lowStock": "Sắp hết hàng",
+      "searchPlaceholder": "Tìm theo tên hoặc mã SKU..."
+    },
+    "item": {
+      "sku": "Mã SKU",
+      "name": "Tên nguyên liệu",
+      "unit": "Đơn vị",
+      "currentStock": "Tồn hiện tại",
+      "minThreshold": "Định mức tối thiểu",
+      "costPerUnit": "Giá vốn",
+      "status": "Trạng thái",
+      "lowStockBadge": "Sắp hết",
+      "normalBadge": "Đủ hàng",
+      "add": "Thêm nguyên liệu"
+    },
+    "recipe": {
+      "title": "Công thức định lượng món",
+      "target": "Món / Topping áp dụng",
+      "yield": "Số phần sản xuất",
+      "ingredients": "Thành phần nguyên liệu",
+      "addIngredient": "Thêm nguyên liệu",
+      "empty": "Chưa có công thức nào",
+      "add": "Tạo công thức mới"
+    },
+    "movement": {
+      "title": "Lịch sử biến động kho",
+      "date": "Thời gian",
+      "type": "Loại giao dịch",
+      "item": "Nguyên liệu",
+      "delta": "Số lượng",
+      "ref": "Mã tham chiếu",
+      "actor": "Người thực hiện",
+      "types": {
+        "purchase": "Nhập hàng",
+        "sale_deduction": "Xuất bán (tự động)",
+        "waste": "Xuất hủy",
+        "adjust": "Điều chỉnh",
+        "stocktake": "Kiểm kê"
+      }
+    },
+    "waste": {
+      "title": "Ghi nhận xuất hủy / Hao hụt",
+      "item": "Chọn nguyên liệu",
+      "qty": "Số lượng hủy",
+      "reason": "Lý do xuất hủy",
+      "note": "Ghi chú thêm",
+      "submit": "Xác nhận xuất hủy",
+      "reasons": {
+        "expired": "Hết hạn sử dụng",
+        "damaged": "Đổ vỡ / dập nát",
+        "burnt_mistake": "Pha chế hỏng / làm sai",
+        "quality_reject": "Kém chất lượng",
+        "staff_meal": "Tiêu dùng nội bộ",
+        "other": "Lý do khác"
+      }
+    },
+    "stocktake": {
+      "title": "Kiểm kê kho thực tế",
+      "expected": "Tồn trên hệ thống",
+      "counted": "Thực tế đếm được",
+      "variance": "Chênh lệch",
+      "reconcile": "Cân bằng kho",
+      "submit": "Hoàn tất kiểm kê",
+      "noDiscrepancy": "Khớp số liệu tồn kho"
+    },
+    "supplier": {
+      "title": "Nhà cung cấp",
+      "name": "Tên nhà cung cấp",
+      "contact": "Người liên hệ",
+      "phone": "Số điện thoại",
+      "add": "Thêm nhà cung cấp",
+      "receivePo": "Nhập hàng"
+    }
   }
 }
