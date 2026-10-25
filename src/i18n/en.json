@@ -445,6 +445,7 @@
       "status": "Status",
       "lowStockBadge": "Low Stock",
       "normalBadge": "In Stock",
+      "empty": "No ingredients found",
       "add": "Add Ingredient"
     },
     "recipe": {

@@ -21,6 +21,8 @@ import PosTerminal from './features/pos/PosTerminal.vue';
 import BranchSwitcher from './features/branch/BranchSwitcher.vue';
 import UserLoginModal from './features/auth/UserLoginModal.vue';
 import CrossBranchReportModal from './features/reports/CrossBranchReportModal.vue';
+import InventoryAdminModal from './features/inventory/InventoryAdminModal.vue';
+import { createInventoryRepository, type InventoryRepository } from '@/core/inventory/inventory-repository';
 
 const { t } = useI18n();
 
@@ -48,6 +50,8 @@ const { currentUser, isOwner, login } = useCurrentUser();
 
 const isLoginModalOpen = ref(false);
 const isReportModalOpen = ref(false);
+const isInventoryModalOpen = ref(false);
+const inventoryRepo = ref<InventoryRepository | null>(null);
 const defaultUsers = ref<UserDoc[]>([]);
 
 onMounted(async () => {
@@ -57,6 +61,7 @@ onMounted(async () => {
 
     const repo = createBranchRepository(rawAdapter);
     branchRepo.value = repo;
+    inventoryRepo.value = createInventoryRepository(rawAdapter);
     await repo.seedDefaultBranches();
     await initActiveBranch();
 
@@ -126,6 +131,16 @@ onMounted(async () => {
           @click="isReportModalOpen = true"
         >
           <Button.Content>📊 {{ t('report.crossBranch') }}</Button.Content>
+        </Button.Root>
+
+        <Button.Root
+          v-if="inventoryRepo !== null"
+          type="button"
+          data-test="inventory-btn"
+          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded hover:bg-surface border border-border"
+          @click="isInventoryModalOpen = true"
+        >
+          <Button.Content>📦 {{ t('inventory.title') }}</Button.Content>
         </Button.Root>
 
         <!-- User profile button -->
@@ -233,6 +248,13 @@ onMounted(async () => {
       :adapter="adapter"
       :branch-repo="branchRepo"
       @close="isReportModalOpen = false"
+    />
+
+    <InventoryAdminModal
+      :open="isInventoryModalOpen"
+      :repo="inventoryRepo"
+      :branch-id="activeBranchId"
+      @close="isInventoryModalOpen = false"
     />
   </main>
 </template>

@@ -445,6 +445,7 @@
       "status": "Trạng thái",
       "lowStockBadge": "Sắp hết",
       "normalBadge": "Đủ hàng",
+      "empty": "Chưa có nguyên liệu nào",
       "add": "Thêm nguyên liệu"
     },
     "recipe": {
