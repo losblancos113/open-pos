@@ -2,12 +2,14 @@ import type { DbAdapter } from '../db/adapter';
 import type { DocEnvelope } from '../db/envelope';
 import { SCHEMA_VERSION } from '../db/envelope';
 import {
+  billDocId,
   sessionDocId,
   sessionEventsDocId,
   tableDocId,
   bankAccountDocId,
   counterDocId,
 } from '../db/ids';
+import { money } from '../money';
 import { createInitialOrderState, reduceOrderEvents } from './reducer';
 import {
   splitByItems, splitEvenly, splitBySeat, mergeBills, transferTable, moveLines,
@@ -23,6 +25,15 @@ import type {
 } from './types';
 import type { OrderEventDoc, SessionEventsDoc } from './events';
 import type { BankAccountDoc } from '../qr/bank-account';
+import type { InventoryRepository } from '../inventory/inventory-repository';
+import { createMovementDoc } from '../inventory/movements';
+import { resolveBillDeductions } from '../inventory/deduction';
+
+export interface CreateOrderRepositoryOptions {
+  adapter: DbAdapter;
+  inventoryRepo?: InventoryRepository;
+  clock?: () => string;
+}
 
 export interface OrderRepository {
   getAreasAndTables(branchId: string): Promise<{ areas: AreaDoc[]; tables: TableDoc[] }>;
@@ -33,7 +44,7 @@ export interface OrderRepository {
     branchId: string,
     sessionId: string,
     newEvents: OrderEventDoc[],
-    projected: OrderAggregateState
+    projected?: OrderAggregateState
   ): Promise<OrderAggregateState>;
   getBankAccount(branchId: string): Promise<BankAccountDoc | null>;
   saveBankAccount(doc: BankAccountDoc): Promise<void>;
@@ -135,9 +146,23 @@ function matchesTableId(tableIds: string[], tableId: string, branchId: string): 
 }
 
 export function createOrderRepository(
-  adapter: DbAdapter,
-  clock: () => string = () => new Date().toISOString()
+  adapterOrOptions: DbAdapter | CreateOrderRepositoryOptions,
+  clockParam?: () => string
 ): OrderRepository {
+  let adapter: DbAdapter;
+  let inventoryRepo: InventoryRepository | undefined = undefined;
+  let clock: () => string;
+
+  if (typeof (adapterOrOptions as unknown as { get: unknown }).get === 'function') {
+    adapter = adapterOrOptions as DbAdapter;
+    clock = clockParam || (() => new Date().toISOString());
+  } else {
+    const opts = adapterOrOptions as CreateOrderRepositoryOptions;
+    adapter = opts.adapter;
+    inventoryRepo = opts.inventoryRepo;
+    clock = opts.clock || clockParam || (() => new Date().toISOString());
+  }
+
   return {
     async getAreasAndTables(branchId: string): Promise<{ areas: AreaDoc[]; tables: TableDoc[] }> {
       const docs = await adapter.allDocs({ branchId });
@@ -285,7 +310,7 @@ export function createOrderRepository(
             );
             finalState = eventsToAdd.length > 0 ? reduceOrderEvents(baseState, eventsToAdd) : baseState;
           } else if (allEvents.length > 0) {
-            const base = projected.bill.lines.length > 0
+            const base = projected && projected.bill && projected.bill.lines && projected.bill.lines.length > 0
               ? createInitialOrderState(projected.session, {
                   ...projected.bill,
                   lines: [],
@@ -293,10 +318,43 @@ export function createOrderRepository(
                   surcharges: [],
                   payments: [],
                 })
-              : projected;
+              : projected || createInitialOrderState(
+                  {
+                    _id: sessionDocId(branchId, cleanSessId),
+                    branchId,
+                    tableIds: [],
+                    guestCount: 1,
+                    billIds: [allEvents[0]?.billId || 'b1'],
+                    status: 'open',
+                    openedAt: allEvents[0]?.createdAt || clock(),
+                    openedBy: allEvents[0]?.actorId || 'system',
+                  },
+                  {
+                    _id: billDocId(branchId, allEvents[0]?.billId || 'b1'),
+                    branchId,
+                    sessionId: cleanSessId,
+                    billNumber: '',
+                    paymentRef: '',
+                    status: 'draft',
+                    lines: [],
+                    discounts: [],
+                    surcharges: [],
+                    taxMode: 'inclusive',
+                    taxLines: [],
+                    taxTotal: money(0, 'VND'),
+                    subtotal: money(0, 'VND'),
+                    discountTotal: money(0, 'VND'),
+                    surchargeTotal: money(0, 'VND'),
+                    total: money(0, 'VND'),
+                    payments: [],
+                    balanceRemaining: money(0, 'VND'),
+                    createdAt: allEvents[0]?.createdAt || clock(),
+                    updatedAt: allEvents[0]?.createdAt || clock(),
+                  }
+                );
             finalState = reduceOrderEvents(base, allEvents);
           } else {
-            finalState = projected;
+            finalState = projected!;
           }
 
           const isClosed =
@@ -341,6 +399,25 @@ export function createOrderRepository(
               ...(existingBill?._rev ? { _rev: existingBill._rev } : {}),
             } as unknown as DocEnvelope;
             await adapter.put(billEnvelope);
+
+            // Trigger automatic inventory deduction if bill is paid
+            if (inventoryRepo && finalState.bill.status === 'paid') {
+              const billId =
+                (finalState.bill as unknown as { billId?: string }).billId ||
+                extractCleanId(finalState.bill._id, 'bill', branchId);
+              const existingMovements = await inventoryRepo.getMovements(branchId);
+              const alreadyDeducted = existingMovements.some(
+                (m) => m.type === 'sale_deduction' && m.refId === billId,
+              );
+              if (!alreadyDeducted) {
+                const recipes = await inventoryRepo.getRecipes();
+                const actor = newEvents[0]?.actorId || 'pos_system';
+                const deductions = resolveBillDeductions(finalState.bill, recipes, actor);
+                for (const d of deductions) {
+                  await inventoryRepo.recordMovement(createMovementDoc(d));
+                }
+              }
+            }
 
             const existingSession = await adapter.get(finalState.session._id);
             const sessionEnvelope = {
