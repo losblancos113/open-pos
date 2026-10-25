@@ -2,12 +2,14 @@ import express from 'express';
 import PouchDB from 'pouchdb';
 import find from 'pouchdb-find';
 import { mkdirSync } from 'node:fs';
+import crypto from 'node:crypto';
 
 PouchDB.plugin(find);
 
 const port = Number(process.env.HUB_PORT ?? 5984);
 const host = process.env.HUB_HOST ?? '127.0.0.1';
 const dataDir = process.env.HUB_DATA_DIR ?? '.hub-data';
+const HUB_AUTH_SECRET = process.env.HUB_AUTH_SECRET;
 
 // Allowlist tên database: chỉ chữ, số và _ . $ -
 // Không cho '/', '\', hay '..' → chặn path traversal kiểu `/..%2fESCAPED`
@@ -27,6 +29,77 @@ function badRequest(reason, error = 'bad_request') {
   err.error = error;
   err.reason = reason;
   return err;
+}
+
+function authenticateRequest(req) {
+  if (!HUB_AUTH_SECRET || process.env.HUB_AUTH_DISABLED === '1') {
+    return { activeBranchId: '*', role: 'owner' };
+  }
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const err = new Error('Missing or invalid Authorization header');
+    err.status = 401;
+    err.error = 'unauthorized';
+    err.reason = 'Authentication required';
+    throw err;
+  }
+  const token = authHeader.slice(7).trim();
+  const parts = token.split('.');
+  if (parts.length !== 2) {
+    const err = new Error('Invalid token format');
+    err.status = 401;
+    err.error = 'unauthorized';
+    err.reason = 'Invalid token';
+    throw err;
+  }
+  const [b64Payload, b64Sig] = parts;
+  const expectedSig = crypto
+    .createHmac('sha256', HUB_AUTH_SECRET)
+    .update(b64Payload)
+    .digest('base64url');
+
+  const bExpected = Buffer.from(expectedSig);
+  const bSig = Buffer.from(b64Sig);
+  if (bExpected.length !== bSig.length || !crypto.timingSafeEqual(bExpected, bSig)) {
+    const err = new Error('Invalid token signature');
+    err.status = 401;
+    err.error = 'unauthorized';
+    err.reason = 'Signature verification failed';
+    throw err;
+  }
+
+  try {
+    const payload = JSON.parse(Buffer.from(b64Payload, 'base64url').toString('utf8'));
+    if (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000)) {
+      const err = new Error('Token expired');
+      err.status = 401;
+      err.error = 'unauthorized';
+      err.reason = 'Token has expired';
+      throw err;
+    }
+    return payload;
+  } catch (parseErr) {
+    if (parseErr.status === 401) throw parseErr;
+    const err = new Error('Malformed token claims');
+    err.status = 401;
+    err.error = 'unauthorized';
+    err.reason = 'Malformed token claims';
+    throw err;
+  }
+}
+
+function assertBranchWriteAccess(doc, claims) {
+  if (!claims || claims.role === 'owner') return;
+  const docBranchId = doc && doc.branchId;
+  if (docBranchId !== '*' && docBranchId !== claims.activeBranchId) {
+    const err = new Error(
+      `Cannot write document for branch "${docBranchId}" with token active for "${claims.activeBranchId}"`,
+    );
+    err.status = 403;
+    err.error = 'branch_access_denied';
+    err.reason = `Unauthorized branch write for branch "${docBranchId}"`;
+    throw err;
+  }
 }
 
 function getDb(name) {
@@ -134,6 +207,7 @@ app.post('/:db/_revs_diff', async (req, res) => {
 
 app.get('/:db/_changes', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
 
     let since = 0;
@@ -148,15 +222,31 @@ app.get('/:db/_changes', async (req, res) => {
 
     const limit = parseNonNegativeInt(req.query.limit, 1000, 'limit');
     const style = req.query.style === 'all_docs' ? 'all_docs' : 'main_only';
-    const includeDocs = req.query.include_docs !== 'false';
+    const clientIncludeDocs = req.query.include_docs !== 'false';
+    const mustFilter = claims.role !== 'owner' && claims.activeBranchId !== '*';
 
-    const changes = await db.changes({ since, include_docs: includeDocs, limit, style });
+    const changes = await db.changes({
+      since,
+      include_docs: mustFilter || clientIncludeDocs,
+      limit,
+      style,
+    });
+
+    let results = changes.results;
+    if (mustFilter) {
+      results = results.filter((row) => {
+        if (row.deleted && !row.doc) return true;
+        const branchId = row.doc && row.doc.branchId;
+        return branchId === '*' || branchId === claims.activeBranchId;
+      });
+    }
+
     res.json({
-      results: changes.results.map((row) => ({
+      results: results.map((row) => ({
         seq: row.seq,
         id: row.id,
         changes: row.changes,
-        ...(includeDocs && row.doc !== undefined ? { doc: row.doc } : {}),
+        ...(clientIncludeDocs && row.doc !== undefined ? { doc: row.doc } : {}),
         ...(row.deleted ? { deleted: true } : {}),
       })),
       last_seq: changes.last_seq,
@@ -219,10 +309,14 @@ app.put('/:db/_local/:id', async (req, res) => {
 // replication sẽ lệch rev với client.
 app.post('/:db/_bulk_docs', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
     const body = req.body ?? {};
     if (!Array.isArray(body.docs)) {
       throw badRequest("Missing JSON list of 'docs'");
+    }
+    for (const doc of body.docs) {
+      assertBranchWriteAccess(doc, claims);
     }
     const result = await db.bulkDocs(body.docs, { new_edits: body.new_edits !== false });
     res.status(201).json(result);
@@ -284,15 +378,29 @@ app.get('/:db', async (req, res) => {
 // `_all_docs` là 2 segment, trùng dạng với `/:db/:id` → phải đăng ký trước.
 app.get('/:db/_all_docs', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
+    const mustFilter = claims.role !== 'owner' && claims.activeBranchId !== '*';
     const opts = {};
-    if (req.query.include_docs === 'true') opts.include_docs = true;
+    if (req.query.include_docs === 'true' || mustFilter) opts.include_docs = true;
     if (req.query.descending === 'true') opts.descending = true;
     if (req.query.limit !== undefined) opts.limit = parseNonNegativeInt(req.query.limit, 0, 'limit');
     if (req.query.skip !== undefined) opts.skip = parseNonNegativeInt(req.query.skip, 0, 'skip');
     if (typeof req.query.startkey === 'string') opts.startkey = req.query.startkey;
     if (typeof req.query.endkey === 'string') opts.endkey = req.query.endkey;
     const result = await db.allDocs(opts);
+    if (mustFilter) {
+      result.rows = result.rows.filter((row) => {
+        const branchId = row.doc && row.doc.branchId;
+        return branchId === '*' || branchId === claims.activeBranchId;
+      });
+      result.total_rows = result.rows.length;
+      if (req.query.include_docs !== 'true') {
+        for (const row of result.rows) {
+          delete row.doc;
+        }
+      }
+    }
     res.json(result);
   } catch (err) {
     errorResponse(res, err);
@@ -301,12 +409,26 @@ app.get('/:db/_all_docs', async (req, res) => {
 
 app.post('/:db/_all_docs', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
     const body = req.body ?? {};
+    const mustFilter = claims.role !== 'owner' && claims.activeBranchId !== '*';
     const opts = {};
     if (Array.isArray(body.keys)) opts.keys = body.keys;
-    if (body.include_docs === true) opts.include_docs = true;
+    if (body.include_docs === true || mustFilter) opts.include_docs = true;
     const result = await db.allDocs(opts);
+    if (mustFilter) {
+      result.rows = result.rows.filter((row) => {
+        const branchId = row.doc && row.doc.branchId;
+        return branchId === '*' || branchId === claims.activeBranchId;
+      });
+      result.total_rows = result.rows.length;
+      if (body.include_docs !== true) {
+        for (const row of result.rows) {
+          delete row.doc;
+        }
+      }
+    }
     res.json(result);
   } catch (err) {
     errorResponse(res, err);
@@ -341,10 +463,13 @@ app.delete('/:db', async (req, res) => {
 
 app.put('/:db/:id', async (req, res) => {
   try {
+    const claims = authenticateRequest(req);
     const db = getDb(req.params.db);
     const id = assertDocId(req.params.id);
 
     const doc = { ...(req.body ?? {}), _id: id };
+    assertBranchWriteAccess(doc, claims);
+
     if (typeof req.query.rev === 'string' && req.query.rev !== '') doc._rev = req.query.rev;
 
     if (req.query.new_edits === 'false') {
