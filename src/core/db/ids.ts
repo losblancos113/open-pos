@@ -115,3 +115,19 @@ export function purchaseOrderDocId(branchId: string, poId: string): string {
   return `purchase_order:${requireSegment(branchId, 'branchId')}:${requireSegment(poId, 'poId')}`;
 }
 
+/** `_id` của một ca làm việc tại chi nhánh (M6c). */
+export function shiftDocId(branchId: string, shiftId: string): string {
+  return `shift:${requireSegment(branchId, 'branchId')}:${requireSegment(shiftId, 'shiftId')}`;
+}
+
+/** `_id` của một biến động tiền mặt trong ca (cash in / cash drop) (M6c). */
+export function shiftCashMovementDocId(branchId: string, movementId: string): string {
+  return `shift_cash:${requireSegment(branchId, 'branchId')}:${requireSegment(movementId, 'movementId')}`;
+}
+
+/** `_id` của một bản ghi nhật ký kiểm toán (audit log) (M6c). */
+export function auditLogDocId(branchId: string, auditId: string): string {
+  return `audit_log:${requireSegment(branchId, 'branchId')}:${requireSegment(auditId, 'auditId')}`;
+}
+
+
