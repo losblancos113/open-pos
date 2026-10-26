@@ -506,5 +506,61 @@
       "add": "Thêm nhà cung cấp",
       "receivePo": "Nhập hàng"
     }
+  },
+  "shift": {
+    "title": "Quản lý ca làm việc",
+    "open": "Mở ca",
+    "close": "Đóng ca & Kết toán",
+    "active": "Ca đang mở",
+    "noActive": "Chưa mở ca",
+    "openingCash": "Tiền đầu ca",
+    "closingCash": "Tiền cuối ca",
+    "countedCash": "Tiền thực tế kiểm đếm",
+    "variance": "Chênh lệch tiền mặt",
+    "surplus": "Thừa tiền",
+    "shortage": "Thiếu tiền",
+    "match": "Khớp số liệu",
+    "cashIn": "Nạp thêm tiền",
+    "cashDrop": "Rút bớt tiền",
+    "reason": "Lý do",
+    "amount": "Số tiền",
+    "cashier": "Thu ngân",
+    "openedAt": "Giờ mở ca",
+    "notes": "Ghi chú",
+    "confirmClose": "Xác nhận đóng ca",
+    "openSuccess": "Mở ca thành công",
+    "closeSuccess": "Đóng ca thành công",
+    "cashMovementSuccess": "Ghi nhận biến động tiền mặt thành công",
+    "activeBanner": "Đang trong ca",
+    "cashSales": "Doanh thu tiền mặt"
+  },
+  "storeReports": {
+    "title": "Báo cáo doanh thu cửa hàng",
+    "tabs": {
+      "zReport": "Báo cáo Z",
+      "categories": "Nhóm món",
+      "hourly": "Khung giờ",
+      "payments": "Thanh toán"
+    },
+    "filter": {
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua",
+      "last7Days": "7 ngày qua",
+      "custom": "Tùy chọn"
+    },
+    "exportCsv": "Xuất CSV",
+    "grossSales": "Doanh thu gộp",
+    "netSales": "Doanh thu thuần",
+    "discounts": "Giảm giá",
+    "surcharges": "Phụ thu",
+    "taxes": "Thuế VAT",
+    "totalOrders": "Tổng đơn hàng",
+    "paidOrders": "Đơn hoàn tất",
+    "voidedOrders": "Đơn hủy",
+    "expectedCash": "Tiền mặt kỳ vọng",
+    "categoryName": "Tên nhóm",
+    "quantitySold": "Số lượng bán",
+    "share": "Tỷ trọng",
+    "hourRange": "Khung giờ"
   }
 }

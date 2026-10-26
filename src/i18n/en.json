@@ -506,5 +506,61 @@
       "add": "Add Supplier",
       "receivePo": "Receive Delivery"
     }
+  },
+  "shift": {
+    "title": "Shift Management",
+    "open": "Open Shift",
+    "close": "Close Shift & Reconcile",
+    "active": "Active Shift",
+    "noActive": "No Active Shift",
+    "openingCash": "Opening Cash",
+    "closingCash": "Closing Cash",
+    "countedCash": "Counted Cash",
+    "variance": "Cash Variance",
+    "surplus": "Cash Surplus",
+    "shortage": "Cash Shortage",
+    "match": "Exact Match",
+    "cashIn": "Cash In",
+    "cashDrop": "Cash Drop",
+    "reason": "Reason",
+    "amount": "Amount",
+    "cashier": "Cashier",
+    "openedAt": "Opened At",
+    "notes": "Notes",
+    "confirmClose": "Confirm Close Shift",
+    "openSuccess": "Shift opened successfully",
+    "closeSuccess": "Shift closed successfully",
+    "cashMovementSuccess": "Cash movement recorded successfully",
+    "activeBanner": "Shift in progress",
+    "cashSales": "Cash Sales"
+  },
+  "storeReports": {
+    "title": "Store Sales Reports",
+    "tabs": {
+      "zReport": "Z-Report",
+      "categories": "Categories",
+      "hourly": "Peak Hours",
+      "payments": "Payments"
+    },
+    "filter": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 Days",
+      "custom": "Custom"
+    },
+    "exportCsv": "Export CSV",
+    "grossSales": "Gross Sales",
+    "netSales": "Net Sales",
+    "discounts": "Discounts",
+    "surcharges": "Surcharges",
+    "taxes": "Taxes",
+    "totalOrders": "Total Orders",
+    "paidOrders": "Paid Orders",
+    "voidedOrders": "Voided Orders",
+    "expectedCash": "Expected Cash",
+    "categoryName": "Category Name",
+    "quantitySold": "Quantity Sold",
+    "share": "Share",
+    "hourRange": "Hour Range"
   }
 }
