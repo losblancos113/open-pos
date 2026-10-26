@@ -22,7 +22,10 @@ import BranchSwitcher from './features/branch/BranchSwitcher.vue';
 import UserLoginModal from './features/auth/UserLoginModal.vue';
 import CrossBranchReportModal from './features/reports/CrossBranchReportModal.vue';
 import InventoryAdminModal from './features/inventory/InventoryAdminModal.vue';
+import ShiftModal from './features/shift/ShiftModal.vue';
+import StoreReportsModal from './features/reports/StoreReportsModal.vue';
 import { createInventoryRepository, type InventoryRepository } from '@/core/inventory/inventory-repository';
+import { createShiftRepository, type ShiftRepository } from '@/core/shift/shift-repository';
 
 const { t } = useI18n();
 
@@ -51,7 +54,10 @@ const { currentUser, isOwner, login } = useCurrentUser();
 const isLoginModalOpen = ref(false);
 const isReportModalOpen = ref(false);
 const isInventoryModalOpen = ref(false);
+const isShiftModalOpen = ref(false);
+const isStoreReportsModalOpen = ref(false);
 const inventoryRepo = ref<InventoryRepository | null>(null);
+const shiftRepo = ref<ShiftRepository | null>(null);
 const defaultUsers = ref<UserDoc[]>([]);
 
 onMounted(async () => {
@@ -62,6 +68,7 @@ onMounted(async () => {
     const repo = createBranchRepository(rawAdapter);
     branchRepo.value = repo;
     inventoryRepo.value = createInventoryRepository(rawAdapter);
+    shiftRepo.value = createShiftRepository(rawAdapter);
     await repo.seedDefaultBranches();
     await initActiveBranch();
 
@@ -141,6 +148,26 @@ onMounted(async () => {
           @click="isInventoryModalOpen = true"
         >
           <Button.Content>📦 {{ t('inventory.title') }}</Button.Content>
+        </Button.Root>
+
+        <Button.Root
+          v-if="shiftRepo !== null"
+          type="button"
+          data-test="shift-btn"
+          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded hover:bg-surface border border-border"
+          @click="isShiftModalOpen = true"
+        >
+          <Button.Content>⏰ {{ t('shift.title') }}</Button.Content>
+        </Button.Root>
+
+        <Button.Root
+          v-if="adapter !== null"
+          type="button"
+          data-test="store-reports-btn"
+          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded hover:bg-surface border border-border"
+          @click="isStoreReportsModalOpen = true"
+        >
+          <Button.Content>📈 {{ t('storeReports.title') }}</Button.Content>
         </Button.Root>
 
         <!-- User profile button -->
@@ -255,6 +282,22 @@ onMounted(async () => {
       :repo="inventoryRepo"
       :branch-id="activeBranchId"
       @close="isInventoryModalOpen = false"
+    />
+
+    <ShiftModal
+      :open="isShiftModalOpen"
+      :repo="shiftRepo"
+      :branch-id="activeBranchId"
+      :device-id="'term_01'"
+      :current-user="currentUser"
+      @close="isShiftModalOpen = false"
+    />
+
+    <StoreReportsModal
+      :open="isStoreReportsModalOpen"
+      :adapter="adapter"
+      :branch-id="activeBranchId"
+      @close="isStoreReportsModalOpen = false"
     />
   </main>
 </template>

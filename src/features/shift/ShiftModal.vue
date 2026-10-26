@@ -13,7 +13,7 @@ const props = withDefaults(
     repo?: ShiftRepository | null;
     branchId?: string;
     deviceId?: string;
-    currentUser?: { userId: string; displayName: string } | null;
+    currentUser?: { userId?: string; username?: string; displayName: string } | null;
   }>(),
   {
     open: false,
@@ -64,7 +64,7 @@ watch(
 
 async function handleOpenShift() {
   if (!shift) return;
-  const userId = props.currentUser?.userId || 'usr_default';
+  const userId = props.currentUser?.userId || props.currentUser?.username || 'usr_default';
   const userName = props.currentUser?.displayName || 'Thu ngân';
 
   await shift.openShift({
@@ -77,7 +77,7 @@ async function handleOpenShift() {
 
 async function handleRecordCashMovement() {
   if (!shift || !shift.activeShift.value || movementAmount.value <= 0) return;
-  const actorId = props.currentUser?.userId || 'usr_default';
+  const actorId = props.currentUser?.userId || props.currentUser?.username || 'usr_default';
 
   await shift.recordCashMovement(
     movementType.value,
