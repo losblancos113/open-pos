@@ -101,4 +101,21 @@ describe('UserLoginModal.vue', () => {
     expect(wrapper.emitted('loginSuccess')).toBeFalsy();
     expect(wrapper.find('[data-test="login-error"]').exists()).toBe(true);
   });
+
+  it('emits cancel when close button or cancel button is clicked', async () => {
+    wrapper = mount(UserLoginModal, {
+      props: { open: true, users, activeBranchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    const closeBtn = wrapper.find('[data-test="close-login-btn"]');
+    expect(closeBtn.exists()).toBe(true);
+    await closeBtn.trigger('click');
+    expect(wrapper.emitted('cancel')).toHaveLength(1);
+
+    const cancelBtn = wrapper.find('[data-test="login-cancel-btn"]');
+    expect(cancelBtn.exists()).toBe(true);
+    await cancelBtn.trigger('click');
+    expect(wrapper.emitted('cancel')).toHaveLength(2);
+  });
 });

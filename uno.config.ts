@@ -20,6 +20,11 @@ import { unoTheme } from './src/styles/uno-theme';
 export default defineConfig<PresetWind4Theme>({
   presets: [presetWind4()],
   theme: unoTheme,
+  preflights: [
+    {
+      getCSS: () => 'dialog { margin: auto; }',
+    },
+  ],
   variants: [
     {
       // Vuetify0 tự gắn `data-selected` lên control khi ở trong group (Button.Root,
@@ -38,18 +43,18 @@ export default defineConfig<PresetWind4Theme>({
   // đều qua token của `uno-theme.ts` (xem AGENTS.md §4.9).
   shortcuts: {
     // Nút: focus-visible có outline rõ ràng; `data-[disabled]` do v0 gắn khi disabled.
-    btn: 'inline-flex cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
-    'btn-primary': 'btn bg-primary text-primary-contrast hover:bg-primary/90',
-    'btn-danger': 'btn bg-danger text-primary-contrast hover:bg-danger/90',
+    btn: 'inline-flex cursor-pointer items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50',
+    'btn-primary': 'btn bg-primary text-primary-contrast hover:bg-primary/90 shadow-2xs',
+    'btn-danger': 'btn bg-danger text-primary-contrast hover:bg-danger/90 shadow-2xs',
     'btn-ghost':
-      'btn border border-solid border-text/15 bg-surface text-text hover:bg-bg',
+      'btn border border-solid border-border bg-surface text-text hover:bg-bg',
     // Ô nhập: class đặt trên `*.Control` (phần tử input thật), không đặt trên Root.
     'field-label': 'mb-1 block text-sm font-medium text-text',
     'field-input':
-      'w-full rounded-md border border-solid border-text/20 bg-surface px-3 py-2 text-sm text-text focus:outline-2 focus:outline-offset-1 focus:outline-primary',
+      'w-full rounded-md border border-solid border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-text-muted/60 transition-colors focus:border-primary focus:outline-2 focus:outline-offset-1 focus:outline-primary',
     'form-grid': 'grid gap-4',
     'error-text': 'text-sm text-danger',
-    'panel-card': 'rounded-lg bg-surface p-4 shadow-sm',
+    'panel-card': 'rounded-lg bg-surface p-4 shadow-sm border border-border/80',
     'table-cell': 'px-3 py-2 text-left',
   },
   transformers: [transformerVariantGroup(), transformerDirectives()],

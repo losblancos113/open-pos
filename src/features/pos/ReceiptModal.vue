@@ -177,13 +177,14 @@ function handleClose() {
 <template>
   <Dialog.Root v-model="isOpen">
     <Dialog.Content
-      class="panel-card max-w-md w-full p-0 overflow-hidden flex flex-col max-h-[95vh] shadow-xl"
+      class="panel-card max-w-md w-full p-0 overflow-hidden max-h-[95vh] shadow-xl m-auto"
       data-test="receipt-modal"
     >
-      <!-- Dialog Action Header (Ẩn khi in ấn) -->
-      <div
-        class="no-print flex items-center justify-between px-4 py-3 border-b border-border bg-surface"
-      >
+      <div class="flex flex-col h-full max-h-[95vh]">
+        <!-- Dialog Action Header (Ẩn khi in ấn) -->
+        <div
+          class="no-print flex items-center justify-between px-4 py-3 border-b border-border bg-surface"
+        >
         <div>
           <Dialog.Title class="text-sm font-bold text-text">
             {{ t('pos.receipt.title') }}
@@ -495,6 +496,7 @@ function handleClose() {
             <p class="text-[10px] tracking-widest text-text-muted/60">*** OPEN POS ***</p>
           </div>
         </div>
+      </div>
       </div>
     </Dialog.Content>
   </Dialog.Root>

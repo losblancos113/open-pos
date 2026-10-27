@@ -415,6 +415,7 @@ async function handleStocktakeSubmit() {
                 min="0.01"
                 step="any"
                 class="field-input text-xs w-full rounded border border-border p-2"
+                :placeholder="t('inventory.waste.qty')"
                 required
               />
             </div>
@@ -440,7 +441,7 @@ async function handleStocktakeSubmit() {
               v-model="wasteNote"
               type="text"
               class="field-input text-xs w-full rounded border border-border p-2"
-              placeholder="Ghi chú chi tiết nguyên nhân..."
+              :placeholder="t('inventory.waste.note')"
             />
           </div>
 
@@ -501,6 +502,7 @@ async function handleStocktakeSubmit() {
                     type="number"
                     step="any"
                     class="field-input text-xs w-24 text-right rounded border border-border p-1"
+                    :placeholder="t('inventory.stocktake.counted')"
                   />
                 </td>
                 <td

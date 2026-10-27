@@ -240,7 +240,7 @@ defineExpose({
 <template>
   <Dialog.Root v-model="isOpen">
     <Dialog.Content
-      class="panel-card max-w-lg w-full p-6 space-y-4 max-h-[92vh] overflow-y-auto"
+      class="panel-card max-w-lg w-full p-6 space-y-4 max-h-[92vh] overflow-y-auto m-auto"
       data-test="payment-modal"
     >
       <!-- Header -->
@@ -278,6 +278,7 @@ defineExpose({
             <Input.Control
               type="number"
               class="field-input text-right font-semibold text-sm py-1 px-2 w-full"
+              :placeholder="t('pos.payment.amountToPay')"
               :max="currentBalanceMinor"
               min="0"
               step="1000"

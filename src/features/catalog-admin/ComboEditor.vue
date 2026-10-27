@@ -318,7 +318,7 @@ function onSubmit(): void {
     <form ref="formEl" class="form-grid" data-combo-form novalidate @submit.prevent="onSubmit">
       <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-combo-name type="text" :label="t('catalog.field.name')">
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.name')" />
         </Input.Root>
 
         <Input.Root
@@ -327,7 +327,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
         </Input.Root>
 
         <NumberField.Root
@@ -340,7 +340,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => (price = value)"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.field.basePrice')" />
         </NumberField.Root>
 
         <Input.Root
@@ -349,7 +349,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.imageRef')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.imageRef')" />
         </Input.Root>
 
         <NumberField.Root
@@ -362,7 +362,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => (sortOrder = value ?? 0)"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.field.sortOrder')" />
         </NumberField.Root>
 
         <Checkbox.Root
@@ -392,7 +392,7 @@ function onSubmit(): void {
               :model-value="group.key"
               @update:model-value="(value: string) => updateGroup(groupIndex, { key: value })"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.combo.group.key')" />
             </Input.Root>
 
             <Input.Root
@@ -402,7 +402,7 @@ function onSubmit(): void {
               :model-value="group.labelVi"
               @update:model-value="(value: string) => updateGroup(groupIndex, { labelVi: value })"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.combo.group.label')" />
             </Input.Root>
 
             <Input.Root
@@ -412,7 +412,7 @@ function onSubmit(): void {
               :model-value="group.labelEn"
               @update:model-value="(value: string) => updateGroup(groupIndex, { labelEn: value })"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
             </Input.Root>
 
             <NumberField.Root
@@ -425,7 +425,7 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => updateGroup(groupIndex, { minSelect: value ?? 0 })"
             >
-              <NumberField.Control class="field-input" />
+              <NumberField.Control class="field-input" :placeholder="t('catalog.modifier.minSelect')" />
             </NumberField.Root>
 
             <NumberField.Root
@@ -438,7 +438,7 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => updateGroup(groupIndex, { maxSelect: value ?? 0 })"
             >
-              <NumberField.Control class="field-input" />
+              <NumberField.Control class="field-input" :placeholder="t('catalog.modifier.maxSelect')" />
             </NumberField.Root>
 
             <Button.Root type="button" class="btn-danger" data-combo-group-remove @click="removeGroup(groupIndex)">
@@ -457,11 +457,19 @@ function onSubmit(): void {
                     :model-value="option.productId === '' ? null : option.productId"
                     @update:model-value="(value: unknown) => onOptionProduct(groupIndex, optionIndex, value)"
                   >
-                    <Select.Activator class="field-input" :label="t('catalog.combo.option.product')">
-                      {{ productLabel(option.productId) }}
+                    <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('catalog.combo.option.product')">
+                      <span :class="!option.productId ? 'text-text-muted/60' : 'text-text font-medium'">
+                        {{ productLabel(option.productId) || t('catalog.combo.option.product') }}
+                      </span>
+                      <span class="text-xs text-text-muted ml-2">▼</span>
                     </Select.Activator>
-                    <Select.Content eager>
-                      <Select.Item v-for="product in products" :key="product._id" :value="product._id">
+                    <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
+                      <Select.Item
+                        v-for="product in products"
+                        :key="product._id"
+                        :value="product._id"
+                        class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
+                      >
                         {{ product.name[activeLocale] }}
                       </Select.Item>
                     </Select.Content>
@@ -477,7 +485,7 @@ function onSubmit(): void {
                   commit-on="input"
                   @update:model-value="(value: number | null) => updateOption(groupIndex, optionIndex, { delta: value })"
                 >
-                  <NumberField.Control class="field-input" />
+                  <NumberField.Control class="field-input" :placeholder="t('catalog.combo.option.delta')" />
                 </NumberField.Root>
 
                 <Button.Root

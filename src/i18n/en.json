@@ -249,7 +249,12 @@
       "capacity": "{count} guests",
       "noTables": "No tables in this area",
       "order": "Order",
-      "backToFloor": "Floor Plan"
+      "backToFloor": "Floor Plan",
+      "selectTargetTable": "Select target table",
+      "selectTableHint": "Please select a table on the floor plan to start ordering",
+      "deselect": "Deselect table",
+      "clearOrder": "Clear table order",
+      "clearOrderConfirm": "Are you sure you want to discard unpaid items for this table?"
     },
     "guests": "Guests",
     "openTable": "Open Table",
@@ -265,6 +270,8 @@
       "note": "Note",
       "voidLine": "Void Item",
       "empty": "No items in this order",
+      "emptyTitle": "No items in this order",
+      "emptySubtitle": "Select items from the menu to add to this order",
       "taxInclusive": "(Tax inclusive)",
       "taxExclusive": "(Tax exclusive)",
       "voidedBadge": "Voided",
@@ -562,5 +569,135 @@
     "quantitySold": "Quantity Sold",
     "share": "Share",
     "hourRange": "Hour Range"
+  },
+  "tableAdmin": {
+    "title": "Table & Floor Management",
+    "tabs": {
+      "areas": "Areas & Floors",
+      "tables": "Tables",
+      "batch": "Batch Generate"
+    },
+    "currentBranch": "Branch: {name}",
+    "area": {
+      "title": "Areas & Floors",
+      "add": "Add Area / Floor",
+      "edit": "Edit Area",
+      "delete": "Delete Area",
+      "name": "Area / Floor Name",
+      "namePlaceholder": "e.g. Floor 1, Garden, VIP...",
+      "slug": "Identifier / Slug",
+      "slugPlaceholder": "e.g. floor-1 (auto if empty)",
+      "sortOrder": "Sort Order",
+      "tableCount": "Tables Count",
+      "empty": "No areas found. Click 'Add Area / Floor' to create one.",
+      "confirmDelete": "Are you sure you want to delete area \"{name}\"?",
+      "cannotDeleteWithTables": "Cannot delete this area because it contains {count} tables. Please move or delete them first."
+    },
+    "table": {
+      "title": "Tables List",
+      "add": "Add New Table",
+      "edit": "Edit Table",
+      "delete": "Delete Table",
+      "code": "Table Code",
+      "codePlaceholder": "e.g. B01, T01...",
+      "name": "Display Name",
+      "namePlaceholder": "e.g. Table 1, VIP 1...",
+      "area": "Floor / Area",
+      "selectArea": "Select Area",
+      "allAreas": "All Areas",
+      "capacity": "Seats Capacity",
+      "shape": "Table Shape",
+      "shapes": {
+        "square": "Square",
+        "round": "Round",
+        "rectangle": "Rectangle"
+      },
+      "sortOrder": "Sort Order",
+      "status": "Status",
+      "statuses": {
+        "empty": "Available",
+        "occupied": "Occupied"
+      },
+      "searchPlaceholder": "Search by code or name...",
+      "empty": "No tables in this area.",
+      "confirmDelete": "Are you sure you want to delete table \"{name}\" ({code})?",
+      "cannotDeleteOccupied": "Cannot delete this table because it has an active dining session or unpaid bill.",
+      "duplicateCode": "Table code \"{code}\" already exists in this branch.",
+      "noAreaAlert": "You must create at least one Area / Floor before adding tables."
+    },
+    "batch": {
+      "title": "Batch Table Generator",
+      "description": "Automatically generate a sequence of tables to quickly configure a branch floor plan.",
+      "targetArea": "Target Area / Floor",
+      "prefix": "Table Code Prefix",
+      "prefixPlaceholder": "e.g. B, T, V...",
+      "startIndex": "Start Number",
+      "count": "Number of Tables",
+      "capacity": "Seats Per Table",
+      "shape": "Table Shape",
+      "preview": "Preview list ({count} tables)",
+      "submit": "Generate {count} Tables",
+      "success": "Successfully created {count} tables"
+    },
+    "actions": {
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "close": "Close"
+    },
+    "messages": {
+      "areaSaved": "Area saved successfully",
+      "areaDeleted": "Area deleted successfully",
+      "tableSaved": "Table saved successfully",
+      "tableDeleted": "Table deleted successfully"
+    }
+  },
+  "kds": {
+    "title": "Kitchen Display System (KDS)",
+    "navTitle": "Kitchen (KDS)",
+    "stations": {
+      "all": "All Stations",
+      "kitchen": "Hot Kitchen",
+      "bar": "Bar / Drinks",
+      "cold": "Cold Kitchen"
+    },
+    "filter": {
+      "active": "Active Orders",
+      "history": "Completed History"
+    },
+    "status": {
+      "pending": "Pending",
+      "preparing": "Preparing",
+      "ready": "Ready"
+    },
+    "aging": {
+      "fresh": "Fresh",
+      "warning": "Warning",
+      "delayed": "Delayed"
+    },
+    "ticket": {
+      "order": "Order",
+      "table": "Table",
+      "fastSale": "Takeout",
+      "guests": "{count} guests",
+      "bumpAll": "Bump All Items",
+      "bump": "Done",
+      "recall": "Recall",
+      "elapsed": "{minutes} min",
+      "itemsCount": "{count} items",
+      "note": "Note"
+    },
+    "history": {
+      "title": "Completed Items History",
+      "empty": "No completed items recently",
+      "recalled": "Item recalled back to kitchen"
+    },
+    "empty": {
+      "title": "No orders waiting for preparation",
+      "subtitle": "New orders from cashier or QR ordering will appear here automatically"
+    },
+    "refresh": "Refresh",
+    "autoRefresh": "Auto-refresh"
   }
 }

@@ -12,6 +12,7 @@ export const tokens: Record<string, string> = {
   'color-success': '#15803d',
   'color-warning': '#b45309',
   'color-danger': '#b91c1c',
+  'color-border': '#e2e8f0',
   'space-1': '4px',
   'space-2': '8px',
   'space-3': '12px',

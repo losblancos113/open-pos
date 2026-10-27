@@ -6,6 +6,7 @@ import {
   sessionDocId,
   sessionEventsDocId,
   tableDocId,
+  areaDocId,
   bankAccountDocId,
   counterDocId,
 } from '../db/ids';
@@ -22,6 +23,7 @@ import type {
   AreaDoc,
   TableDoc,
   OrderAggregateState,
+  KdsLineStatus,
 } from './types';
 import type { OrderEventDoc, SessionEventsDoc } from './events';
 import type { BankAccountDoc } from '../qr/bank-account';
@@ -39,7 +41,10 @@ export interface OrderRepository {
   getAreasAndTables(branchId: string): Promise<{ areas: AreaDoc[]; tables: TableDoc[] }>;
   saveArea(area: AreaDoc): Promise<void>;
   saveTable(table: TableDoc): Promise<void>;
+  deleteArea(branchId: string, areaId: string): Promise<void>;
+  deleteTable(branchId: string, tableId: string): Promise<void>;
   getActiveSession(branchId: string, tableId: string): Promise<OrderAggregateState | null>;
+  getAllActiveSessions(branchId: string): Promise<Record<string, OrderAggregateState>>;
   appendEvents(
     branchId: string,
     sessionId: string,
@@ -82,7 +87,9 @@ export interface OrderRepository {
     sessionId: string,
     sourceBillIds: string[],
     actorId: string,
-    deviceId: string
+    deviceId: string,
+    sourceBills?: BillDoc[],
+    initialState?: OrderAggregateState
   ): Promise<MergeBillsResult>;
 
   transferTable(
@@ -92,7 +99,8 @@ export interface OrderRepository {
     toTableId: string,
     actorId: string,
     deviceId: string,
-    reason?: string
+    reason?: string,
+    initialState?: OrderAggregateState
   ): Promise<TransferTableResult>;
 
   moveLines(
@@ -104,6 +112,34 @@ export interface OrderRepository {
     actorId: string,
     deviceId: string
   ): Promise<MoveLinesResult>;
+
+  updateLineKdsStatus(
+    branchId: string,
+    sessionId: string,
+    billId: string,
+    lineId: string,
+    status: KdsLineStatus,
+    actorId: string,
+    deviceId: string
+  ): Promise<OrderAggregateState>;
+
+  bumpTicketLines(
+    branchId: string,
+    sessionId: string,
+    billId: string,
+    lineIds: string[],
+    actorId: string,
+    deviceId: string
+  ): Promise<OrderAggregateState>;
+
+  recallTicketLine(
+    branchId: string,
+    sessionId: string,
+    billId: string,
+    lineId: string,
+    actorId: string,
+    deviceId: string
+  ): Promise<OrderAggregateState>;
 }
 
 function isConflict(error: unknown): boolean {
@@ -143,6 +179,18 @@ function matchesTableId(tableIds: string[], tableId: string, branchId: string): 
       t.endsWith(`:${shortTableId}`) ||
       t === `table:${branchId}:${shortTableId}`
   );
+}
+
+function matchesSessionId(session: SessionDoc, targetId: string, branchId: string): boolean {
+  if (session._id === targetId) return true;
+  const cleanTarget = extractCleanId(extractCleanId(targetId, 'session_events', branchId), 'session', branchId);
+  const cleanSession = extractCleanId(session._id, 'session', branchId);
+  return cleanSession === cleanTarget;
+}
+
+function matchesTableOrSession(session: SessionDoc, targetId: string, branchId: string): boolean {
+  if (matchesSessionId(session, targetId, branchId)) return true;
+  return matchesTableId(session.tableIds, targetId, branchId);
 }
 
 export function createOrderRepository(
@@ -236,7 +284,63 @@ export function createOrderRepository(
       }
     },
 
-    async getActiveSession(branchId: string, tableId: string): Promise<OrderAggregateState | null> {
+    async deleteArea(branchId: string, areaId: string): Promise<void> {
+      if (!branchId || typeof branchId !== 'string' || branchId.trim() === '') {
+        throw new Error('deleteArea(): branchId is required');
+      }
+      if (!areaId || typeof areaId !== 'string' || areaId.trim() === '') {
+        throw new Error('deleteArea(): areaId is required');
+      }
+      const fullAreaId = areaId.startsWith('area:') ? areaId : areaDocId(branchId, areaId);
+      const shortAreaId = areaId.startsWith('area:') ? areaId.split(':').pop()! : areaId;
+
+      const { tables } = await this.getAreasAndTables(branchId);
+      const hasTables = tables.some(
+        (t) => t.areaId === fullAreaId || t.areaId === shortAreaId || t.areaId === areaId
+      );
+      if (hasTables) {
+        throw new Error(`Cannot delete area "${areaId}" because it contains tables`);
+      }
+
+      const existing = await adapter.get(fullAreaId);
+      if (!existing || existing.deletedAt) {
+        return;
+      }
+
+      await adapter.put({
+        ...existing,
+        deletedAt: clock(),
+        updatedAt: clock(),
+      });
+    },
+
+    async deleteTable(branchId: string, tableId: string): Promise<void> {
+      if (!branchId || typeof branchId !== 'string' || branchId.trim() === '') {
+        throw new Error('deleteTable(): branchId is required');
+      }
+      if (!tableId || typeof tableId !== 'string' || tableId.trim() === '') {
+        throw new Error('deleteTable(): tableId is required');
+      }
+      const fullTableId = tableId.startsWith('table:') ? tableId : tableDocId(branchId, tableId);
+
+      const activeSession = await this.getActiveSession(branchId, fullTableId);
+      if (activeSession && activeSession.session.status === 'open') {
+        throw new Error(`Cannot delete table "${tableId}" because it currently has an active dining session`);
+      }
+
+      const existing = await adapter.get(fullTableId);
+      if (!existing || existing.deletedAt) {
+        return;
+      }
+
+      await adapter.put({
+        ...existing,
+        deletedAt: clock(),
+        updatedAt: clock(),
+      });
+    },
+
+    async getActiveSession(branchId: string, tableOrSessionId: string): Promise<OrderAggregateState | null> {
       const docs = await adapter.allDocs({ branchId });
 
       // 1. Check session_events docs
@@ -248,7 +352,7 @@ export function createOrderRepository(
           const session = eventsDoc.snapshot?.session;
           const bill = eventsDoc.snapshot?.bill;
 
-          if (session && session.status === 'open' && matchesTableId(session.tableIds, tableId, branchId)) {
+          if (session && session.status === 'open' && matchesTableOrSession(session, tableOrSessionId, branchId)) {
             if (bill && bill.status !== 'paid' && bill.status !== 'voided') {
               return createInitialOrderState(session, bill);
             }
@@ -260,7 +364,7 @@ export function createOrderRepository(
       for (const doc of docs) {
         if (doc._id.startsWith('session:') || doc.docType === 'session') {
           const session = doc as unknown as SessionDoc;
-          if (session.status === 'open' && matchesTableId(session.tableIds, tableId, branchId)) {
+          if (session.status === 'open' && matchesTableOrSession(session, tableOrSessionId, branchId)) {
             let bill: BillDoc | null = null;
             if (session.billIds && session.billIds.length > 0) {
               const bId = session.billIds[0]!;
@@ -277,6 +381,66 @@ export function createOrderRepository(
       }
 
       return null;
+    },
+
+    async getAllActiveSessions(branchId: string): Promise<Record<string, OrderAggregateState>> {
+      const docs = await adapter.allDocs({ branchId });
+      const result: Record<string, OrderAggregateState> = {};
+
+      // 1. Check session_events docs
+      for (const doc of docs) {
+        if (doc._id.startsWith('session_events:') || doc.docType === 'session_events') {
+          const eventsDoc = doc as unknown as SessionEventsDoc;
+          if (eventsDoc.closedAt) continue;
+
+          const session = eventsDoc.snapshot?.session;
+          const bill = eventsDoc.snapshot?.bill;
+
+          if (session && session.status === 'open') {
+            if (bill && bill.status !== 'paid' && bill.status !== 'voided') {
+              const state = createInitialOrderState(session, bill);
+              result[session._id] = state;
+              for (const tid of session.tableIds) {
+                result[tid] = state;
+                const fullTableId = tid.startsWith('table:') ? tid : tableDocId(branchId, tid);
+                const shortTableId = tid.startsWith('table:') ? tid.split(':').pop()! : tid;
+                result[fullTableId] = state;
+                result[shortTableId] = state;
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Check materialized session docs
+      for (const doc of docs) {
+        if (doc._id.startsWith('session:') || doc.docType === 'session') {
+          const session = doc as unknown as SessionDoc;
+          if (session.status === 'open') {
+            let bill: BillDoc | null = null;
+            if (session.billIds && session.billIds.length > 0) {
+              const bId = session.billIds[0]!;
+              const bDoc = await adapter.get(bId);
+              if (bDoc && bDoc.deletedAt === undefined) {
+                bill = bDoc as unknown as BillDoc;
+              }
+            }
+            if (bill && bill.status !== 'paid' && bill.status !== 'voided') {
+              const state = createInitialOrderState(session, bill);
+              if (!result[session._id]) result[session._id] = state;
+              for (const tid of session.tableIds) {
+                const fullTableId = tid.startsWith('table:') ? tid : tableDocId(branchId, tid);
+                const shortTableId = tid.startsWith('table:') ? tid.split(':').pop()! : tid;
+                if (!result[tid]) result[tid] = state;
+                if (!result[fullTableId]) result[fullTableId] = state;
+                if (!result[shortTableId]) result[shortTableId] = state;
+              }
+            }
+          }
+        }
+      }
+
+      return result;
     },
 
     async appendEvents(
@@ -310,14 +474,20 @@ export function createOrderRepository(
             );
             finalState = eventsToAdd.length > 0 ? reduceOrderEvents(baseState, eventsToAdd) : baseState;
           } else if (allEvents.length > 0) {
+            const hasLineEvents = allEvents.some((e) => e.type === 'LINE_ADDED');
             const base = projected && projected.bill && projected.bill.lines && projected.bill.lines.length > 0
-              ? createInitialOrderState(projected.session, {
-                  ...projected.bill,
-                  lines: [],
-                  discounts: [],
-                  surcharges: [],
-                  payments: [],
-                })
+              ? createInitialOrderState(
+                  projected.session,
+                  hasLineEvents
+                    ? {
+                        ...projected.bill,
+                        lines: [],
+                        discounts: [],
+                        surcharges: [],
+                        payments: [],
+                      }
+                    : projected.bill
+                )
               : projected || createInitialOrderState(
                   {
                     _id: sessionDocId(branchId, cleanSessId),
@@ -525,7 +695,7 @@ export function createOrderRepository(
       deviceId: string
     ): Promise<SplitByItemsResult> {
       const now = clock();
-      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      const state = await this.getActiveSession(branchId, sessionId);
       if (!state) throw new Error('splitByItems(): active session not found');
       const sourceBill = state.bill.lines.find((l) => l.lineId === lineIds[0])
         ? state.bill
@@ -550,7 +720,7 @@ export function createOrderRepository(
       deviceId: string
     ): Promise<SplitEvenlyResult> {
       const now = clock();
-      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      const state = await this.getActiveSession(branchId, sessionId);
       if (!state) throw new Error('splitEvenly(): active session not found');
       const srcBill = state.bill._id === billId ? state.bill : null;
       if (!srcBill) throw new Error(`splitEvenly(): bill ${billId} not found in session`);
@@ -568,7 +738,7 @@ export function createOrderRepository(
       deviceId: string
     ): Promise<SplitBySeatResult> {
       const now = clock();
-      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      const state = await this.getActiveSession(branchId, sessionId);
       if (!state) throw new Error('splitBySeat(): active session not found');
       const srcBill = state.bill._id === billId ? state.bill : null;
       if (!srcBill) throw new Error(`splitBySeat(): bill ${billId} not found in session`);
@@ -583,17 +753,53 @@ export function createOrderRepository(
       sessionId: string,
       sourceBillIds: string[],
       actorId: string,
-      deviceId: string
+      deviceId: string,
+      sourceBills?: BillDoc[],
+      initialState?: OrderAggregateState
     ): Promise<MergeBillsResult> {
       const now = clock();
-      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      const state = (await this.getActiveSession(branchId, sessionId)) ?? initialState;
       if (!state) throw new Error('mergeBills(): active session not found');
-      // For merge, we need to find multiple bills — use reduceOrderEvents to reconstruct
+
+      // Resolve all source bills
+      const resolvedBills: BillDoc[] = [];
+      const passedBillsMap = new Map((sourceBills || []).map((b) => [b._id, b]));
+      let activeSessionsRecord: Record<string, OrderAggregateState> | null = null;
+
+      for (const id of sourceBillIds) {
+        if (state.bill._id === id) {
+          resolvedBills.push(state.bill);
+          continue;
+        }
+        if (passedBillsMap.has(id)) {
+          resolvedBills.push(passedBillsMap.get(id)!);
+          continue;
+        }
+        // Try getting from adapter
+        try {
+          const directDoc = await adapter.get(id);
+          if (directDoc && (directDoc as unknown as BillDoc).lines) {
+            resolvedBills.push(directDoc as unknown as BillDoc);
+            continue;
+          }
+        } catch {
+          // not found directly in adapter
+        }
+        // Search in all active sessions
+        if (!activeSessionsRecord) {
+          activeSessionsRecord = await this.getAllActiveSessions(branchId);
+        }
+        const foundInActive = Object.values(activeSessionsRecord).find((s) => s.bill._id === id);
+        if (foundInActive) {
+          resolvedBills.push(foundInActive.bill);
+          continue;
+        }
+        // Fallback: clone state.bill with target id
+        resolvedBills.push({ ...state.bill, _id: id });
+      }
+
       const merged = mergeBills(
-        sourceBillIds.map((id) => {
-          // Find bill in current state or reconstruct
-          return state.bill._id === id ? state.bill : { ...state.bill, _id: id };
-        }),
+        resolvedBills,
         actorId,
         deviceId,
         sessionId,
@@ -601,6 +807,54 @@ export function createOrderRepository(
       );
       const events = merged.events;
       await this.appendEvents(branchId, sessionId, events, state);
+
+      // If any of the merged bills belonged to another active session in DB, append a BILL_MERGED event to close it
+      if (activeSessionsRecord) {
+        const otherSessionsProcessed = new Set<string>();
+        for (const s of Object.values(activeSessionsRecord)) {
+          if (s.session._id !== state.session._id && !otherSessionsProcessed.has(s.session._id)) {
+            if (sourceBillIds.includes(s.bill._id)) {
+              otherSessionsProcessed.add(s.session._id);
+              try {
+                const mergeEvent: OrderEventDoc = {
+                  eventId: `ev-merged-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                  type: 'BILL_MERGED',
+                  sessionId: s.session._id,
+                  billId: s.bill._id,
+                  actorId,
+                  deviceId,
+                  payload: {
+                    mergedIntoSessionId: sessionId,
+                    mergedIntoBillId: merged.mergedBill._id,
+                  },
+                  createdAt: now,
+                  schemaVersion: 1,
+                };
+                const closeEvent: OrderEventDoc = {
+                  eventId: `ev-close-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                  type: 'SESSION_CLOSED',
+                  sessionId: s.session._id,
+                  billId: s.bill._id,
+                  actorId,
+                  deviceId,
+                  payload: {
+                    reason: `Merged into session ${sessionId}`,
+                  },
+                  createdAt: now,
+                  schemaVersion: 1,
+                };
+                await this.appendEvents(branchId, s.session._id, [mergeEvent, closeEvent], {
+                  session: { ...s.session, status: 'closed', closedAt: now },
+                  bill: { ...s.bill, status: 'voided' },
+                });
+              } catch (e) {
+                console.warn('Failed to close other session during merge:', s.session._id, e);
+              }
+            }
+          }
+        }
+      }
+
       return merged;
     },
 
@@ -610,15 +864,20 @@ export function createOrderRepository(
       fromTableId: string,
       toTableId: string,
       actorId: string,
-      reason: string | undefined,
-      deviceId: string
+      deviceId: string,
+      reason?: string,
+      initialState?: OrderAggregateState
     ): Promise<TransferTableResult> {
       const now = clock();
-      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      const state = (await this.getActiveSession(branchId, sessionId)) ?? initialState;
       if (!state) throw new Error('transferTable(): active session not found');
       const result = transferTable(state.session, fromTableId, toTableId, actorId, deviceId, reason, now);
       const events = result.events;
-      await this.appendEvents(branchId, sessionId, events, state);
+      await this.appendEvents(branchId, sessionId, events, {
+        session: result.session,
+        bill: state.bill,
+        ...(state.tableStatus !== undefined ? { tableStatus: state.tableStatus } : {}),
+      });
       return result;
     },
 
@@ -632,7 +891,7 @@ export function createOrderRepository(
       deviceId: string
     ): Promise<MoveLinesResult> {
       const now = clock();
-      const state = await this.getActiveSession(branchId, Object.values(sessionId)[0]?.toString() ?? sessionId);
+      const state = await this.getActiveSession(branchId, sessionId);
       if (!state) throw new Error('moveLines(): active session not found');
       const srcBill = state.bill._id === sourceBillId ? state.bill : null;
       if (!srcBill) throw new Error(`moveLines(): source bill ${sourceBillId} not found in session`);
@@ -641,6 +900,88 @@ export function createOrderRepository(
       const events = result.events;
       await this.appendEvents(branchId, sessionId, events, state);
       return result;
+    },
+
+    async updateLineKdsStatus(
+      branchId: string,
+      sessionId: string,
+      billId: string,
+      lineId: string,
+      status: KdsLineStatus,
+      actorId: string,
+      deviceId: string
+    ): Promise<OrderAggregateState> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, sessionId);
+      if (!state) throw new Error('updateLineKdsStatus(): active session not found');
+
+      const event: OrderEventDoc = {
+        eventId: `ev-kds-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        type: 'LINE_STATUS_CHANGED',
+        sessionId,
+        billId,
+        actorId,
+        deviceId,
+        payload: { lineId, status },
+        createdAt: now,
+        schemaVersion: 1,
+      };
+
+      return this.appendEvents(branchId, sessionId, [event], state);
+    },
+
+    async bumpTicketLines(
+      branchId: string,
+      sessionId: string,
+      billId: string,
+      lineIds: string[],
+      actorId: string,
+      deviceId: string
+    ): Promise<OrderAggregateState> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, sessionId);
+      if (!state) throw new Error('bumpTicketLines(): active session not found');
+
+      const event: OrderEventDoc = {
+        eventId: `ev-bump-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        type: 'LINE_BUMPED',
+        sessionId,
+        billId,
+        actorId,
+        deviceId,
+        payload: { lineIds },
+        createdAt: now,
+        schemaVersion: 1,
+      };
+
+      return this.appendEvents(branchId, sessionId, [event], state);
+    },
+
+    async recallTicketLine(
+      branchId: string,
+      sessionId: string,
+      billId: string,
+      lineId: string,
+      actorId: string,
+      deviceId: string
+    ): Promise<OrderAggregateState> {
+      const now = clock();
+      const state = await this.getActiveSession(branchId, sessionId);
+      if (!state) throw new Error('recallTicketLine(): active session not found');
+
+      const event: OrderEventDoc = {
+        eventId: `ev-recall-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        type: 'LINE_RECALLED',
+        sessionId,
+        billId,
+        actorId,
+        deviceId,
+        payload: { lineId, status: 'preparing' },
+        createdAt: now,
+        schemaVersion: 1,
+      };
+
+      return this.appendEvents(branchId, sessionId, [event], state);
     },
   };
 }

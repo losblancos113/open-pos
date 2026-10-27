@@ -54,7 +54,8 @@ function buildMergeEvent(
   targetBillId: string,
   actorId: string,
   deviceId: string,
-  createdAt: string
+  createdAt: string,
+  mergedBill?: BillDoc
 ): OrderEventDoc {
   return {
     eventId: `merge-${sessionId}-${targetBillId}`,
@@ -63,7 +64,7 @@ function buildMergeEvent(
     billId: targetBillId,
     actorId,
     deviceId,
-    payload: { sourceBillIds, targetBillId },
+    payload: { sourceBillIds, targetBillId, ...(mergedBill ? { mergedBill } : {}) },
     createdAt,
     schemaVersion: 1,
   };
@@ -475,7 +476,7 @@ export function mergeBills(
   recalculateBillInPlace(merged);
 
   const events: OrderEventDoc[] = [
-    buildMergeEvent(sessionId, sources.map((s) => s._id), mergedId, actorId, deviceId, createdAt),
+    buildMergeEvent(sessionId, sources.map((s) => s._id), mergedId, actorId, deviceId, createdAt, merged),
   ];
 
   return { mergedBill: merged, events };
@@ -501,9 +502,12 @@ export function transferTable(
     throw new Error(`transferTable(): fromTableId and toTableId must differ`);
   }
 
+  const shortFrom = fromTableId.startsWith('table:') ? fromTableId.split(':').pop()! : fromTableId;
   const nextSession: SessionDoc = {
     ...session,
-    tableIds: session.tableIds.filter((t) => t !== fromTableId),
+    tableIds: session.tableIds.filter(
+      (t) => t !== fromTableId && t !== shortFrom && !t.endsWith(`:${shortFrom}`)
+    ),
   };
   if (!nextSession.tableIds.includes(toTableId)) {
     nextSession.tableIds.push(toTableId);

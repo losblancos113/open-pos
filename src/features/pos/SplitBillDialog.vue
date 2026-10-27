@@ -105,150 +105,169 @@ function handleClose() {
 </script>
 
 <template>
-  <div v-if="open" class="split-bill-dialog">
-    <div class="dialog-header">
-      <h3 class="text-lg font-semibold">{{ t('pos.split.title') }}</h3>
-    </div>
-
-    <!-- Tabs -->
-    <div class="flex border-b">
-      <button
-        data-test="tab-by-item"
-        class="px-4 py-2 text-sm border-b-2 transition-colors"
-        :class="mode === 'by-item' ? 'border-primary text-primary' : 'border-transparent text-gray-500'"
-        @click="mode = 'by-item'"
-      >
-        {{ t('pos.split.byItem') }}
-      </button>
-      <button
-        data-test="tab-evenly"
-        class="px-4 py-2 text-sm border-b-2 transition-colors"
-        :class="mode === 'evenly' ? 'border-primary text-primary' : 'border-transparent text-gray-500'"
-        @click="mode = 'evenly'"
-      >
-        {{ t('pos.split.evenly') }}
-      </button>
-      <button
-        data-test="tab-by-seat"
-        class="px-4 py-2 text-sm border-b-2 transition-colors"
-        :class="mode === 'by-seat' ? 'border-primary text-primary' : 'border-transparent text-gray-500'"
-        @click="mode = 'by-seat'"
-      >
-        {{ t('pos.split.bySeat') }}
-      </button>
-    </div>
-
-    <!-- By Item Mode -->
-    <div v-show="mode === 'by-item'" class="p-4">
-      <div class="space-y-2 mb-4">
-        <div
-          v-for="line in placedLines"
-          :key="line.lineId"
-          class="flex items-center gap-2 p-2 border rounded"
+  <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+    <div class="split-bill-dialog panel-card max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-border pb-3">
+        <h3 class="text-base sm:text-lg font-bold text-text">{{ t('pos.split.title') }}</h3>
+        <Button.Root
+          type="button"
+          class="btn btn-ghost text-xs p-1 h-7 w-7 rounded-full flex items-center justify-center text-text-muted hover:text-text cursor-pointer"
+          @click="handleClose"
         >
-          <Checkbox.Root
-            data-test="line-checkbox"
-            :checked="selectedLines.includes(line.lineId)"
-            @update:checked="toggleLine(line.lineId)"
-          />
-          <div class="flex-1">
-            <div class="font-medium">{{ line.nameSnapshot.vi }}</div>
-            <div class="text-sm text-gray-500">
-              x{{ line.qty }} — {{ format(line.unitPriceSnapshot) }}
+          ✕
+        </Button.Root>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex border-b border-border">
+        <button
+          data-test="tab-by-item"
+          class="px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors cursor-pointer"
+          :class="mode === 'by-item' ? 'border-primary text-primary font-bold' : 'border-transparent text-text-muted hover:text-text'"
+          @click="mode = 'by-item'"
+        >
+          {{ t('pos.split.byItem') }}
+        </button>
+        <button
+          data-test="tab-evenly"
+          class="px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors cursor-pointer"
+          :class="mode === 'evenly' ? 'border-primary text-primary font-bold' : 'border-transparent text-text-muted hover:text-text'"
+          @click="mode = 'evenly'"
+        >
+          {{ t('pos.split.evenly') }}
+        </button>
+        <button
+          data-test="tab-by-seat"
+          class="px-4 py-2 text-xs sm:text-sm font-medium border-b-2 transition-colors cursor-pointer"
+          :class="mode === 'by-seat' ? 'border-primary text-primary font-bold' : 'border-transparent text-text-muted hover:text-text'"
+          @click="mode = 'by-seat'"
+        >
+          {{ t('pos.split.bySeat') }}
+        </button>
+      </div>
+
+      <!-- By Item Mode -->
+      <div v-show="mode === 'by-item'" class="space-y-4">
+        <div class="space-y-2 mb-4 max-h-60 overflow-y-auto pr-1">
+          <div
+            v-for="line in placedLines"
+            :key="line.lineId"
+            role="checkbox"
+            :aria-checked="selectedLines.includes(line.lineId)"
+            class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-all select-none"
+            :class="selectedLines.includes(line.lineId)
+              ? 'border-primary bg-primary/5 shadow-xs'
+              : 'border-border bg-surface hover:border-primary/40 hover:bg-surface/80'"
+            @click="toggleLine(line.lineId)"
+          >
+            <Checkbox.Root
+              data-test="line-checkbox"
+              :model-value="selectedLines.includes(line.lineId)"
+              class="w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-all cursor-pointer"
+              :class="selectedLines.includes(line.lineId)
+                ? 'border-primary bg-primary text-primary-contrast'
+                : 'border-border bg-surface hover:border-primary/60'"
+              @update:model-value="toggleLine(line.lineId)"
+              @click.stop
+            >
+              <Checkbox.Indicator class="flex items-center justify-center text-xs font-bold leading-none">
+                <span v-if="selectedLines.includes(line.lineId)">✓</span>
+              </Checkbox.Indicator>
+            </Checkbox.Root>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-xs sm:text-sm text-text">{{ line.nameSnapshot.vi }}</div>
+              <div class="text-xs text-text-muted mt-0.5">
+                x{{ line.qty }} — {{ format(line.unitPriceSnapshot) }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <div class="panel-card bg-surface p-3 border border-border rounded-md">
+            <h4 class="text-xs font-semibold text-text-muted mb-1">{{ t('pos.split.sourceBill') }}</h4>
+            <div class="text-xs">
+              <div>{{ preview.sourceBill?.lines ?? 0 }} dòng</div>
+              <div class="font-bold text-sm text-text font-mono mt-0.5">{{ format(preview.sourceBill?.total ?? money(0, bill.balanceRemaining.currency)) }}</div>
+            </div>
+          </div>
+          <div class="panel-card bg-primary/5 p-3 border border-primary/20 rounded-md">
+            <h4 class="text-xs font-semibold text-primary mb-1">{{ t('pos.split.targetBill') }}</h4>
+            <div class="text-xs">
+              <div>{{ preview.targetBill?.lines ?? 0 }} dòng</div>
+              <div class="font-bold text-sm text-primary font-mono mt-0.5">{{ format(preview.targetBill?.total ?? money(0, bill.balanceRemaining.currency)) }}</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Preview -->
-      <div class="grid grid-cols-2 gap-4 mt-4">
-        <div class="panel-card">
-          <h4 class="font-medium mb-2">{{ t('pos.split.sourceBill') }}</h4>
-          <div class="text-sm">
-            <div>{{ preview.sourceBill?.lines ?? 0 }} dòng</div>
-            <div class="font-semibold">{{ format(preview.sourceBill?.total ?? money(0, bill.balanceRemaining.currency)) }}</div>
-          </div>
+      <!-- Evenly Mode -->
+      <div v-show="mode === 'evenly'" class="space-y-4">
+        <div>
+          <label class="field-label text-xs font-medium text-text-muted mb-1">{{ t('pos.split.parts') }}</label>
+          <Input.Root
+            data-test="evenly-parts-input"
+            type="number"
+            :min="2"
+            :max="placedLines.length"
+            :model-value="String(evenlyParts)"
+            @update:model-value="evenlyParts = Math.max(2, Number($event) || 2)"
+            class="w-36"
+          >
+            <Input.Control
+              class="field-input text-xs"
+              :placeholder="t('pos.split.parts')"
+            />
+          </Input.Root>
         </div>
-        <div class="panel-card">
-          <h4 class="font-medium mb-2">{{ t('pos.split.targetBill') }}</h4>
-          <div class="text-sm">
-            <div>{{ preview.targetBill?.lines ?? 0 }} dòng</div>
-            <div class="font-semibold">{{ format(preview.targetBill?.total ?? money(0, bill.balanceRemaining.currency)) }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Evenly Mode -->
-    <div v-show="mode === 'evenly'" class="p-4">
-      <div class="mb-4">
-        <label class="block text-sm font-medium mb-2">{{ t('pos.split.parts') }}</label>
-        <Input.Root
-          data-test="evenly-parts-input"
-          type="number"
-          :min="2"
-          :max="placedLines.length"
-          :model-value="String(evenlyParts)"
-          @update:model-value="evenlyParts = Math.max(2, Number($event) || 2)"
-          class="w-32"
-        />
-      </div>
-
-      <div class="panel-card mt-4">
-        <h4 class="font-medium mb-2">Preview</h4>
-        <div class="space-y-1 text-sm">
-          <div v-for="(part, idx) in preview.perPart" :key="idx">
-            Phần {{ idx + 1 }}: {{ format(part) }}
+        <div class="panel-card p-3 border border-border rounded-md">
+          <h4 class="text-xs font-semibold text-text-muted mb-2">Xem trước các phần</h4>
+          <div class="space-y-1 text-xs">
+            <div v-for="(part, idx) in preview.perPart" :key="idx" class="flex justify-between py-1 border-b border-border/50 last:border-b-0">
+              <span class="text-text-muted">Phần {{ idx + 1 }}:</span>
+              <span class="font-mono font-bold text-text">{{ format(part) }}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- By Seat Mode -->
-    <div v-show="mode === 'by-seat'" class="p-4">
-      <div class="space-y-2">
-        <div
-          v-for="seat in uniqueSeats"
-          :key="seat"
-          data-test="seat-group"
-          class="panel-card"
+      <!-- By Seat Mode -->
+      <div v-show="mode === 'by-seat'" class="space-y-4">
+        <div class="space-y-2">
+          <div
+            v-for="seat in uniqueSeats"
+            :key="seat"
+            data-test="seat-group"
+            class="panel-card p-3 border border-border rounded-md flex items-center justify-between"
+          >
+            <div class="font-semibold text-xs text-text">Ghế {{ seat }}</div>
+            <div class="font-mono font-bold text-xs text-primary">
+              {{ format(preview.groups?.find((g) => g.seat === seat)?.total ?? money(0, bill.balanceRemaining.currency)) }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="pt-3 border-t border-border flex justify-end gap-2">
+        <Button.Root
+          type="button"
+          class="btn btn-ghost text-xs px-3 py-1.5 rounded-md cursor-pointer"
+          @click="handleClose"
         >
-          <div class="font-medium mb-1">Ghế {{ seat }}</div>
-          <div class="text-sm text-gray-600">
-            {{ format(preview.groups?.find((g) => g.seat === seat)?.total ?? money(0, bill.balanceRemaining.currency)) }}
-          </div>
-        </div>
+          <Button.Content>{{ t('common.close') }}</Button.Content>
+        </Button.Root>
+        <Button.Root
+          type="button"
+          class="btn btn-primary text-xs px-3.5 py-1.5 rounded-md cursor-pointer"
+          :disabled="!canConfirm()"
+          @click="handleConfirm"
+        >
+          <Button.Content>{{ t('pos.split.confirm') }}</Button.Content>
+        </Button.Root>
       </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="p-4 border-t flex justify-end gap-2">
-      <Button.Root @click="handleClose">
-        <Button.Content>{{ t('common.close') }}</Button.Content>
-      </Button.Root>
-      <Button.Root
-        :disabled="!canConfirm()"
-        @click="handleConfirm"
-        :class="{ 'opacity-50': !canConfirm() }"
-      >
-        <Button.Content>{{ t('pos.split.confirm') }}</Button.Content>
-      </Button.Root>
     </div>
   </div>
 </template>
-
-<style scoped>
-.split-bill-dialog {
-  background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  max-width: 36rem;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.dialog-header {
-  padding: 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-</style>

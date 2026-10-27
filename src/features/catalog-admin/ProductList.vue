@@ -114,7 +114,7 @@ function confirmRemove(): void {
         :label="t('catalog.product.search')"
         class="flex-1"
       >
-        <Input.Control class="field-input" />
+        <Input.Control class="field-input" :placeholder="t('catalog.product.search')" />
       </Input.Root>
 
       <Button.Root type="button" class="btn-primary" data-product-create @click="emit('create')">

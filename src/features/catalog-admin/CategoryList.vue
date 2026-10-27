@@ -148,7 +148,7 @@ function isEditing(category: CategoryDoc): boolean {
         type="text"
         :label="t('catalog.field.name')"
       >
-        <Input.Control class="field-input" />
+        <Input.Control class="field-input" :placeholder="t('catalog.field.name')" />
       </Input.Root>
 
       <Input.Root
@@ -157,7 +157,7 @@ function isEditing(category: CategoryDoc): boolean {
         type="text"
         :label="t('catalog.field.nameEn')"
       >
-        <Input.Control class="field-input" />
+        <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
       </Input.Root>
 
       <NumberField.Root
@@ -169,7 +169,7 @@ function isEditing(category: CategoryDoc): boolean {
         commit-on="input"
         @update:model-value="onSortOrder"
       >
-        <NumberField.Control class="field-input" />
+        <NumberField.Control class="field-input" :placeholder="t('catalog.field.sortOrder')" />
       </NumberField.Root>
 
       <p v-if="nameIssue !== null" class="error-text" role="alert">

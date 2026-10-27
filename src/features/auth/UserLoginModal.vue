@@ -103,17 +103,69 @@ async function handleLogin() {
     enteredPin.value = '';
   }
 }
+
+function quickFillPin(pin: string, roleKeyword?: string) {
+  if (roleKeyword) {
+    const target = props.users.find((u) => u.role === roleKeyword || u.username.includes(roleKeyword));
+    if (target) {
+      selectedUserId.value = target._id;
+    }
+  }
+  enteredPin.value = pin;
+  errorMessage.value = null;
+}
 </script>
 
 <template>
   <div
     v-if="open"
     class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    @click.self="emit('cancel')"
   >
-    <div class="panel-card w-full max-w-sm p-6 space-y-4 shadow-xl">
-      <div class="text-center">
-        <h2 class="text-lg font-bold text-text">{{ t('auth.login') }}</h2>
-        <p class="text-xs text-text-muted mt-1">{{ t('auth.enterPin') }}</p>
+    <div class="panel-card w-full max-w-sm p-6 space-y-4 shadow-xl relative">
+      <!-- Header với nút đóng ✕ -->
+      <div class="flex items-start justify-between">
+        <div class="flex-1 text-center pl-7">
+          <h2 class="text-lg font-bold text-text">{{ t('auth.login') }}</h2>
+          <p class="text-xs text-text-muted mt-1">{{ t('auth.enterPin') }}</p>
+        </div>
+        <Button.Root
+          type="button"
+          data-test="close-login-btn"
+          class="btn btn-ghost text-xs p-1 h-7 w-7 rounded-full cursor-pointer flex items-center justify-center text-text-muted hover:text-text shrink-0"
+          @click="emit('cancel')"
+        >
+          ✕
+        </Button.Root>
+      </div>
+
+      <!-- Gợi ý mã PIN mặc định -->
+      <div class="p-2.5 rounded-lg bg-surface border border-border text-xs text-text-muted space-y-1.5">
+        <div class="font-medium text-text flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <span>💡</span>
+            <span>Mã PIN mặc định:</span>
+          </span>
+          <span class="text-[10px] text-text-muted font-normal">(Chạm để điền nhanh)</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button
+            type="button"
+            class="flex items-center justify-between p-1.5 rounded border border-border/60 bg-bg hover:border-primary/60 cursor-pointer transition-all"
+            @click="quickFillPin('1234', 'owner')"
+          >
+            <span class="truncate">Chủ quán:</span>
+            <span class="font-mono font-bold text-primary ml-1">1234</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center justify-between p-1.5 rounded border border-border/60 bg-bg hover:border-primary/60 cursor-pointer transition-all"
+            @click="quickFillPin('1111', 'cashier')"
+          >
+            <span class="truncate">Thu ngân:</span>
+            <span class="font-mono font-bold text-primary ml-1">1111</span>
+          </button>
+        </div>
       </div>
 
       <!-- User selection -->
@@ -193,15 +245,25 @@ async function handleLogin() {
         </Button.Root>
       </div>
 
-      <!-- Submit button -->
-      <Button.Root
-        type="button"
-        data-test="login-submit-btn"
-        class="btn btn-primary w-full py-2.5 text-sm font-medium rounded"
-        @click="handleLogin"
-      >
-        <Button.Content>{{ t('auth.login') }}</Button.Content>
-      </Button.Root>
+      <!-- Action buttons -->
+      <div class="flex items-center gap-2">
+        <Button.Root
+          type="button"
+          data-test="login-cancel-btn"
+          class="btn btn-ghost flex-1 py-2.5 text-sm font-medium rounded cursor-pointer"
+          @click="emit('cancel')"
+        >
+          <Button.Content>{{ t('common.cancel') }}</Button.Content>
+        </Button.Root>
+        <Button.Root
+          type="button"
+          data-test="login-submit-btn"
+          class="btn btn-primary flex-1 py-2.5 text-sm font-medium rounded cursor-pointer"
+          @click="handleLogin"
+        >
+          <Button.Content>{{ t('auth.login') }}</Button.Content>
+        </Button.Root>
+      </div>
     </div>
   </div>
 </template>

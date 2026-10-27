@@ -106,6 +106,110 @@ describe('OrderRepository', () => {
     expect(result.tables[1]?.code).toBe('B02');
   });
 
+  it('deletes a table and hides it from getAreasAndTables', async () => {
+    const table: TableDoc = {
+      _id: 'table:hq:t1',
+      branchId: 'hq',
+      areaId: 'area:hq:indoor',
+      code: 'B01',
+      name: 'Bàn 1',
+      capacity: 4,
+      sortOrder: 1,
+      createdAt: new Date().toISOString(),
+    };
+    await repo.saveTable(table);
+    expect((await repo.getAreasAndTables('hq')).tables).toHaveLength(1);
+
+    await repo.deleteTable('hq', 't1');
+    expect((await repo.getAreasAndTables('hq')).tables).toHaveLength(0);
+  });
+
+  it('prevents deleting a table that is in an active open session', async () => {
+    const table: TableDoc = {
+      _id: 'table:hq:t1',
+      branchId: 'hq',
+      areaId: 'area:hq:indoor',
+      code: 'B01',
+      name: 'Bàn 1',
+      capacity: 4,
+      sortOrder: 1,
+      createdAt: new Date().toISOString(),
+    };
+    await repo.saveTable(table);
+
+    const now = new Date().toISOString();
+    const session: SessionDoc = {
+      _id: 'session:hq:s1',
+      branchId: 'hq',
+      tableIds: ['table:hq:t1'],
+      guestCount: 2,
+      status: 'open',
+      openedAt: now,
+      openedBy: 'c1',
+      billIds: ['bill:hq:b1'],
+    };
+    const bill: BillDoc = {
+      _id: 'bill:hq:b1',
+      branchId: 'hq',
+      sessionId: 'session:hq:s1',
+      billNumber: 'HQ-T01-20261023-0001',
+      paymentRef: 'POSHQT010001',
+      status: 'draft',
+      lines: [],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(0, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(0, 'VND'),
+      payments: [],
+      balanceRemaining: money(0, 'VND'),
+      createdAt: now,
+      updatedAt: now,
+    };
+    await adapter.put({ ...session, docType: 'session', schemaVersion: 1, createdAt: now, updatedAt: now });
+    await adapter.put({ ...bill, docType: 'bill', schemaVersion: 1, createdAt: now, updatedAt: now });
+
+    await expect(repo.deleteTable('hq', 't1')).rejects.toThrow(/active dining session/);
+    expect((await repo.getAreasAndTables('hq')).tables).toHaveLength(1);
+  });
+
+  it('deletes an area when empty and prevents deleting an area with tables', async () => {
+    const area: AreaDoc = {
+      _id: 'area:hq:indoor',
+      branchId: 'hq',
+      name: 'Trong nhà',
+      sortOrder: 1,
+      createdAt: new Date().toISOString(),
+    };
+    const table: TableDoc = {
+      _id: 'table:hq:t1',
+      branchId: 'hq',
+      areaId: 'area:hq:indoor',
+      code: 'B01',
+      name: 'Bàn 1',
+      capacity: 4,
+      sortOrder: 1,
+      createdAt: new Date().toISOString(),
+    };
+    await repo.saveArea(area);
+    await repo.saveTable(table);
+
+    // Cannot delete area while table exists
+    await expect(repo.deleteArea('hq', 'indoor')).rejects.toThrow(/contains tables/);
+
+    // Delete table first
+    await repo.deleteTable('hq', 't1');
+
+    // Now delete area succeeds
+    await repo.deleteArea('hq', 'indoor');
+    const result = await repo.getAreasAndTables('hq');
+    expect(result.areas).toHaveLength(0);
+  });
+
   it('appends events and updates session events doc with snapshot', async () => {
     const session: SessionDoc = {
       _id: 'session:hq:s1',
@@ -517,6 +621,10 @@ describe('OrderRepository', () => {
     // After closing, table t1 is no longer active
     active = await repo.getActiveSession('hq', 'table:hq:t1');
     expect(active).toBeNull();
+
+    // Verify getAllActiveSessions
+    const allActive = await repo.getAllActiveSessions('hq');
+    expect(allActive['table:hq:t1']).toBeUndefined();
   });
 
   it('rejects invalid or empty branchId, deviceId, or dateStr in nextSequence', async () => {
@@ -657,5 +765,345 @@ describe('OrderRepository', () => {
     const acc = await repo.getBankAccount('hq');
     expect(acc?.accountNumber).toBe('123456789');
     expect(attempts).toBe(2);
+  });
+
+  it('transfers an active table to another table and updates active session queries', async () => {
+    const session: SessionDoc = {
+      _id: 'session:hq:s-transfer',
+      branchId: 'hq',
+      tableIds: ['table:hq:t1'],
+      guestCount: 2,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:hq:b-transfer'],
+    };
+    const bill: BillDoc = {
+      _id: 'bill:hq:b-transfer',
+      branchId: 'hq',
+      sessionId: session._id,
+      billNumber: 'HQ-T01-20261026-0001',
+      paymentRef: 'POSHQT010001',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'l1',
+          productId: 'p1',
+          nameSnapshot: { vi: 'Phở tái', en: 'Beef pho' },
+          unitPriceSnapshot: money(60000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(60000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(60000, 'VND'),
+      payments: [],
+      balanceRemaining: money(60000, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await repo.appendEvents(
+      'hq',
+      session._id,
+      [
+        {
+          eventId: 'ev-add-item',
+          type: 'LINE_ADDED',
+          sessionId: session._id,
+          billId: bill._id,
+          actorId: 'c1',
+          deviceId: 'T01',
+          payload: bill.lines[0],
+          createdAt: new Date().toISOString(),
+          schemaVersion: 1,
+        },
+      ],
+      { session, bill }
+    );
+
+    // Initial check: Table t1 is occupied, Table t2 is empty
+    expect(await repo.getActiveSession('hq', 'table:hq:t1')).not.toBeNull();
+    expect(await repo.getActiveSession('hq', 'table:hq:t2')).toBeNull();
+
+    // Transfer from table:hq:t1 to table:hq:t2
+    const transferResult = await repo.transferTable(
+      'hq',
+      session._id,
+      'table:hq:t1',
+      'table:hq:t2',
+      'cashier1',
+      'T01',
+      'Khách đổi bàn'
+    );
+
+    expect(transferResult.session.tableIds).toContain('table:hq:t2');
+    expect(transferResult.session.tableIds).not.toContain('table:hq:t1');
+
+    // After transfer: Table t1 is empty, Table t2 is occupied
+    const activeT1 = await repo.getActiveSession('hq', 'table:hq:t1');
+    expect(activeT1).toBeNull();
+
+    const activeT2 = await repo.getActiveSession('hq', 'table:hq:t2');
+    expect(activeT2).not.toBeNull();
+    expect(activeT2?.session._id).toBe(session._id);
+    expect(activeT2?.bill.total.minor).toBe(60000);
+
+    // Can also query by sessionId
+    const activeBySession = await repo.getActiveSession('hq', session._id);
+    expect(activeBySession).not.toBeNull();
+    expect(activeBySession?.session.tableIds).toContain('table:hq:t2');
+  });
+
+  it('merges bills from two different tables into one and closes the source session', async () => {
+    // Session 1 on Table 1
+    const session1: SessionDoc = {
+      _id: 'session:hq:s1',
+      branchId: 'hq',
+      tableIds: ['table:hq:t1'],
+      guestCount: 2,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:hq:b1'],
+    };
+    const bill1: BillDoc = {
+      _id: 'bill:hq:b1',
+      branchId: 'hq',
+      sessionId: session1._id,
+      billNumber: 'HQ-T01-0001',
+      paymentRef: 'REF0001',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'l1',
+          productId: 'p1',
+          nameSnapshot: { vi: 'Phở bò', en: 'Beef pho' },
+          unitPriceSnapshot: money(50000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(50000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(50000, 'VND'),
+      payments: [],
+      balanceRemaining: money(50000, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await repo.appendEvents('hq', session1._id, [
+      {
+        eventId: 'ev-s1-1',
+        type: 'LINE_ADDED',
+        sessionId: session1._id,
+        billId: bill1._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: bill1.lines[0],
+        createdAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+    ], { session: session1, bill: bill1 });
+
+    // Session 2 on Table 2
+    const session2: SessionDoc = {
+      _id: 'session:hq:s2',
+      branchId: 'hq',
+      tableIds: ['table:hq:t2'],
+      guestCount: 1,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:hq:b2'],
+    };
+    const bill2: BillDoc = {
+      _id: 'bill:hq:b2',
+      branchId: 'hq',
+      sessionId: session2._id,
+      billNumber: 'HQ-T01-0002',
+      paymentRef: 'REF0002',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'l2',
+          productId: 'p2',
+          nameSnapshot: { vi: 'Trà đào', en: 'Peach tea' },
+          unitPriceSnapshot: money(30000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(30000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(30000, 'VND'),
+      payments: [],
+      balanceRemaining: money(30000, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await repo.appendEvents('hq', session2._id, [
+      {
+        eventId: 'ev-s2-1',
+        type: 'LINE_ADDED',
+        sessionId: session2._id,
+        billId: bill2._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: bill2.lines[0],
+        createdAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+    ], { session: session2, bill: bill2 });
+
+    // Verify both are active before merge
+    expect(await repo.getActiveSession('hq', 'table:hq:t1')).not.toBeNull();
+    expect(await repo.getActiveSession('hq', 'table:hq:t2')).not.toBeNull();
+
+    // Merge bill2 into session1
+    const mergeResult = await repo.mergeBills(
+      'hq',
+      session1._id,
+      [bill1._id, bill2._id],
+      'cashier1',
+      'T01'
+    );
+
+    // Merged bill has 2 items: 50k + 30k = 80k
+    expect(mergeResult.mergedBill.lines).toHaveLength(2);
+    expect(mergeResult.mergedBill.total.minor).toBe(80000);
+
+    // Session 2 should now be closed / Table 2 empty
+    expect(await repo.getActiveSession('hq', 'table:hq:t2')).toBeNull();
+
+    // Table 1 has the merged state
+    const activeT1 = await repo.getActiveSession('hq', 'table:hq:t1');
+    expect(activeT1).not.toBeNull();
+    expect(activeT1?.bill.total.minor).toBe(80000);
+  });
+
+  it('updates line KDS status, bumps lines, and recalls lines correctly', async () => {
+    const session: SessionDoc = {
+      _id: 'session:hq:s-kds',
+      branchId: 'hq',
+      tableIds: ['table:hq:t1'],
+      guestCount: 2,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:hq:b-kds'],
+    };
+    const bill: BillDoc = {
+      _id: 'bill:hq:b-kds',
+      branchId: 'hq',
+      sessionId: session._id,
+      billNumber: 'HQ-T01-0010',
+      paymentRef: 'REF0010',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'l1',
+          productId: 'p1',
+          nameSnapshot: { vi: 'Phở bò', en: 'Beef pho' },
+          unitPriceSnapshot: money(60000, 'VND'),
+          qty: 2,
+          modifiers: [],
+          status: 'placed',
+          addedAt: new Date().toISOString(),
+        },
+        {
+          lineId: 'l2',
+          productId: 'p2',
+          nameSnapshot: { vi: 'Trà chanh', en: 'Lemon tea' },
+          unitPriceSnapshot: money(25000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(145000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(145000, 'VND'),
+      payments: [],
+      balanceRemaining: money(145000, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await repo.appendEvents('hq', session._id, [
+      {
+        eventId: 'ev-kds-init-1',
+        type: 'LINE_ADDED',
+        sessionId: session._id,
+        billId: bill._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: bill.lines[0],
+        createdAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+      {
+        eventId: 'ev-kds-init-2',
+        type: 'LINE_ADDED',
+        sessionId: session._id,
+        billId: bill._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: bill.lines[1],
+        createdAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+    ], { session, bill });
+
+    // 1. Update line 1 status to 'preparing'
+    const preparingState = await repo.updateLineKdsStatus('hq', session._id, bill._id, 'l1', 'preparing', 'Chef', 'KDS01');
+    const l1Preparing = preparingState.bill.lines.find((l) => l.lineId === 'l1');
+    expect(l1Preparing?.kdsStatus).toBe('preparing');
+
+    // 2. Bump line 1 (done cooking)
+    const bumpedState = await repo.bumpTicketLines('hq', session._id, bill._id, ['l1'], 'Chef', 'KDS01');
+    const l1Bumped = bumpedState.bill.lines.find((l) => l.lineId === 'l1');
+    expect(l1Bumped?.kdsStatus).toBe('ready');
+    expect(l1Bumped?.bumpedAt).toBeDefined();
+
+    // 3. Recall line 1 (mistakenly bumped)
+    const recalledState = await repo.recallTicketLine('hq', session._id, bill._id, 'l1', 'Chef', 'KDS01');
+    const l1Recalled = recalledState.bill.lines.find((l) => l.lineId === 'l1');
+    expect(l1Recalled?.kdsStatus).toBe('preparing');
+    expect(l1Recalled?.bumpedAt).toBeUndefined();
   });
 });

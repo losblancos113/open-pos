@@ -378,7 +378,7 @@ function onSubmit(): void {
     <form ref="formEl" class="form-grid" data-product-form novalidate @submit.prevent="onSubmit">
       <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-product-name type="text" :label="t('catalog.field.name')">
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.name')" />
         </Input.Root>
 
         <Input.Root
@@ -387,7 +387,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
         </Input.Root>
       </div>
 
@@ -402,7 +402,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="onPriceInput"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.field.basePrice')" />
         </NumberField.Root>
 
         <div data-product-category>
@@ -410,11 +410,17 @@ function onSubmit(): void {
             :model-value="categoryModel"
             @update:model-value="onCategoryInput"
           >
-            <Select.Activator class="field-input" :label="t('catalog.field.category')">
-              {{ selectedCategoryLabel }}
+            <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('catalog.field.category')">
+              <span>{{ selectedCategoryLabel || t('catalog.field.category') }}</span>
+              <span class="text-xs text-text-muted ml-2">▼</span>
             </Select.Activator>
-            <Select.Content eager>
-              <Select.Item v-for="option in categoryOptions" :key="option.value" :value="option.value">
+            <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
+              <Select.Item
+                v-for="option in categoryOptions"
+                :key="option.value"
+                :value="option.value"
+                class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
+              >
                 {{ option.label }}
               </Select.Item>
             </Select.Content>
@@ -422,7 +428,7 @@ function onSubmit(): void {
         </div>
 
         <Input.Root v-model="unit" data-product-unit type="text" :label="t('catalog.field.unit')">
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.unit')" />
         </Input.Root>
       </div>
 
@@ -433,11 +439,11 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.barcode')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.barcode')" />
         </Input.Root>
 
         <Input.Root v-model="sku" data-product-sku type="text" :label="t('catalog.field.sku')">
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.sku')" />
         </Input.Root>
 
         <Input.Root
@@ -446,7 +452,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.imageRef')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.imageRef')" />
         </Input.Root>
 
         <NumberField.Root
@@ -456,9 +462,9 @@ function onSubmit(): void {
           :min="0"
           :step="1"
           commit-on="input"
-          @update:model-value="onSortOrder"
+          @update:model-value="(value: number | null) => (sortOrder = value ?? 0)"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.field.sortOrder')" />
         </NumberField.Root>
 
         <Checkbox.Root
@@ -512,7 +518,7 @@ function onSubmit(): void {
               :model-value="row.id"
               @update:model-value="(value: string) => onVariantText(index, 'id', value)"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.variant.id')" />
             </Input.Root>
 
             <Input.Root
@@ -522,7 +528,7 @@ function onSubmit(): void {
               :model-value="row.nameVi"
               @update:model-value="(value: string) => onVariantText(index, 'nameVi', value)"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.field.name')" />
             </Input.Root>
 
             <Input.Root
@@ -532,7 +538,7 @@ function onSubmit(): void {
               :model-value="row.nameEn"
               @update:model-value="(value: string) => onVariantText(index, 'nameEn', value)"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
             </Input.Root>
 
             <NumberField.Root
@@ -544,7 +550,7 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => onDeltaInput(index, value)"
             >
-              <NumberField.Control class="field-input" />
+              <NumberField.Control class="field-input" :placeholder="t('catalog.variant.delta')" />
             </NumberField.Root>
 
             <Button.Root

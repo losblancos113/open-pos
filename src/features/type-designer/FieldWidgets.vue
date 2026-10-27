@@ -239,7 +239,7 @@ const labelTarget = computed(() => {
       commit-on="input"
       @update:model-value="onNumericInput"
     >
-      <NumberField.Control class="field-input" />
+      <NumberField.Control class="field-input" :placeholder="label" />
     </NumberField.Root>
 
     <!-- `select` — một lựa chọn trong danh sách đã khai báo. -->
@@ -250,9 +250,19 @@ const labelTarget = computed(() => {
       :model-value="selectValue"
       @update:model-value="onSelectInput"
     >
-      <Select.Activator class="field-input" :label="label">{{ selectedOptionLabel }}</Select.Activator>
-      <Select.Content eager>
-        <Select.Item v-for="option in options" :key="option.value" :value="option.value">
+      <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="label">
+        <span :class="!selectValue ? 'text-text-muted/60' : 'text-text'">
+          {{ selectedOptionLabel || label }}
+        </span>
+        <span class="text-xs text-text-muted ml-2">▼</span>
+      </Select.Activator>
+      <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
+        <Select.Item
+          v-for="option in options"
+          :key="option.value"
+          :value="option.value"
+          class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
+        >
           {{ optionLabel(option) }}
         </Select.Item>
       </Select.Content>
@@ -268,7 +278,7 @@ const labelTarget = computed(() => {
       :model-value="textValue"
       @update:model-value="onTextInput"
     >
-      <Input.Control as="textarea" rows="4" class="field-input" />
+      <Input.Control as="textarea" rows="4" class="field-input" :placeholder="label" />
     </Input.Root>
 
     <!-- `text` / `date` / `datetime` / `color` / `reference` / `image`. -->
@@ -282,7 +292,7 @@ const labelTarget = computed(() => {
       :model-value="textValue"
       @update:model-value="onTextInput"
     >
-      <Input.Control class="field-input" />
+      <Input.Control class="field-input" :placeholder="label" />
     </Input.Root>
 
     <span class="text-sm text-text-muted" :data-type-hint="field.dataType">{{ typeLabel }}</span>

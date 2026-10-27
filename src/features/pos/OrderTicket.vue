@@ -147,7 +147,7 @@ function confirmMove() {
 </script>
 
 <template>
-  <div class="order-ticket flex flex-col h-full bg-surface text-text select-none min-h-0">
+  <div class="order-ticket flex flex-col h-full bg-surface text-text select-none min-h-0" data-test="order-ticket">
     <!-- Header: Tên bàn / Bán nhanh, Số phiếu, Khách -->
     <header class="ticket-header p-3 border-b border-border flex items-center justify-between shrink-0">
       <div class="flex items-center gap-2 min-w-0">
@@ -444,7 +444,10 @@ function confirmMove() {
 
     <!-- Dialog nhập ghi chú món -->
     <Dialog.Root v-model="isNoteOpen">
-      <Dialog.Content class="panel-card max-w-sm w-full p-4 space-y-3" data-test="note-dialog">
+      <Dialog.Content
+        class="panel-card fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-[90vw] p-4 space-y-3 shadow-xl"
+        data-test="note-dialog"
+      >
         <Dialog.Title class="text-sm font-bold text-text">
           {{ t('pos.ticket.note') }}
         </Dialog.Title>
@@ -477,7 +480,10 @@ function confirmMove() {
 
     <!-- Dialog nhập lý do huỷ món -->
     <Dialog.Root v-model="isVoidOpen">
-      <Dialog.Content class="panel-card max-w-sm w-full p-4 space-y-3" data-test="void-dialog">
+      <Dialog.Content
+        class="panel-card fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-[90vw] p-4 space-y-3 shadow-xl"
+        data-test="void-dialog"
+      >
         <Dialog.Title class="text-sm font-bold text-danger">
           {{ t('pos.ticket.voidLine') }}
         </Dialog.Title>
@@ -510,7 +516,10 @@ function confirmMove() {
 
     <!-- Dialog chọn hoá đơn đích để chuyển món -->
     <Dialog.Root v-model="isMoveDialogOpen">
-      <Dialog.Content class="panel-card max-w-sm w-full p-4 space-y-3" data-test="move-line-dialog">
+      <Dialog.Content
+        class="panel-card fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 max-w-sm w-[90vw] p-4 space-y-3 shadow-xl"
+        data-test="move-line-dialog"
+      >
         <Dialog.Title class="text-sm font-bold text-text">
           {{ t('pos.split.moveLine') }}
         </Dialog.Title>

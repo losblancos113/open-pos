@@ -249,7 +249,12 @@
       "capacity": "{count} khách",
       "noTables": "Chưa có bàn nào trong khu vực này",
       "order": "Chọn món",
-      "backToFloor": "Sơ đồ bàn"
+      "backToFloor": "Sơ đồ bàn",
+      "selectTargetTable": "Chọn bàn chuyển đến",
+      "selectTableHint": "Vui lòng chọn một bàn trên sơ đồ để bắt đầu gọi món",
+      "deselect": "Bỏ chọn bàn",
+      "clearOrder": "Xoá đơn bàn",
+      "clearOrderConfirm": "Bạn có chắc chắn muốn huỷ đơn hàng chưa thanh toán của bàn này?"
     },
     "guests": "Số khách",
     "openTable": "Mở bàn",
@@ -265,6 +270,8 @@
       "note": "Ghi chú",
       "voidLine": "Huỷ món",
       "empty": "Chưa có món nào trong đơn",
+      "emptyTitle": "Chưa có món nào trong đơn",
+      "emptySubtitle": "Chọn món từ thực đơn để thêm vào đơn hàng",
       "taxInclusive": "(Đã gồm thuế)",
       "taxExclusive": "(Chưa gồm thuế)",
       "voidedBadge": "Đã huỷ",
@@ -562,5 +569,135 @@
     "quantitySold": "Số lượng bán",
     "share": "Tỷ trọng",
     "hourRange": "Khung giờ"
+  },
+  "tableAdmin": {
+    "title": "Quản lý Bàn & Tầng",
+    "tabs": {
+      "areas": "Khu vực / Tầng",
+      "tables": "Danh sách Bàn",
+      "batch": "Tạo nhanh hàng loạt"
+    },
+    "currentBranch": "Chi nhánh: {name}",
+    "area": {
+      "title": "Khu vực / Tầng",
+      "add": "Thêm tầng / khu vực",
+      "edit": "Sửa khu vực",
+      "delete": "Xoá khu vực",
+      "name": "Tên khu vực / tầng",
+      "namePlaceholder": "Ví dụ: Tầng 1, Sân vườn, VIP...",
+      "slug": "Mã định danh",
+      "slugPlaceholder": "Ví dụ: tang-1 (tự động nếu để trống)",
+      "sortOrder": "Thứ tự hiển thị",
+      "tableCount": "Số lượng bàn",
+      "empty": "Chưa có khu vực nào. Hãy bấm 'Thêm tầng / khu vực' để tạo mới.",
+      "confirmDelete": "Bạn có chắc chắn muốn xoá khu vực \"{name}\"?",
+      "cannotDeleteWithTables": "Không thể xoá khu vực này vì vẫn còn {count} bàn. Vui lòng chuyển hoặc xoá các bàn trước."
+    },
+    "table": {
+      "title": "Danh sách Bàn",
+      "add": "Thêm bàn mới",
+      "edit": "Sửa thông tin bàn",
+      "delete": "Xoá bàn",
+      "code": "Mã bàn",
+      "codePlaceholder": "Ví dụ: B01, T01...",
+      "name": "Tên hiển thị bàn",
+      "namePlaceholder": "Ví dụ: Bàn 1, Bàn VIP 1...",
+      "area": "Thuộc tầng / khu vực",
+      "selectArea": "Chọn khu vực",
+      "allAreas": "Tất cả khu vực",
+      "capacity": "Số ghế ngồi",
+      "shape": "Hình dạng bàn",
+      "shapes": {
+        "square": "Vuông",
+        "round": "Tròn",
+        "rectangle": "Chữ nhật"
+      },
+      "sortOrder": "Thứ tự hiển thị",
+      "status": "Trạng thái",
+      "statuses": {
+        "empty": "Bàn trống",
+        "occupied": "Đang có khách"
+      },
+      "searchPlaceholder": "Tìm theo mã bàn, tên bàn...",
+      "empty": "Chưa có bàn nào trong khu vực này.",
+      "confirmDelete": "Bạn có chắc chắn muốn xoá bàn \"{name}\" ({code})?",
+      "cannotDeleteOccupied": "Không thể xoá bàn này vì đang có khách phục vụ hoặc hoá đơn chưa thanh toán.",
+      "duplicateCode": "Mã bàn \"{code}\" đã tồn tại trong chi nhánh này.",
+      "noAreaAlert": "Bạn cần tạo ít nhất một Khu vực / Tầng trước khi thêm bàn."
+    },
+    "batch": {
+      "title": "Tạo nhanh hàng loạt bàn",
+      "description": "Tự động sinh danh sách bàn theo mẫu để thiết lập nhanh sơ đồ chi nhánh.",
+      "targetArea": "Tạo cho tầng / khu vực",
+      "prefix": "Tiền tố mã bàn",
+      "prefixPlaceholder": "Ví dụ: B, T, V...",
+      "startIndex": "Bắt đầu từ số",
+      "count": "Số lượng bàn cần tạo",
+      "capacity": "Số ghế mỗi bàn",
+      "shape": "Hình dạng bàn",
+      "preview": "Xem trước danh sách ({count} bàn)",
+      "submit": "Tạo {count} bàn",
+      "success": "Đã tạo thành công {count} bàn"
+    },
+    "actions": {
+      "save": "Lưu thay đổi",
+      "cancel": "Huỷ",
+      "edit": "Sửa",
+      "delete": "Xoá",
+      "close": "Đóng"
+    },
+    "messages": {
+      "areaSaved": "Đã lưu thông tin khu vực thành công",
+      "areaDeleted": "Đã xoá khu vực thành công",
+      "tableSaved": "Đã lưu thông tin bàn thành công",
+      "tableDeleted": "Đã xoá bàn thành công"
+    }
+  },
+  "kds": {
+    "title": "Màn hình Bếp (KDS)",
+    "navTitle": "Bếp (KDS)",
+    "stations": {
+      "all": "Tất cả trạm",
+      "kitchen": "Bếp nấu",
+      "bar": "Quầy Bar / Nước",
+      "cold": "Bếp lạnh / Tráng miệng"
+    },
+    "filter": {
+      "active": "Đang thực hiện",
+      "history": "Lịch sử đã xong"
+    },
+    "status": {
+      "pending": "Chờ làm",
+      "preparing": "Đang nấu",
+      "ready": "Đã xong"
+    },
+    "aging": {
+      "fresh": "Mới gọi",
+      "warning": "Đang chờ",
+      "delayed": "Chậm trễ"
+    },
+    "ticket": {
+      "order": "Đơn",
+      "table": "Bàn",
+      "fastSale": "Mang về",
+      "guests": "{count} khách",
+      "bumpAll": "Hoàn thành tất cả",
+      "bump": "Xong",
+      "recall": "Khôi phục",
+      "elapsed": "{minutes} phút",
+      "itemsCount": "{count} món",
+      "note": "Ghi chú"
+    },
+    "history": {
+      "title": "Lịch sử món đã hoàn thành",
+      "empty": "Chưa có món nào được hoàn thành gần đây",
+      "recalled": "Đã khôi phục món trở lại bếp"
+    },
+    "empty": {
+      "title": "Hiện không có đơn nào cần chế biến",
+      "subtitle": "Đơn mới từ quầy thu ngân hoặc khách gọi món sẽ tự động hiển thị tại đây"
+    },
+    "refresh": "Làm mới",
+    "autoRefresh": "Tự động cập nhật"
   }
 }

@@ -183,7 +183,7 @@ function handleConfirm() {
 <template>
   <Dialog.Root v-model="isOpen">
     <Dialog.Content
-      class="panel-card max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto"
+      class="panel-card max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto m-auto"
       data-test="combo-picker-modal"
     >
       <!-- Tiêu đề modal -->

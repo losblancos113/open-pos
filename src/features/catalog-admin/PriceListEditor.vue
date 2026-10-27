@@ -268,7 +268,7 @@ function onSubmit(): void {
     <form ref="formEl" class="form-grid" data-price-form novalidate @submit.prevent="onSubmit">
       <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-price-name type="text" :label="t('catalog.field.name')">
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.name')" />
         </Input.Root>
 
         <Input.Root
@@ -277,7 +277,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
         </Input.Root>
 
         <Input.Root
@@ -286,7 +286,7 @@ function onSubmit(): void {
           type="datetime-local"
           :label="t('catalog.price.effectiveFrom')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.price.effectiveFrom')" />
         </Input.Root>
 
         <Input.Root
@@ -295,7 +295,7 @@ function onSubmit(): void {
           type="datetime-local"
           :label="t('catalog.price.effectiveTo')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.price.effectiveTo')" />
         </Input.Root>
 
         <NumberField.Root
@@ -308,7 +308,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => (priority = value ?? 0)"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.price.priority')" />
         </NumberField.Root>
       </div>
 
@@ -327,33 +327,48 @@ function onSubmit(): void {
                 :model-value="entry.productId === '' ? null : entry.productId"
                 @update:model-value="(value: unknown) => setEntryProduct(index, value)"
               >
-                <Select.Activator class="field-input" :label="t('catalog.price.entry.product')">
-                  {{ productLabel(entry.productId) }}
+                <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('catalog.price.entry.product')">
+                  <span :class="!entry.productId ? 'text-text-muted/60' : 'text-text font-medium'">
+                    {{ productLabel(entry.productId) || t('catalog.price.entry.product') }}
+                  </span>
+                  <span class="text-xs text-text-muted ml-2">▼</span>
                 </Select.Activator>
-                <Select.Content eager>
-                  <Select.Item v-for="product in products" :key="product._id" :value="product._id">
+                <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
+                  <Select.Item
+                    v-for="product in products"
+                    :key="product._id"
+                    :value="product._id"
+                    class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
+                  >
                     {{ product.name[activeLocale] }}
                   </Select.Item>
                 </Select.Content>
               </Select.Root>
             </div>
 
-            <div data-entry-variant>
+            <div v-if="variantsOf(entry.productId).length > 0" data-entry-variant>
               <Select.Root
-                :model-value="entry.variantId"
+                :model-value="entry.variantId === null ? ALL_VARIANTS : entry.variantId"
                 @update:model-value="(value: unknown) => setEntryVariant(index, value)"
               >
-                <Select.Activator class="field-input" :label="t('catalog.price.entry.variant')">
-                  {{ variantLabel(entry) }}
+                <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('catalog.price.entry.variant')">
+                  <span :class="!entry.variantId ? 'text-text-muted/60' : 'text-text font-medium'">
+                    {{ variantLabel(entry) || t('catalog.price.entry.variant') }}
+                  </span>
+                  <span class="text-xs text-text-muted ml-2">▼</span>
                 </Select.Activator>
-                <Select.Content eager>
-                  <Select.Item :value="ALL_VARIANTS">
+                <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
+                  <Select.Item
+                    :value="ALL_VARIANTS"
+                    class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
+                  >
                     {{ t('catalog.price.allVariants') }}
                   </Select.Item>
                   <Select.Item
                     v-for="variant in variantsOf(entry.productId)"
                     :key="variant.id"
                     :value="variant.id"
+                    class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
                   >
                     {{ variant.name[activeLocale] }}
                   </Select.Item>
@@ -371,7 +386,7 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => updateEntry(index, { price: value })"
             >
-              <NumberField.Control class="field-input" />
+              <NumberField.Control class="field-input" :placeholder="t('catalog.price.entry.price')" />
             </NumberField.Root>
 
             <Button.Root type="button" class="btn-danger" data-entry-remove @click="removeEntry(index)">

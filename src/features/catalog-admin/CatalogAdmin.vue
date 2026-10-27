@@ -691,21 +691,21 @@ async function confirmRemoval(): Promise<void> {
 
     <p v-if="loadError !== null" class="error-text" role="alert">{{ loadError }}</p>
 
-    <nav class="flex flex-wrap gap-2">
+    <nav class="w-full overflow-x-auto pb-1">
       <!--
         `Button.Group` để `aria-pressed` sống: ButtonRoot chỉ gắn nó khi có group, và merge
         attrs của nó sau attrs người dùng — ngoài group, `aria-pressed` bind ở đây bị ghi đè
         thành `undefined` (cùng lỗi đã thấy ở nav của App.vue khi chạy by-eye Task 19).
         `mandatory` giữ một tab luôn mở.
       -->
-      <Button.Group v-model="activeTab" mandatory class="inline-flex gap-1 rounded-md bg-surface p-1 shadow-sm">
+      <Button.Group v-model="activeTab" mandatory class="inline-flex gap-1 rounded-lg bg-surface p-1 border border-border shadow-2xs whitespace-nowrap">
         <Button.Root
           v-for="tab in TABS"
           :key="tab.key"
           type="button"
           :value="tab.key"
           :data-catalog-tab="tab.key"
-          class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          class="cursor-pointer rounded-md px-3 py-1.5 text-xs sm:text-sm font-medium transition-all text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast font-semibold shadow-xs) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           {{ t(tab.labelKey) }}
         </Button.Root>

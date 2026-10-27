@@ -19,7 +19,10 @@ export type OrderEventType =
   | 'BILL_CLOSED'
   | 'BILL_SPLIT'
   | 'BILL_MERGED'
-  | 'TABLE_TRANSFERRED';
+  | 'TABLE_TRANSFERRED'
+  | 'LINE_STATUS_CHANGED'
+  | 'LINE_BUMPED'
+  | 'LINE_RECALLED';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface OrderEventDoc<T = any> {

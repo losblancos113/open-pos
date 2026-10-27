@@ -320,9 +320,13 @@ function handleModalConfirm(item: OrderLineItem) {
             </span>
           </div>
 
-          <div class="mt-3 flex items-baseline justify-between w-full">
+          <div class="mt-3 flex items-center justify-between w-full pt-2 border-t border-border/50">
             <span class="font-bold text-sm text-primary">
               {{ format(item.price) }}
+            </span>
+            <span class="btn-primary text-xs px-2.5 py-1 rounded-md flex items-center gap-1 font-medium shadow-2xs pointer-events-none">
+              <span>+</span>
+              <span>{{ item.product.variants && item.product.variants.length > 0 ? t('pos.options.size') : (t('pos.table.order') || 'Chọn món') }}</span>
             </span>
           </div>
         </Button.Root>
@@ -350,9 +354,13 @@ function handleModalConfirm(item: OrderLineItem) {
             </div>
           </div>
 
-          <div class="mt-3 flex items-baseline justify-between w-full">
+          <div class="mt-3 flex items-center justify-between w-full pt-2 border-t border-border/50">
             <span class="font-bold text-sm text-primary">
               {{ format(combo.basePrice) }}
+            </span>
+            <span class="btn-primary text-xs px-2.5 py-1 rounded-md flex items-center gap-1 font-medium shadow-2xs pointer-events-none">
+              <span>+</span>
+              <span>{{ t('pos.table.order') || 'Chọn món' }}</span>
             </span>
           </div>
         </Button.Root>

@@ -18,18 +18,21 @@ import type { UserDoc } from '@/core/auth/types';
 import TypeDesigner from './features/type-designer/TypeDesigner.vue';
 import CatalogAdmin from './features/catalog-admin/CatalogAdmin.vue';
 import PosTerminal from './features/pos/PosTerminal.vue';
+import KitchenDisplay from './features/kds/KitchenDisplay.vue';
 import BranchSwitcher from './features/branch/BranchSwitcher.vue';
 import UserLoginModal from './features/auth/UserLoginModal.vue';
 import CrossBranchReportModal from './features/reports/CrossBranchReportModal.vue';
 import InventoryAdminModal from './features/inventory/InventoryAdminModal.vue';
 import ShiftModal from './features/shift/ShiftModal.vue';
 import StoreReportsModal from './features/reports/StoreReportsModal.vue';
+import TableAdminModal from './features/table-admin/TableAdminModal.vue';
 import { createInventoryRepository, type InventoryRepository } from '@/core/inventory/inventory-repository';
 import { createShiftRepository, type ShiftRepository } from '@/core/shift/shift-repository';
+import { createOrderRepository, type OrderRepository } from '@/core/order/order-repository';
 
 const { t } = useI18n();
 
-type View = 'designer' | 'catalog' | 'pos';
+type View = 'designer' | 'catalog' | 'pos' | 'kds';
 
 /**
  * Database cục bộ của terminal. PouchDB mở nó trên IndexedDB (WebView2 trong Tauri,
@@ -42,7 +45,7 @@ const LOCAL_DB_NAME = 'openpos_local';
  * M1 hoãn router (D5 của plan M1, D10 của plan M2): hai màn hình đổi nhau bằng `ref`.
  * Đổi route thật chỉ có nghĩa khi M3 thêm màn hình bán hàng.
  */
-const view = ref<View>('designer');
+const view = ref<View>('pos');
 
 const adapter = ref<DbAdapter | null>(null);
 const branchRepo = ref<BranchRepository | null>(null);
@@ -56,9 +59,16 @@ const isReportModalOpen = ref(false);
 const isInventoryModalOpen = ref(false);
 const isShiftModalOpen = ref(false);
 const isStoreReportsModalOpen = ref(false);
+const isTableAdminModalOpen = ref(false);
 const inventoryRepo = ref<InventoryRepository | null>(null);
 const shiftRepo = ref<ShiftRepository | null>(null);
+const orderRepo = ref<OrderRepository | null>(null);
+const posTerminalKey = ref(0);
 const defaultUsers = ref<UserDoc[]>([]);
+
+function onTablesUpdated() {
+  posTerminalKey.value++;
+}
 
 onMounted(async () => {
   try {
@@ -69,6 +79,7 @@ onMounted(async () => {
     branchRepo.value = repo;
     inventoryRepo.value = createInventoryRepository(rawAdapter);
     shiftRepo.value = createShiftRepository(rawAdapter);
+    orderRepo.value = createOrderRepository(rawAdapter);
     await repo.seedDefaultBranches();
     await initActiveBranch();
 
@@ -116,148 +127,166 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="app min-h-screen bg-bg text-text">
-    <header class="app__header px-6 py-4 border-b border-border flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-semibold">{{ t('app.title') }}</h1>
-        <p class="text-xs text-text-muted">{{ t('app.tagline') }}</p>
+  <main class="app min-h-screen bg-bg text-text antialiased">
+    <header class="app__header px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-surface/90 backdrop-blur-xs sticky top-0 z-30 flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <!-- Brand & Branch Info -->
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-primary text-primary-contrast flex items-center justify-center font-bold text-sm shadow-xs select-none">
+            OP
+          </div>
+          <div>
+            <h1 class="text-base sm:text-lg font-bold tracking-tight leading-tight">{{ t('app.title') }}</h1>
+            <p class="text-[11px] text-text-muted leading-none hidden sm:block">{{ t('app.tagline') }}</p>
+          </div>
+
+          <div class="ml-1 sm:ml-2 pl-2 sm:pl-3 border-l border-border/80">
+            <BranchSwitcher
+              v-if="branchRepo !== null"
+              :branch-repo="branchRepo"
+            />
+          </div>
+        </div>
+
+        <!-- Controls: Cross-Branch Report, Inventory, Shift, Store Reports, User Session -->
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <Button.Root
+            v-if="isOwner"
+            type="button"
+            data-test="cross-branch-report-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            @click="isReportModalOpen = true"
+          >
+            <Button.Content>📊 <span class="hidden md:inline">{{ t('report.crossBranch') }}</span></Button.Content>
+          </Button.Root>
+
+          <Button.Root
+            v-if="inventoryRepo !== null"
+            type="button"
+            data-test="inventory-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            @click="isInventoryModalOpen = true"
+          >
+            <Button.Content>📦 <span class="hidden md:inline">{{ t('inventory.title') }}</span></Button.Content>
+          </Button.Root>
+
+          <Button.Root
+            v-if="shiftRepo !== null"
+            type="button"
+            data-test="shift-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            @click="isShiftModalOpen = true"
+          >
+            <Button.Content>⏰ <span class="hidden md:inline">{{ t('shift.title') }}</span></Button.Content>
+          </Button.Root>
+
+          <Button.Root
+            v-if="adapter !== null"
+            type="button"
+            data-test="store-reports-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            @click="isStoreReportsModalOpen = true"
+          >
+            <Button.Content>📈 <span class="hidden md:inline">{{ t('storeReports.title') }}</span></Button.Content>
+          </Button.Root>
+
+          <Button.Root
+            v-if="orderRepo !== null"
+            type="button"
+            data-test="table-admin-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            @click="isTableAdminModalOpen = true"
+          >
+            <Button.Content>🪑 <span class="hidden md:inline">{{ t('tableAdmin.title') }}</span></Button.Content>
+          </Button.Root>
+
+          <!-- User profile button -->
+          <Button.Root
+            v-if="currentUser"
+            type="button"
+            data-test="user-profile-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-surface font-medium shadow-2xs flex items-center gap-1.5"
+            @click="isLoginModalOpen = true"
+          >
+            <Button.Content>
+              <span class="inline-block w-2 h-2 rounded-full bg-success"></span>
+              <span>{{ currentUser.displayName }}</span>
+              <span class="text-[10px] text-text-muted uppercase">({{ currentUser.role }})</span>
+            </Button.Content>
+          </Button.Root>
+          <Button.Root
+            v-else
+            type="button"
+            data-test="login-btn"
+            class="btn btn-primary text-xs px-3 py-1.5 rounded-md font-medium shadow-2xs"
+            @click="isLoginModalOpen = true"
+          >
+            <Button.Content>{{ t('auth.login') }}</Button.Content>
+          </Button.Root>
+        </div>
       </div>
 
-      <!-- Controls: Branch Switcher, Cross-Branch Report, User Session -->
-      <div class="flex items-center gap-2">
-        <BranchSwitcher
-          v-if="branchRepo !== null"
-          :branch-repo="branchRepo"
-        />
-
-        <Button.Root
-          v-if="isOwner"
-          type="button"
-          data-test="cross-branch-report-btn"
-          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded hover:bg-surface border border-border"
-          @click="isReportModalOpen = true"
-        >
-          <Button.Content>📊 {{ t('report.crossBranch') }}</Button.Content>
-        </Button.Root>
-
-        <Button.Root
-          v-if="inventoryRepo !== null"
-          type="button"
-          data-test="inventory-btn"
-          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded hover:bg-surface border border-border"
-          @click="isInventoryModalOpen = true"
-        >
-          <Button.Content>📦 {{ t('inventory.title') }}</Button.Content>
-        </Button.Root>
-
-        <Button.Root
-          v-if="shiftRepo !== null"
-          type="button"
-          data-test="shift-btn"
-          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded hover:bg-surface border border-border"
-          @click="isShiftModalOpen = true"
-        >
-          <Button.Content>⏰ {{ t('shift.title') }}</Button.Content>
-        </Button.Root>
-
-        <Button.Root
-          v-if="adapter !== null"
-          type="button"
-          data-test="store-reports-btn"
-          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded hover:bg-surface border border-border"
-          @click="isStoreReportsModalOpen = true"
-        >
-          <Button.Content>📈 {{ t('storeReports.title') }}</Button.Content>
-        </Button.Root>
-
-        <!-- User profile button -->
-        <Button.Root
-          v-if="currentUser"
-          type="button"
-          data-test="user-profile-btn"
-          class="btn btn-ghost text-xs px-2.5 py-1.5 rounded border border-border hover:bg-surface font-medium"
-          @click="isLoginModalOpen = true"
-        >
-          <Button.Content>👤 {{ currentUser.displayName }}</Button.Content>
-        </Button.Root>
-        <Button.Root
-          v-else
-          type="button"
-          data-test="login-btn"
-          class="btn btn-primary text-xs px-3 py-1.5 rounded font-medium"
-          @click="isLoginModalOpen = true"
-        >
-          <Button.Content>{{ t('auth.login') }}</Button.Content>
-        </Button.Root>
-      </div>
-
-      <nav class="app__nav w-full mt-2">
-        <!--
-          `Button.Group` chứ không phải hai `Button.Root` rời: ButtonRoot chỉ gắn
-          `aria-pressed` khi nó đăng ký với một group (`group ? isSelected.value : void 0`),
-          và nó merge attrs của nó SAU attrs người dùng — nên ngoài group, `aria-pressed`
-          bind từ đây bị ghi đè thành `undefined` và rơi khỏi DOM. Trong group, group giữ
-          trạng thái chọn, `aria-pressed` đúng theo `v-model`, và `mandatory` chặn việc bỏ
-          chọn màn đang mở (bấm lại tab hiện tại không được làm màn hình trắng).
-        -->
+      <nav class="app__nav w-full border-t border-border/60 pt-2 flex items-center">
         <Button.Group
           v-model="view"
           mandatory
-          class="inline-flex gap-1 rounded-md bg-surface p-1 shadow-sm"
+          class="inline-flex gap-1 rounded-lg bg-surface p-1 border border-border shadow-2xs w-full sm:w-auto"
         >
-          <!--
-            Tab đang mở được style qua `data-selected` do Button.Root tự gắn khi ở trong
-            group — không tự toggle class. Hover phải loại tab đang chọn
-            (`[&:not([data-selected])]:hover:*`), nếu không nó ghi đè màu chữ của tab chọn.
-          -->
           <Button.Root
             type="button"
-            value="designer"
-            data-view="designer"
-            class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            value="pos"
+            data-view="pos"
+            class="flex-1 sm:flex-initial cursor-pointer rounded-md px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-all text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast font-semibold shadow-xs) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
-            {{ t('type.designer.title') }}
+            {{ t('pos.title') }}
+          </Button.Root>
+
+          <Button.Root
+            type="button"
+            value="kds"
+            data-view="kds"
+            class="flex-1 sm:flex-initial cursor-pointer rounded-md px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-all text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast font-semibold shadow-xs) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {{ t('kds.navTitle') }}
           </Button.Root>
 
           <Button.Root
             type="button"
             value="catalog"
             data-view="catalog"
-            class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            class="flex-1 sm:flex-initial cursor-pointer rounded-md px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-medium transition-all text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast font-semibold shadow-xs) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             {{ t('catalog.title') }}
-          </Button.Root>
-
-          <Button.Root
-            type="button"
-            value="pos"
-            data-view="pos"
-            class="cursor-pointer rounded-sm px-3 py-2 text-sm font-medium text-text-muted [&:not([data-selected])]:hover:text-text selected:(bg-primary text-primary-contrast shadow-sm) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            {{ t('pos.title') }}
           </Button.Root>
         </Button.Group>
       </nav>
     </header>
 
     <!-- `v-show`: đổi màn hình không được làm mất dữ liệu đang nhập của màn còn lại. -->
-    <div v-show="view === 'designer'" class="px-6 pb-10">
-      <TypeDesigner />
-    </div>
-
-    <div v-show="view === 'catalog'" class="px-6 pb-10">
+    <div v-show="view === 'pos'" class="px-3 sm:px-6 pt-4 pb-10">
       <p v-if="storageError !== null" role="alert">{{ storageError }}</p>
-      <CatalogAdmin v-else-if="adapter !== null" :adapter="adapter" />
+      <PosTerminal
+        v-else-if="adapter !== null"
+        :key="posTerminalKey"
+        :adapter="adapter"
+        :branch-id="activeBranchId"
+      />
       <p v-else>{{ t('common.loading') }}</p>
     </div>
 
-    <div v-show="view === 'pos'" class="px-6 pb-10">
+    <div v-show="view === 'kds'" class="px-3 sm:px-6 pt-4 pb-10">
       <p v-if="storageError !== null" role="alert">{{ storageError }}</p>
-      <PosTerminal
+      <KitchenDisplay
         v-else-if="adapter !== null"
         :adapter="adapter"
         :branch-id="activeBranchId"
       />
+      <p v-else>{{ t('common.loading') }}</p>
+    </div>
+
+    <div v-show="view === 'catalog'" class="px-3 sm:px-6 pt-4 pb-10">
+      <p v-if="storageError !== null" role="alert">{{ storageError }}</p>
+      <CatalogAdmin v-else-if="adapter !== null" :adapter="adapter" />
       <p v-else>{{ t('common.loading') }}</p>
     </div>
 
@@ -298,6 +327,14 @@ onMounted(async () => {
       :adapter="adapter"
       :branch-id="activeBranchId"
       @close="isStoreReportsModalOpen = false"
+    />
+
+    <TableAdminModal
+      :open="isTableAdminModalOpen"
+      :branch-id="activeBranchId"
+      :order-repo="orderRepo"
+      @close="isTableAdminModalOpen = false"
+      @tables-updated="onTablesUpdated"
     />
   </main>
 </template>

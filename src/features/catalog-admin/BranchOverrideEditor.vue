@@ -185,7 +185,7 @@ function effectiveLabel(item: MenuItem): string {
                 :step="1 / minorUnitsPerMajor(currencyOf(item))"
                 @update:model-value="(value: number | null) => emitSet(item, { price: value })"
               >
-                <NumberField.Control class="field-input" />
+                <NumberField.Control class="field-input" :placeholder="t('catalog.override.price')" />
               </NumberField.Root>
 
               <p
@@ -225,14 +225,14 @@ function effectiveLabel(item: MenuItem): string {
             <DataTable.Cell class="table-cell">
               <NumberField.Root
                 :data-override-sort-order="item.product._id"
-                :label="t('catalog.override.sortOrder')"
+                :label="t('catalog.field.sortOrder')"
                 :model-value="draftFor(item).sortOrder"
                 :locale="activeLocale"
                 :min="0"
                 :step="1"
                 @update:model-value="(value: number | null) => emitSet(item, { sortOrder: value })"
               >
-                <NumberField.Control class="field-input" />
+                <NumberField.Control class="field-input" :placeholder="t('catalog.field.sortOrder')" />
               </NumberField.Root>
             </DataTable.Cell>
 

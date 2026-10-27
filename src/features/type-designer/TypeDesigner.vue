@@ -439,7 +439,7 @@ async function runMigration(): Promise<void> {
         <h3 class="text-lg font-semibold">{{ isEditing ? t('type.designer.editType') : t('type.designer.newType') }}</h3>
 
         <Input.Root v-model="draft.key" type="text" :label="t('type.field.key')" :disabled="isEditing">
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('type.field.key')" />
         </Input.Root>
 
         <Input.Root
@@ -449,13 +449,21 @@ async function runMigration(): Promise<void> {
           type="text"
           :label="`${t('type.designer.typeName')} (${code})`"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="`${t('type.designer.typeName')} (${code})`" />
         </Input.Root>
 
         <Select.Root :model-value="draft.kind" :disabled="isEditing" @update:model-value="setKind">
-          <Select.Activator class="field-input" :label="t('type.designer.kind')">{{ t(KIND_KEYS[draft.kind]) }}</Select.Activator>
-          <Select.Content eager>
-            <Select.Item v-for="kind in KIND_OPTIONS" :key="kind" :value="kind">
+          <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('type.designer.kind')">
+            <span>{{ t(KIND_KEYS[draft.kind]) }}</span>
+            <span class="text-xs text-text-muted ml-2">▼</span>
+          </Select.Activator>
+          <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
+            <Select.Item
+              v-for="kind in KIND_OPTIONS"
+              :key="kind"
+              :value="kind"
+              class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
+            >
               {{ t(KIND_KEYS[kind]) }}
             </Select.Item>
           </Select.Content>
@@ -468,7 +476,7 @@ async function runMigration(): Promise<void> {
           :label="t('type.designer.baseType')"
           :disabled="isEditing"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('type.designer.baseType')" />
         </Input.Root>
 
         <p v-if="isEditing" class="text-sm text-text-muted" role="alert">
@@ -489,7 +497,7 @@ async function runMigration(): Promise<void> {
             :data-field-row="row.key"
           >
             <Input.Root v-model="row.key" type="text" :label="t('type.field.key')">
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('type.field.key')" />
             </Input.Root>
 
             <Input.Root
@@ -499,18 +507,24 @@ async function runMigration(): Promise<void> {
               type="text"
               :label="`${t('type.field.label')} (${code})`"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="`${t('type.field.label')} (${code})`" />
             </Input.Root>
 
             <Select.Root
               :model-value="row.dataType"
               @update:model-value="(value: unknown) => setDataType(row, value)"
             >
-              <Select.Activator class="field-input" :label="t('type.field.dataType')">
-                {{ t(`type.dataType.${row.dataType}`) }}
+              <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('type.field.dataType')">
+                <span>{{ t(`type.dataType.${row.dataType}`) }}</span>
+                <span class="text-xs text-text-muted ml-2">▼</span>
               </Select.Activator>
-              <Select.Content eager>
-                <Select.Item v-for="dataType in DATA_TYPES" :key="dataType" :value="dataType">
+              <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
+                <Select.Item
+                  v-for="dataType in DATA_TYPES"
+                  :key="dataType"
+                  :value="dataType"
+                  class="p-2 text-sm rounded-md cursor-pointer hover:bg-bg selected:(bg-primary text-primary-contrast font-medium) transition-colors text-text"
+                >
                   {{ t(`type.dataType.${dataType}`) }}
                 </Select.Item>
               </Select.Content>
@@ -538,7 +552,7 @@ async function runMigration(): Promise<void> {
               type="text"
               :label="t('type.field.referenceType')"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('type.field.referenceType')" />
             </Input.Root>
 
             <Input.Root
@@ -547,7 +561,7 @@ async function runMigration(): Promise<void> {
               type="text"
               :label="t('type.field.formula')"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('type.field.formula')" />
             </Input.Root>
 
             <div
@@ -562,7 +576,7 @@ async function runMigration(): Promise<void> {
                   class="type-designer__option grid gap-2 rounded-sm border border-solid border-text/15 p-2"
                 >
                 <Input.Root v-model="option.value" type="text" :label="t('type.field.options')">
-                  <Input.Control class="field-input" />
+                  <Input.Control class="field-input" :placeholder="t('type.field.options')" />
                 </Input.Root>
 
                 <Input.Root
@@ -572,7 +586,7 @@ async function runMigration(): Promise<void> {
                   type="text"
                   :label="`${t('type.field.label')} (${code})`"
                 >
-                  <Input.Control class="field-input" />
+                  <Input.Control class="field-input" :placeholder="`${t('type.field.label')} (${code})`" />
                 </Input.Root>
 
                 <Button.Root type="button" class="btn-danger" @click="removeOption(row, optionIndex)">

@@ -239,7 +239,7 @@ async function handleSave() {
 <template>
   <Dialog.Root v-model="isOpen">
     <Dialog.Content
-      class="panel-card max-w-md w-full p-6 space-y-5"
+      class="panel-card max-w-md w-full p-6 space-y-5 m-auto"
       data-test="bank-settings-modal"
     >
       <!-- Tiêu đề modal -->

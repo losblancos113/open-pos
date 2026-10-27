@@ -15,6 +15,7 @@
   --color-success: #15803d;
   --color-warning: #b45309;
   --color-danger: #b91c1c;
+  --color-border: #e2e8f0;
 
   /* Khoảng cách */
   --space-1: 4px;
@@ -34,4 +35,23 @@
   --font-size-md: 15px;
   --font-size-lg: 18px;
   --font-size-xl: 24px;
+}
+
+/* Định dạng cơ bản cho Native Popover (Vuetify0 Select, Menu, Popover) */
+[popover] {
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Đảm bảo Native Dialog chỉ hiển thị khi mở, ngăn chặn utility classes ghi đè */
+dialog:not([open]) {
+  display: none !important;
+}
+
+dialog::backdrop {
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
 }

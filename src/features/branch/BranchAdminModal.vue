@@ -137,7 +137,7 @@ async function handleAddBranch() {
               <Input.Control
                 data-test="branch-code-input"
                 class="field-input w-full text-xs py-1.5 px-2 mt-1"
-                placeholder="VD: D1"
+                :placeholder="t('branch.code')"
               />
             </Input.Root>
           </div>
@@ -147,7 +147,7 @@ async function handleAddBranch() {
               <Input.Control
                 data-test="branch-name-input"
                 class="field-input w-full text-xs py-1.5 px-2 mt-1"
-                placeholder="VD: Chi nhánh Quận 1"
+                :placeholder="t('branch.name')"
               />
             </Input.Root>
           </div>
@@ -157,7 +157,7 @@ async function handleAddBranch() {
               <Input.Control
                 data-test="branch-address-input"
                 class="field-input w-full text-xs py-1.5 px-2 mt-1"
-                placeholder="Địa chỉ"
+                :placeholder="t('branch.address')"
               />
             </Input.Root>
           </div>
@@ -167,7 +167,7 @@ async function handleAddBranch() {
               <Input.Control
                 data-test="branch-phone-input"
                 class="field-input w-full text-xs py-1.5 px-2 mt-1"
-                placeholder="Số điện thoại"
+                :placeholder="t('branch.phone')"
               />
             </Input.Root>
           </div>

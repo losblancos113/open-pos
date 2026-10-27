@@ -215,7 +215,7 @@ function onSubmit(): void {
     <form ref="formEl" class="form-grid" data-group-form novalidate @submit.prevent="onSubmit">
       <div class="flex flex-wrap gap-2">
         <Input.Root v-model="nameVi" data-group-name type="text" :label="t('catalog.field.name')">
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.name')" />
         </Input.Root>
 
         <Input.Root
@@ -224,7 +224,7 @@ function onSubmit(): void {
           type="text"
           :label="t('catalog.field.nameEn')"
         >
-          <Input.Control class="field-input" />
+          <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
         </Input.Root>
 
         <NumberField.Root
@@ -237,7 +237,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => onNumeric('min', value)"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.modifier.minSelect')" />
         </NumberField.Root>
 
         <NumberField.Root
@@ -250,7 +250,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => onNumeric('max', value)"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.modifier.maxSelect')" />
         </NumberField.Root>
 
         <NumberField.Root
@@ -263,7 +263,7 @@ function onSubmit(): void {
           commit-on="input"
           @update:model-value="(value: number | null) => onNumeric('sortOrder', value)"
         >
-          <NumberField.Control class="field-input" />
+          <NumberField.Control class="field-input" :placeholder="t('catalog.field.sortOrder')" />
         </NumberField.Root>
       </div>
 
@@ -284,7 +284,7 @@ function onSubmit(): void {
               :model-value="row.id"
               @update:model-value="(value: string) => onOptionText(index, 'id', value)"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.modifier.option.id')" />
             </Input.Root>
 
             <Input.Root
@@ -294,7 +294,7 @@ function onSubmit(): void {
               :model-value="row.nameVi"
               @update:model-value="(value: string) => onOptionText(index, 'nameVi', value)"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.field.name')" />
             </Input.Root>
 
             <Input.Root
@@ -304,7 +304,7 @@ function onSubmit(): void {
               :model-value="row.nameEn"
               @update:model-value="(value: string) => onOptionText(index, 'nameEn', value)"
             >
-              <Input.Control class="field-input" />
+              <Input.Control class="field-input" :placeholder="t('catalog.field.nameEn')" />
             </Input.Root>
 
             <NumberField.Root
@@ -316,7 +316,7 @@ function onSubmit(): void {
               commit-on="input"
               @update:model-value="(value: number | null) => onOptionNumeric(index, value)"
             >
-              <NumberField.Control class="field-input" />
+              <NumberField.Control class="field-input" :placeholder="t('catalog.modifier.option.delta')" />
             </NumberField.Root>
 
             <Checkbox.Root

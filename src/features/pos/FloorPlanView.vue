@@ -28,6 +28,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (e: 'select-table', tableId: string): void;
+  (e: 'open-table-admin'): void;
 }>();
 
 const { t } = useI18n();
@@ -35,6 +36,10 @@ const { t } = useI18n();
 const selectedAreaId = ref<string>('all');
 const loadedAreas = ref<AreaDoc[]>([]);
 const loadedTables = ref<TableDoc[]>([]);
+
+defineExpose({
+  loadData,
+});
 
 const effectiveAreas = computed(() => props.areas ?? loadedAreas.value);
 const effectiveTables = computed(() => props.tables ?? loadedTables.value);
@@ -77,8 +82,8 @@ onMounted(() => {
 
 <template>
   <div class="floor-plan-view flex flex-col gap-4 h-full" data-test="floor-plan-view">
-    <!-- Bộ lọc khu vực (Area filter tabs) -->
-    <div class="area-filter-bar flex items-center gap-2 overflow-x-auto pb-1">
+    <!-- Bộ lọc khu vực (Area filter tabs) & Quản lý bàn -->
+    <div class="area-filter-bar flex items-center justify-between gap-2 overflow-x-auto pb-1">
       <Button.Group
         v-model="selectedAreaId"
         mandatory
@@ -105,6 +110,15 @@ onMounted(() => {
           {{ area.name }}
         </Button.Root>
       </Button.Group>
+
+      <Button.Root
+        type="button"
+        data-test="manage-tables-btn"
+        class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border text-text-muted hover:text-text shrink-0 flex items-center gap-1.5"
+        @click="emit('open-table-admin')"
+      >
+        <Button.Content>⚙️ {{ t('tableAdmin.title') }}</Button.Content>
+      </Button.Root>
     </div>
 
     <!-- Lưới hiển thị các bàn (Responsive table grid) -->

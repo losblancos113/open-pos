@@ -180,6 +180,7 @@ const totalCashDrop = computed(() => {
               type="text"
               class="field-input text-xs w-full rounded border border-border p-2 bg-surface/50 text-text font-medium"
               :value="currentUser?.displayName || 'Thu ngân'"
+              :placeholder="t('shift.cashier')"
               disabled
             />
           </div>
@@ -192,6 +193,7 @@ const totalCashDrop = computed(() => {
               min="0"
               step="1000"
               class="field-input text-xs w-full rounded border border-border p-2 font-mono text-base font-bold"
+              :placeholder="t('shift.openingCash')"
               required
             />
           </div>
@@ -202,7 +204,7 @@ const totalCashDrop = computed(() => {
               v-model="openNotes"
               type="text"
               class="field-input text-xs w-full rounded border border-border p-2"
-              placeholder="Ghi chú mở ca (nếu có)..."
+              :placeholder="t('shift.notes')"
             />
           </div>
 
@@ -270,6 +272,7 @@ const totalCashDrop = computed(() => {
                   min="1000"
                   step="1000"
                   class="field-input text-xs w-full rounded border border-border p-2 font-mono"
+                  :placeholder="t('shift.amount')"
                   required
                 />
               </div>
@@ -281,7 +284,7 @@ const totalCashDrop = computed(() => {
                 v-model="movementReason"
                 type="text"
                 class="field-input text-xs w-full rounded border border-border p-2"
-                placeholder="Ví dụ: Rút tiền mặt gửi két an toàn, bổ sung tiền trả lại..."
+                :placeholder="t('shift.reason')"
               />
             </div>
 
@@ -316,6 +319,7 @@ const totalCashDrop = computed(() => {
                 min="0"
                 step="1000"
                 class="field-input text-xs w-full rounded border border-border p-2 font-mono text-base font-bold"
+                :placeholder="t('shift.countedCash')"
                 required
               />
             </div>
@@ -326,7 +330,7 @@ const totalCashDrop = computed(() => {
                 v-model="closeNotes"
                 type="text"
                 class="field-input text-xs w-full rounded border border-border p-2"
-                placeholder="Ghi chú kết ca..."
+                :placeholder="t('shift.notes')"
               />
             </div>
 

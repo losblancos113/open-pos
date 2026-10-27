@@ -457,8 +457,13 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
     }
 
     case 'BILL_MERGED': {
-      // Mark the current bill as voided — it has been merged into another
-      nextBill.status = 'voided';
+      if (payload?.mergedBill) {
+        nextBill.lines = payload.mergedBill.lines.map(cloneOrderLine);
+        nextBill.status = 'draft';
+      } else {
+        // Mark the current bill as voided — it has been merged into another
+        nextBill.status = 'voided';
+      }
       nextBill.updatedAt = event.createdAt;
       break;
     }
@@ -466,10 +471,55 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
     case 'TABLE_TRANSFERRED': {
       const fromTableId = payload.fromTableId as string;
       const toTableId = payload.toTableId as string;
-      nextSession.tableIds = nextSession.tableIds.filter((t) => t !== fromTableId);
+      const shortFrom = fromTableId.startsWith('table:') ? fromTableId.split(':').pop()! : fromTableId;
+      nextSession.tableIds = nextSession.tableIds.filter(
+        (t) => t !== fromTableId && t !== shortFrom && !t.endsWith(`:${shortFrom}`)
+      );
       if (!nextSession.tableIds.includes(toTableId)) {
         nextSession.tableIds.push(toTableId);
       }
+      break;
+    }
+
+    case 'LINE_STATUS_CHANGED': {
+      const line = nextBill.lines.find((l) => l.lineId === payload.lineId);
+      if (line) {
+        line.kdsStatus = payload.status;
+        if (payload.status === 'ready') {
+          line.bumpedAt = event.createdAt;
+          line.bumpedBy = event.actorId;
+        }
+      }
+      nextBill.updatedAt = event.createdAt;
+      break;
+    }
+
+    case 'LINE_BUMPED': {
+      const lineIds: string[] = Array.isArray(payload.lineIds)
+        ? payload.lineIds
+        : payload.lineId
+          ? [payload.lineId]
+          : [];
+      for (const lid of lineIds) {
+        const line = nextBill.lines.find((l) => l.lineId === lid);
+        if (line) {
+          line.kdsStatus = 'ready';
+          line.bumpedAt = event.createdAt;
+          line.bumpedBy = event.actorId;
+        }
+      }
+      nextBill.updatedAt = event.createdAt;
+      break;
+    }
+
+    case 'LINE_RECALLED': {
+      const line = nextBill.lines.find((l) => l.lineId === payload.lineId);
+      if (line) {
+        line.kdsStatus = payload.status || 'preparing';
+        delete line.bumpedAt;
+        delete line.bumpedBy;
+      }
+      nextBill.updatedAt = event.createdAt;
       break;
     }
 

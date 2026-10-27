@@ -75,4 +75,56 @@ describe('MergeBillsDialog.vue', () => {
     expect(wrapper.html()).toContain('50.000');
     expect(wrapper.html()).toContain('30.000');
   });
+
+  it('allows clicking a bill row to toggle checkbox selection and enables confirm button when >= 2 selected', async () => {
+    const wrapper = mount(MergeBillsDialog, {
+      props: {
+        bills,
+        open: true,
+        tableNames: {
+          'bill:hq:b1': 'Bàn 1',
+          'bill:hq:b2': 'Bàn 2',
+        },
+      },
+      global: { plugins: [i18n] },
+    });
+
+    // Check table badges
+    expect(wrapper.text()).toContain('Bàn 1');
+    expect(wrapper.text()).toContain('Bàn 2');
+
+    const rows = wrapper.findAll('[data-test="bill-row"]');
+    expect(rows).toHaveLength(2);
+
+    // Click first row
+    await rows[0]!.trigger('click');
+    expect(wrapper.find('[data-test="confirm-merge-btn"]').attributes('disabled')).toBeDefined();
+
+    // Click second row
+    await rows[1]!.trigger('click');
+    expect(wrapper.find('[data-test="confirm-merge-btn"]').attributes('disabled')).toBeUndefined();
+
+    // Confirm merge
+    await wrapper.find('[data-test="confirm-merge-btn"]').trigger('click');
+    const emitted = wrapper.emitted('confirmMerge');
+    expect(emitted).toBeTruthy();
+    expect(emitted?.[0]?.[0]).toEqual({
+      billIds: ['bill:hq:b1', 'bill:hq:b2'],
+    });
+  });
+
+  it('allows clicking select all to select all bills at once', async () => {
+    const wrapper = mount(MergeBillsDialog, {
+      props: { bills, open: true },
+      global: { plugins: [i18n] },
+    });
+
+    const selectAllBtn = wrapper.find('button.text-primary');
+    expect(selectAllBtn.exists()).toBe(true);
+    expect(selectAllBtn.text()).toBe('Chọn tất cả');
+
+    await selectAllBtn.trigger('click');
+    expect(selectAllBtn.text()).toBe('Bỏ chọn tất cả');
+    expect(wrapper.find('[data-test="confirm-merge-btn"]').attributes('disabled')).toBeUndefined();
+  });
 });

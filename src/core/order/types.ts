@@ -30,6 +30,8 @@ export interface ComboSelection {
   optionIds: string[]; // selected option IDs
 }
 
+export type KdsLineStatus = 'pending' | 'preparing' | 'ready';
+
 export interface OrderLineItem {
   lineId: string; // uuid
   productId: string;
@@ -46,6 +48,10 @@ export interface OrderLineItem {
   status: 'placed' | 'voided';
   voidReason?: string;
   addedAt: string;
+  stationId?: string;
+  kdsStatus?: KdsLineStatus;
+  bumpedAt?: string;
+  bumpedBy?: string;
 }
 
 export interface OrderDiscount {
