@@ -118,4 +118,36 @@ describe('UserLoginModal.vue', () => {
     await cancelBtn.trigger('click');
     expect(wrapper.emitted('cancel')).toHaveLength(2);
   });
+
+  it('allows logging in with username and password in password mode', async () => {
+    wrapper = mount(UserLoginModal, {
+      props: { open: true, users, activeBranchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await wrapper.find('[data-test="mode-password-btn"]').trigger('click');
+
+    const usernameInput = wrapper.find('[data-test="login-username-input"]');
+    const passwordInput = wrapper.find('[data-test="login-password-input"]');
+
+    await usernameInput.setValue('admin');
+    await passwordInput.setValue('8888');
+
+    await wrapper.find('[data-test="submit-password-login-btn"]').trigger('click');
+
+    expect(wrapper.emitted('loginSuccess')).toBeTruthy();
+    const [user] = wrapper.emitted('loginSuccess')![0] as [UserDoc];
+    expect(user.username).toBe('admin');
+  });
+
+  it('switches to Logto tab and displays Logto sign in button', async () => {
+    wrapper = mount(UserLoginModal, {
+      props: { open: true, users, activeBranchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await wrapper.find('[data-test="tab-logto"]').trigger('click');
+    expect(wrapper.find('[data-test="logto-sso-section"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="sign-in-logto-btn"]').exists()).toBe(true);
+  });
 });

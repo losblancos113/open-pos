@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="tGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d04a15"/>
+      <stop offset="100%" stop-color="#b33808"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle Base -->
+  <rect x="32" y="32" width="448" height="448" rx="112" ry="112" fill="url(#tGrad3)"/>
+
+  <!-- Bold Geometric Glyphs: O and P intertwining -->
+  <g fill="#ffffff">
+    <!-- The Left Circle (O): Center (196, 256), Radius 112, Hole 58 -->
+    <!-- The Right Loop & Stem (P): Stem x=(260..314), y=(144..368), Bowl x=(314..380), y=(144..256) -->
+    <!-- United as an iconic silhouette -->
+    <!-- Circle O -->
+    <path fill-rule="evenodd" d="
+      M 200,144
+      C 138.14,144 88,194.14 88,256
+      C 88,317.86 138.14,368 200,368
+      C 238.2,368 271.6,348.88 291.6,319.8
+      L 291.6,368
+      L 343.6,368
+      L 343.6,144
+      L 291.6,144
+      L 291.6,192.2
+      C 271.6,163.12 238.2,144 200,144
+      Z
+      M 200,200
+      C 230.93,200 256,225.07 256,256
+      C 256,286.93 230.93,312 200,312
+      C 169.07,312 144,286.93 144,256
+      C 144,225.07 169.07,200 200,200
+      Z
+      M 343.6,144
+      L 368,144
+      C 398.93,144 424,169.07 424,200
+      C 424,230.93 398.93,256 368,256
+      L 343.6,256
+      Z
+      M 343.6,196
+      L 364,196
+      C 366.2,196 368,197.8 368,200
+      C 368,202.2 366.2,204 364,204
+      L 343.6,204
+      Z
+    "/>
+  </g>
+</svg>

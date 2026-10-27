@@ -17,7 +17,7 @@ function rotr(n: number, b: number): number {
   return (n >>> b) | (n << (32 - b));
 }
 
-function sha256(data: Uint8Array): Uint8Array {
+export function sha256(data: Uint8Array): Uint8Array {
   const len = data.length;
   const bitLen = len * 8;
   const kPadLen = (56 - ((len + 1) % 64) + 64) % 64;
@@ -206,7 +206,49 @@ export function verifySessionToken(
   }
 }
 
-// ─── PIN Hashing & Verification ──────────────────────────────────────────────
+// ─── Password & PIN Hashing & Verification ──────────────────────────────────
+
+function generateSecureSalt(byteLength: number = 16): string {
+  const bytes = new Uint8Array(byteLength);
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < byteLength; i++) {
+      bytes[i] = Math.floor(Math.random() * 256);
+    }
+  }
+  return base64urlEncode(bytes);
+}
+
+export function hashPassword(
+  password: string,
+  salt: string = generateSecureSalt(16),
+  rounds: number = 5,
+): string {
+  if (!password || typeof password !== 'string') {
+    throw new Error('hashPassword: password must be a non-empty string');
+  }
+  let current = base64urlEncode(hmacSha256(salt, `pwd:${password}`));
+  for (let i = 1; i < rounds; i++) {
+    current = base64urlEncode(hmacSha256(salt, `pwd:${current}`));
+  }
+  return `pwd_v1$${salt}$${current}`;
+}
+
+export function verifyPassword(password: string, passwordHash: string, rounds: number = 5): boolean {
+  if (!password || !passwordHash) return false;
+  const parts = passwordHash.split('$');
+  if (parts.length !== 3 || parts[0] !== 'pwd_v1') {
+    return false;
+  }
+  const salt = parts[1]!;
+  const expectedHash = parts[2]!;
+  let current = base64urlEncode(hmacSha256(salt, `pwd:${password}`));
+  for (let i = 1; i < rounds; i++) {
+    current = base64urlEncode(hmacSha256(salt, `pwd:${current}`));
+  }
+  return constantTimeEqual(current, expectedHash);
+}
 
 export function hashPin(pin: string, salt: string = 'openpos_salt_v1'): string {
   const hash = base64urlEncode(hmacSha256(salt, `pin:${pin}`));
@@ -231,13 +273,13 @@ interface RateLimitEntry {
   lockedUntilMs: number;
 }
 
-const pinAttempts = new Map<string, RateLimitEntry>();
+const authAttempts = new Map<string, RateLimitEntry>();
 
-export function checkPinRateLimit(
+export function checkAuthRateLimit(
   userId: string,
   nowEpochMs: number = Date.now(),
 ): { allowed: boolean; remainingLockoutSeconds?: number } {
-  const entry = pinAttempts.get(userId);
+  const entry = authAttempts.get(userId);
   if (!entry) return { allowed: true };
 
   if (entry.lockedUntilMs > nowEpochMs) {
@@ -248,8 +290,8 @@ export function checkPinRateLimit(
   return { allowed: true };
 }
 
-export function recordFailedPinAttempt(userId: string, nowEpochMs: number = Date.now()): void {
-  let entry = pinAttempts.get(userId);
+export function recordFailedAuthAttempt(userId: string, nowEpochMs: number = Date.now()): void {
+  let entry = authAttempts.get(userId);
 
   // If lockout expired, reset attempts so user gets a fresh window
   if (entry && entry.lockedUntilMs > 0 && entry.lockedUntilMs <= nowEpochMs) {
@@ -263,9 +305,13 @@ export function recordFailedPinAttempt(userId: string, nowEpochMs: number = Date
     current.lockedUntilMs = nowEpochMs + 5 * 60 * 1000; // 5 minute lockout
   }
 
-  pinAttempts.set(userId, current);
+  authAttempts.set(userId, current);
 }
 
-export function resetPinAttempts(userId: string): void {
-  pinAttempts.delete(userId);
+export function resetAuthAttempts(userId: string): void {
+  authAttempts.delete(userId);
 }
+
+export const checkPinRateLimit = checkAuthRateLimit;
+export const recordFailedPinAttempt = recordFailedAuthAttempt;
+export const resetPinAttempts = resetAuthAttempts;

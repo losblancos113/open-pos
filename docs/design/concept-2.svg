@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#9a3412"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="32" y="32" width="448" height="448" rx="104" ry="104" fill="url(#bgGrad)" />
+
+  <!-- Clean, high-impact vector glyph -->
+  <!-- Outer Open Ring with 45° aperture -->
+  <g fill="none" stroke="#ffffff" stroke-width="52" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 270-degree arc from 135 deg around to 45 deg -->
+    <path d="M 330,182 A 140 140 0 1 0 354,256" />
+    <!-- Vertical stem of P passing through center -->
+    <line x1="256" y1="130" x2="256" y2="370" />
+    <!-- P bowl -->
+    <path d="M 256,130 L 320,130 C 352,130 368,154 368,185 C 368,216 352,240 320,240 L 256,240" />
+  </g>
+  <!-- Accent terminal dot -->
+  <circle cx="256" cy="370" r="16" fill="#ffffff" />
+</svg>

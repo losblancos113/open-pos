@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 100" width="460" height="100">
+  <defs>
+    <linearGradient id="hGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d04a15"/>
+      <stop offset="100%" stop-color="#b03607"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Logo Mark (Left, 72x72) -->
+  <g transform="translate(10, 14)">
+    <rect width="72" height="72" rx="18" fill="url(#hGrad)"/>
+    <!-- Scaled Glyph -->
+    <g transform="translate(-5, -5) scale(0.16)">
+      
+    <g fill="#ffffff" fill-rule="evenodd">
+      <!-- Main Monogram Silhouette -->
+      <path d="
+        M 276,136
+        C 342,136 388,168 388,206
+        C 388,244 342,274 276,274
+        L 276,324
+        C 276,350 252,376 210,376
+        C 144,376 94,322 94,256
+        C 94,190 144,136 210,136
+        Z
+        M 210,188
+        C 174,188 146,218 146,256
+        C 146,294 174,324 210,324
+        C 226,324 238,312 238,296
+        L 238,216
+        C 238,200 226,188 210,188
+        Z
+        M 276,184
+        L 306,184
+        C 328,184 342,192 342,206
+        C 342,220 328,228 306,228
+        L 276,228
+        Z
+      "/>
+    </g>
+    <!-- Kinetic Pulse Node (Offline Sync / Transaction Anchor) -->
+    <circle cx="338" cy="342" r="22" fill="#ffedd5" />
+    
+    </g>
+  </g>
+
+  <!-- Typography: OPEN POS -->
+  <g transform="translate(98, 52)">
+    <!-- OPEN -->
+    <text x="0" y="0" font-family="'Inter', 'Bricolage Grotesque', system-ui, -apple-system, sans-serif" 
+          font-size="34" font-weight="900" letter-spacing="-0.5" fill="#1a1a1e">OPEN</text>
+    
+    <!-- POS Pill Badge -->
+    <rect x="108" y="-30" width="76" height="36" rx="8" fill="#c2410c" />
+    <text x="146" y="-5" font-family="'Inter', system-ui, sans-serif" 
+          font-size="22" font-weight="800" letter-spacing="1" fill="#ffffff" text-anchor="middle">POS</text>
+  </g>
+
+  <!-- Tagline: OFFLINE-FIRST RETAIL & HOSPITALITY -->
+  <text x="100" y="74" font-family="'Inter', system-ui, sans-serif" 
+        font-size="10.5" font-weight="600" letter-spacing="2" fill="#6b7280">OFFLINE-FIRST RETAIL &amp; HOSPITALITY</text>
+</svg>

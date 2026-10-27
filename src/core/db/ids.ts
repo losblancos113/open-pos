@@ -130,4 +130,10 @@ export function auditLogDocId(branchId: string, auditId: string): string {
   return `audit_log:${requireSegment(branchId, 'branchId')}:${requireSegment(auditId, 'auditId')}`;
 }
 
+/** `_id` của tài liệu cấu hình hệ thống (installer, auth mode, thông tin cửa hàng). */
+export function systemConfigDocId(): string {
+  return 'system:config';
+}
+
+
 

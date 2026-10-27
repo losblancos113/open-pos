@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import type { VueWrapper } from '@vue/test-utils';
 import App from './App.vue';
 import { i18n, vuetifyLocale } from '@/i18n';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 
 /**
  * `App.vue` là vỏ tích hợp: nó mở PouchDB trong `onMounted` và gắn hai màn hình thật.
@@ -29,6 +30,24 @@ afterEach(() => {
 });
 
 function mountApp(): VueWrapper {
+  const { setUser } = useCurrentUser();
+  setUser(
+    {
+      _id: 'user:admin',
+      docType: 'user',
+      branchId: '*',
+      username: 'admin',
+      displayName: 'Quản trị viên',
+      role: 'owner',
+      branchIds: ['hq', 'dist1'],
+      isActive: true,
+      schemaVersion: 1,
+      createdAt: '',
+      updatedAt: '',
+    },
+    'hq',
+  );
+
   const wrapper = mount(App, {
     global: {
       plugins: [i18n, vuetifyLocale],

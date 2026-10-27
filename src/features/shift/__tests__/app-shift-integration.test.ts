@@ -4,6 +4,7 @@ import { mount, flushPromises } from '@vue/test-utils';
 import type { VueWrapper } from '@vue/test-utils';
 import { i18n, vuetifyLocale } from '@/i18n';
 import App from '@/App.vue';
+import { useCurrentUser } from '@/features/auth/use-current-user';
 
 vi.mock('pouchdb/dist/pouchdb.js', () => ({
   default: class FakePouchDB {
@@ -25,6 +26,24 @@ afterEach(() => {
 
 describe('App.vue Shift & Store Reports Header Integration', () => {
   it('renders Shift button and Store Reports button in header and mounts modals', async () => {
+    const { setUser } = useCurrentUser();
+    setUser(
+      {
+        _id: 'user:admin',
+        docType: 'user',
+        branchId: '*',
+        username: 'admin',
+        displayName: 'Quản trị viên',
+        role: 'owner',
+        branchIds: ['hq', 'dist1'],
+        isActive: true,
+        schemaVersion: 1,
+        createdAt: '',
+        updatedAt: '',
+      },
+      'hq',
+    );
+
     const wrapper = mount(App, {
       global: {
         plugins: [i18n, vuetifyLocale],

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@vuetify/v0';
 // Bundle UMD tự chứa của PouchDB, **không** phải entry `pouchdb` chính: entry đó
@@ -10,6 +10,8 @@ import PouchDB from 'pouchdb/dist/pouchdb.js';
 import type { DbAdapter } from '@/core/db/adapter';
 import { createPouchAdapter } from '@/core/db/pouch-adapter';
 import { createBranchRepository, type BranchRepository } from '@/core/branch/branch-repository';
+import { createUserRepository, type UserRepository } from '@/core/auth/user-repository';
+import { createSystemRepository, type SystemRepository } from '@/core/system/system-repository';
 import { useActiveBranch } from './features/branch/use-active-branch';
 import { useCurrentUser } from './features/auth/use-current-user';
 import { hashPin } from '@/core/auth/token';
@@ -21,11 +23,15 @@ import PosTerminal from './features/pos/PosTerminal.vue';
 import KitchenDisplay from './features/kds/KitchenDisplay.vue';
 import BranchSwitcher from './features/branch/BranchSwitcher.vue';
 import UserLoginModal from './features/auth/UserLoginModal.vue';
+import UserAdminModal from './features/auth/UserAdminModal.vue';
+import UserProfileMenu from './features/auth/UserProfileMenu.vue';
+import InstallerWizard from './features/setup/InstallerWizard.vue';
 import CrossBranchReportModal from './features/reports/CrossBranchReportModal.vue';
 import InventoryAdminModal from './features/inventory/InventoryAdminModal.vue';
 import ShiftModal from './features/shift/ShiftModal.vue';
 import StoreReportsModal from './features/reports/StoreReportsModal.vue';
 import TableAdminModal from './features/table-admin/TableAdminModal.vue';
+import AppLogo from '@/components/AppLogo.vue';
 import { createInventoryRepository, type InventoryRepository } from '@/core/inventory/inventory-repository';
 import { createShiftRepository, type ShiftRepository } from '@/core/shift/shift-repository';
 import { createOrderRepository, type OrderRepository } from '@/core/order/order-repository';
@@ -49,12 +55,17 @@ const view = ref<View>('pos');
 
 const adapter = ref<DbAdapter | null>(null);
 const branchRepo = ref<BranchRepository | null>(null);
+const userRepo = ref<UserRepository | null>(null);
+const systemRepo = ref<SystemRepository | null>(null);
 const storageError = ref<string | null>(null);
 
-const { activeBranchId, init: initActiveBranch } = useActiveBranch();
-const { currentUser, isOwner, login } = useCurrentUser();
+const { activeBranchId, currentBranch, init: initActiveBranch } = useActiveBranch();
+const { currentUser, isOwner, can, isAuthenticated, restoreSession, logout } = useCurrentUser();
 
 const isLoginModalOpen = ref(false);
+const isUserAdminModalOpen = ref(false);
+const isProfileMenuOpen = ref(false);
+const isInstallerOpen = ref(false);
 const isReportModalOpen = ref(false);
 const isInventoryModalOpen = ref(false);
 const isShiftModalOpen = ref(false);
@@ -66,8 +77,33 @@ const orderRepo = ref<OrderRepository | null>(null);
 const posTerminalKey = ref(0);
 const defaultUsers = ref<UserDoc[]>([]);
 
+const activeBranchName = computed(
+  () => currentBranch.value?.name || activeBranchId.value?.toUpperCase() || '',
+);
+
 function onTablesUpdated() {
   posTerminalKey.value++;
+}
+
+async function onInstallerComplete(adminUser: UserDoc, branchId: string) {
+  isInstallerOpen.value = false;
+  activeBranchId.value = branchId;
+  if (userRepo.value) {
+    defaultUsers.value = await userRepo.value.listUsers({ includeInactive: false });
+  }
+}
+
+function onLoginSuccess(user: UserDoc) {
+  isLoginModalOpen.value = false;
+}
+
+function onSwitchUser() {
+  isProfileMenuOpen.value = false;
+  isLoginModalOpen.value = true;
+}
+
+function onLogout() {
+  isProfileMenuOpen.value = false;
 }
 
 onMounted(async () => {
@@ -77,64 +113,86 @@ onMounted(async () => {
 
     const repo = createBranchRepository(rawAdapter);
     branchRepo.value = repo;
+    const uRepo = createUserRepository(rawAdapter);
+    userRepo.value = uRepo;
+    const sRepo = createSystemRepository(rawAdapter);
+    systemRepo.value = sRepo;
     inventoryRepo.value = createInventoryRepository(rawAdapter);
     shiftRepo.value = createShiftRepository(rawAdapter);
     orderRepo.value = createOrderRepository(rawAdapter);
     await repo.seedDefaultBranches();
     await initActiveBranch();
 
-    defaultUsers.value = [
-      {
-        _id: 'user:admin',
-        docType: 'user',
-        branchId: GLOBAL_BRANCH_ID,
+    restoreSession();
+
+    let dbUsers = await uRepo.listUsers({ includeInactive: true });
+    if (dbUsers.length === 0) {
+      const isFirst = await sRepo.isFirstRun();
+      if (isFirst) {
+        isInstallerOpen.value = true;
+      }
+      const defaultAdmin = await uRepo.createUser({
         username: 'admin',
         displayName: 'Quản trị viên (Chủ quán)',
-        pinHash: hashPin('1234'),
+        password: 'AdminPassword123!',
+        pin: '1234',
         role: 'owner',
         branchIds: ['hq', 'dist1'],
         isActive: true,
-        schemaVersion: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        _id: 'user:cashier_hq',
-        docType: 'user',
-        branchId: GLOBAL_BRANCH_ID,
+      });
+      const defaultCashier = await uRepo.createUser({
         username: 'cashier1',
         displayName: 'Thu ngân HQ',
-        pinHash: hashPin('1111'),
+        password: 'CashierPassword123!',
+        pin: '1111',
         role: 'cashier',
         branchIds: ['hq'],
         isActive: true,
-        schemaVersion: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-
-    // Default to owner session if none active
-    if (!currentUser.value && defaultUsers.value[0]) {
-      await login(defaultUsers.value[0], '1234', activeBranchId.value);
+      });
+      dbUsers = [defaultAdmin, defaultCashier];
+    } else {
+      const isFirst = await sRepo.isFirstRun();
+      if (isFirst) {
+        isInstallerOpen.value = true;
+      }
     }
+
+    defaultUsers.value = dbUsers;
   } catch (error) {
-    // Không mở được kho cục bộ thì phải nói ra: im lặng chuyển sang bộ nhớ tạm sẽ làm
-    // admin tưởng menu đã lưu trong khi tải lại trang là mất sạch.
     storageError.value = error instanceof Error ? error.message : String(error);
   }
 });
 </script>
 
 <template>
-  <main class="app min-h-screen bg-bg text-text antialiased">
+  <!-- First-run Installer Wizard -->
+  <InstallerWizard
+    v-if="branchRepo !== null && userRepo !== null && systemRepo !== null"
+    :open="isInstallerOpen"
+    :branch-repo="branchRepo"
+    :user-repo="userRepo"
+    :system-repo="systemRepo"
+    @complete="onInstallerComplete"
+  />
+
+  <!-- Auth Gate: blocking full-screen login if not authenticated -->
+  <UserLoginModal
+    v-if="!isInstallerOpen && !isAuthenticated"
+    :open="true"
+    :is-gate="true"
+    :users="defaultUsers"
+    :user-repo="userRepo"
+    :active-branch-id="activeBranchId"
+    @login-success="onLoginSuccess"
+  />
+
+  <!-- Main Application (Only accessible when authenticated) -->
+  <main v-if="isAuthenticated" class="app min-h-screen bg-bg text-text antialiased">
     <header class="app__header px-3 sm:px-6 py-3 sm:py-4 border-b border-border bg-surface/90 backdrop-blur-xs sticky top-0 z-30 flex flex-col gap-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <!-- Brand & Branch Info -->
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-lg bg-primary text-primary-contrast flex items-center justify-center font-bold text-sm shadow-xs select-none">
-            OP
-          </div>
+          <AppLogo :size="32" />
           <div>
             <h1 class="text-base sm:text-lg font-bold tracking-tight leading-tight">{{ t('app.title') }}</h1>
             <p class="text-[11px] text-text-muted leading-none hidden sm:block">{{ t('app.tagline') }}</p>
@@ -200,20 +258,47 @@ onMounted(async () => {
             <Button.Content>🪑 <span class="hidden md:inline">{{ t('tableAdmin.title') }}</span></Button.Content>
           </Button.Root>
 
-          <!-- User profile button -->
           <Button.Root
-            v-if="currentUser"
+            v-if="can('manage_users')"
             type="button"
-            data-test="user-profile-btn"
-            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-surface font-medium shadow-2xs flex items-center gap-1.5"
-            @click="isLoginModalOpen = true"
+            data-test="user-admin-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            @click="isUserAdminModalOpen = true"
           >
-            <Button.Content>
-              <span class="inline-block w-2 h-2 rounded-full bg-success"></span>
-              <span>{{ currentUser.displayName }}</span>
-              <span class="text-[10px] text-text-muted uppercase">({{ currentUser.role }})</span>
-            </Button.Content>
+            <Button.Content>👥 <span class="hidden md:inline">{{ t('auth.userManagement') }}</span></Button.Content>
           </Button.Root>
+
+          <!-- User profile button & Dropdown menu -->
+          <div v-if="currentUser" class="relative">
+            <Button.Root
+              type="button"
+              data-test="user-profile-btn"
+              class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-surface font-medium shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              @click="isProfileMenuOpen = !isProfileMenuOpen"
+            >
+              <Button.Content>
+                <span class="inline-block w-2 h-2 rounded-full bg-success"></span>
+                <span>{{ currentUser.displayName }}</span>
+                <span class="text-[10px] text-text-muted uppercase">({{ currentUser.role }})</span>
+                <span
+                  v-if="currentUser.authProvider === 'logto'"
+                  class="text-[9px] px-1 py-0.2 rounded bg-blue-500/20 text-blue-500 font-bold"
+                >
+                  Logto
+                </span>
+                <span class="text-[9px] text-text-muted ml-0.5">▼</span>
+              </Button.Content>
+            </Button.Root>
+
+            <UserProfileMenu
+              :open="isProfileMenuOpen"
+              :user="currentUser"
+              :active-branch-name="activeBranchName"
+              @close="isProfileMenuOpen = false"
+              @switch-user="onSwitchUser"
+              @logout="onLogout"
+            />
+          </div>
           <Button.Root
             v-else
             type="button"
@@ -291,50 +376,63 @@ onMounted(async () => {
     </div>
 
     <!-- Modals -->
-    <UserLoginModal
-      :open="isLoginModalOpen"
-      :users="defaultUsers"
-      :active-branch-id="activeBranchId"
-      @login-success="isLoginModalOpen = false"
-      @cancel="isLoginModalOpen = false"
-    />
+    <section class="app__modals">
+      <UserAdminModal
+        v-if="userRepo !== null && branchRepo !== null"
+        :open="isUserAdminModalOpen"
+        :user-repo="userRepo"
+        :branch-repo="branchRepo"
+        @close="isUserAdminModalOpen = false"
+      />
 
-    <CrossBranchReportModal
-      :open="isReportModalOpen"
-      :adapter="adapter"
-      :branch-repo="branchRepo"
-      @close="isReportModalOpen = false"
-    />
+      <!-- Switch User Modal (when inside app) -->
+      <UserLoginModal
+        :open="isLoginModalOpen"
+        :is-gate="false"
+        :users="defaultUsers"
+        :user-repo="userRepo"
+        :active-branch-id="activeBranchId"
+        @login-success="isLoginModalOpen = false"
+        @cancel="isLoginModalOpen = false"
+      />
 
-    <InventoryAdminModal
-      :open="isInventoryModalOpen"
-      :repo="inventoryRepo"
-      :branch-id="activeBranchId"
-      @close="isInventoryModalOpen = false"
-    />
+      <CrossBranchReportModal
+        :open="isReportModalOpen"
+        :adapter="adapter"
+        :branch-repo="branchRepo"
+        @close="isReportModalOpen = false"
+      />
 
-    <ShiftModal
-      :open="isShiftModalOpen"
-      :repo="shiftRepo"
-      :branch-id="activeBranchId"
-      :device-id="'term_01'"
-      :current-user="currentUser"
-      @close="isShiftModalOpen = false"
-    />
+      <InventoryAdminModal
+        :open="isInventoryModalOpen"
+        :repo="inventoryRepo"
+        :branch-id="activeBranchId"
+        @close="isInventoryModalOpen = false"
+      />
 
-    <StoreReportsModal
-      :open="isStoreReportsModalOpen"
-      :adapter="adapter"
-      :branch-id="activeBranchId"
-      @close="isStoreReportsModalOpen = false"
-    />
+      <ShiftModal
+        :open="isShiftModalOpen"
+        :repo="shiftRepo"
+        :branch-id="activeBranchId"
+        :device-id="'term_01'"
+        :current-user="currentUser"
+        @close="isShiftModalOpen = false"
+      />
 
-    <TableAdminModal
-      :open="isTableAdminModalOpen"
-      :branch-id="activeBranchId"
-      :order-repo="orderRepo"
-      @close="isTableAdminModalOpen = false"
-      @tables-updated="onTablesUpdated"
-    />
+      <StoreReportsModal
+        :open="isStoreReportsModalOpen"
+        :adapter="adapter"
+        :branch-id="activeBranchId"
+        @close="isStoreReportsModalOpen = false"
+      />
+
+      <TableAdminModal
+        :open="isTableAdminModalOpen"
+        :branch-id="activeBranchId"
+        :order-repo="orderRepo"
+        @close="isTableAdminModalOpen = false"
+        @tables-updated="onTablesUpdated"
+      />
+    </section>
   </main>
 </template>
