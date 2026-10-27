@@ -11,6 +11,9 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
+    "landing:dev": "npm --prefix landing run dev",
+    "landing:build": "npm --prefix landing run build",
+    "landing:preview": "npm --prefix landing run preview",
     "test:watch": "vitest",
     "tauri": "tauri"
   },
