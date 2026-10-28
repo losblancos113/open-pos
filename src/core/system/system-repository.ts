@@ -58,6 +58,7 @@ export function createSystemRepository(
         defaultCurrency: input.defaultCurrency?.trim() || 'VND',
         primaryBranchId: input.primaryBranchId.trim(),
         authProviderMode: input.authProviderMode,
+        backendPort: input.backendPort ?? 8080,
         ...(input.logtoConfig ? { logtoConfig: input.logtoConfig } : {}),
         initializedAt: now,
       };
@@ -79,6 +80,7 @@ export function createSystemRepository(
         storeName: patch.storeName !== undefined ? patch.storeName.trim() : existing.storeName,
         defaultCurrency: patch.defaultCurrency !== undefined ? patch.defaultCurrency.trim() : existing.defaultCurrency,
         authProviderMode: patch.authProviderMode !== undefined ? patch.authProviderMode : existing.authProviderMode,
+        backendPort: patch.backendPort !== undefined ? patch.backendPort : existing.backendPort,
         logtoConfig: patch.logtoConfig !== undefined ? patch.logtoConfig : existing.logtoConfig,
       };
 

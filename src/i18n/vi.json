@@ -479,11 +479,20 @@
       "logtoEndpoint": "Logto Endpoint URL",
       "logtoEndpointPlaceholder": "https://your-domain.logto.app",
       "logtoAppId": "Logto App ID (Client ID)",
-      "logtoAppIdPlaceholder": "Client ID của ứng dụng Open POS trên Logto"
+      "logtoAppIdPlaceholder": "Client ID của ứng dụng Open POS trên Logto",
+      "backendPort": "Cổng máy chủ Backend (Backend Port)",
+      "backendPortDesc": "Cổng mạng cho máy chủ LAN, đồng bộ dữ liệu và gọi món qua mã QR (mặc định: 8080)",
+      "findFreePort": "Tìm port trống",
+      "checkPort": "Kiểm tra",
+      "portChecking": "Đang kiểm tra cổng...",
+      "portAvailable": "Cổng {port} khả dụng",
+      "portInUse": "Cổng {port} đang bị chiếm dụng hoặc không thể mở!",
+      "portInvalid": "Cổng phải là số nguyên từ 1024 đến 65535!"
     },
     "step4": {
-      "title": "Xem lại & Hoàn tất",
-      "summary": "Tóm tắt cấu hình hệ thống",
+      "title": "Xác nhận & Cài đặt",
+      "summary": "Tóm tắt thông tin cấu hình",
+      "backendPort": "Cổng máy chủ Backend",
       "finishBtn": "Hoàn tất cài đặt & Bắt đầu",
       "processing": "Đang khởi tạo hệ thống..."
     },

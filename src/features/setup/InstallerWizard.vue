@@ -8,6 +8,13 @@ import type { SystemRepository } from '@/core/system/system-repository';
 import type { AuthProviderMode } from '@/core/system/types';
 import type { UserDoc } from '@/core/auth/types';
 import { useCurrentUser } from '@/features/auth/use-current-user';
+import {
+  checkPortAvailable,
+  findAvailablePort,
+  isValidPort,
+  DEFAULT_BACKEND_PORT,
+  type PortServiceOptions,
+} from '@/core/system/port-service';
 
 const props = withDefaults(
   defineProps<{
@@ -15,6 +22,7 @@ const props = withDefaults(
     branchRepo: BranchRepository;
     userRepo: UserRepository;
     systemRepo: SystemRepository;
+    portServiceOptions?: PortServiceOptions;
   }>(),
   {
     open: false,
@@ -50,6 +58,47 @@ const adminPin = ref<string>('');
 const authProviderMode = ref<AuthProviderMode>('both');
 const logtoEndpoint = ref<string>('https://demo.logto.app');
 const logtoAppId = ref<string>('open-pos-desktop');
+
+// Backend Port Configuration
+const backendPort = ref<string>(String(DEFAULT_BACKEND_PORT));
+const portStatus = ref<'idle' | 'checking' | 'available' | 'in_use' | 'invalid'>('idle');
+const isCheckingPort = ref<boolean>(false);
+
+async function checkCurrentPort() {
+  const port = Number(backendPort.value);
+  if (!isValidPort(port)) {
+    portStatus.value = 'invalid';
+    return false;
+  }
+  isCheckingPort.value = true;
+  portStatus.value = 'checking';
+  try {
+    const isFree = await checkPortAvailable(port, props.portServiceOptions);
+    portStatus.value = isFree ? 'available' : 'in_use';
+    return isFree;
+  } catch {
+    portStatus.value = 'in_use';
+    return false;
+  } finally {
+    isCheckingPort.value = false;
+  }
+}
+
+async function autoFindPort() {
+  isCheckingPort.value = true;
+  portStatus.value = 'checking';
+  try {
+    const current = Number(backendPort.value);
+    const start = isValidPort(current) ? current : DEFAULT_BACKEND_PORT;
+    const freePort = await findAvailablePort(start, props.portServiceOptions);
+    backendPort.value = String(freePort);
+    portStatus.value = 'available';
+  } catch {
+    portStatus.value = 'in_use';
+  } finally {
+    isCheckingPort.value = false;
+  }
+}
 
 function validateStep1(): boolean {
   stepError.value = null;
@@ -89,6 +138,11 @@ function validateStep3(): boolean {
       return false;
     }
   }
+  const port = Number(backendPort.value);
+  if (!isValidPort(port)) {
+    stepError.value = t('setup.step3.portInvalid');
+    return false;
+  }
   return true;
 }
 
@@ -127,17 +181,38 @@ async function handleFinish() {
       });
     }
 
-    // 2. Create Super Admin User
-    const adminUser = await props.userRepo.createUser({
-      username: adminUsername.value.trim(),
-      displayName: adminDisplayName.value.trim() || adminUsername.value.trim(),
-      password: adminPassword.value,
-      pin: adminPin.value.trim() || undefined,
-      role: 'owner',
-      branchIds: [normBranchCode],
-      authProvider: 'local',
-      isActive: true,
-    });
+    // 2. Create or update Super Admin User
+    const existing = await props.userRepo.getUserByUsername(adminUsername.value.trim());
+    let adminUser: UserDoc;
+    if (existing) {
+      adminUser = await props.userRepo.updateUser(existing._id, {
+        displayName: adminDisplayName.value.trim() || adminUsername.value.trim(),
+        password: adminPassword.value,
+        pin: adminPin.value.trim() || undefined,
+        role: 'owner',
+        branchIds: [normBranchCode],
+        isActive: true,
+      });
+    } else {
+      adminUser = await props.userRepo.createUser({
+        username: adminUsername.value.trim(),
+        displayName: adminDisplayName.value.trim() || adminUsername.value.trim(),
+        password: adminPassword.value,
+        pin: adminPin.value.trim() || undefined,
+        role: 'owner',
+        branchIds: [normBranchCode],
+        authProvider: 'local',
+        isActive: true,
+      });
+    }
+
+    // Deactivate any leftover accounts from old uninitialized sessions
+    const allUsers = await props.userRepo.listUsers({ includeInactive: true });
+    for (const u of allUsers) {
+      if (u._id !== adminUser._id && u.isActive) {
+        await props.userRepo.updateUser(u._id, { isActive: false });
+      }
+    }
 
     // 3. Initialize System Config
     await props.systemRepo.initializeSystem({
@@ -145,6 +220,7 @@ async function handleFinish() {
       primaryBranchId: normBranchCode,
       defaultCurrency: defaultCurrency.value.trim() || 'VND',
       authProviderMode: authProviderMode.value,
+      backendPort: Number(backendPort.value),
       logtoConfig:
         authProviderMode.value !== 'local'
           ? {
@@ -490,6 +566,72 @@ async function handleFinish() {
               </Input.Root>
             </div>
           </div>
+
+          <!-- Backend Port Configuration -->
+          <div class="p-4 rounded-lg bg-surface-muted border border-border space-y-3 mt-3">
+            <div>
+              <h3 class="text-xs font-bold text-text uppercase tracking-wide">
+                {{ t('setup.step3.backendPort') }}
+              </h3>
+              <p class="text-xs text-text-muted mt-0.5">
+                {{ t('setup.step3.backendPortDesc') }}
+              </p>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+              <div class="w-full sm:w-48">
+                <Input.Root v-model="backendPort" class="w-full">
+                  <Input.Control
+                    data-test="backend-port-input"
+                    type="number"
+                    min="1024"
+                    max="65535"
+                    class="field-input w-full bg-surface"
+                    placeholder="8080"
+                    @change="checkCurrentPort"
+                  />
+                </Input.Root>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <Button.Root
+                  data-test="find-port-btn"
+                  type="button"
+                  class="btn btn-primary text-xs px-3 py-2 flex items-center gap-1.5"
+                  :disabled="isCheckingPort"
+                  @click="autoFindPort"
+                >
+                  <Button.Content>{{ t('setup.step3.findFreePort') }}</Button.Content>
+                </Button.Root>
+
+                <Button.Root
+                  data-test="check-port-btn"
+                  type="button"
+                  class="btn btn-ghost border border-border text-xs px-3 py-2"
+                  :disabled="isCheckingPort"
+                  @click="checkCurrentPort"
+                >
+                  <Button.Content>{{ t('setup.step3.checkPort') }}</Button.Content>
+                </Button.Root>
+              </div>
+            </div>
+
+            <!-- Port Status Feedback -->
+            <div v-if="portStatus !== 'idle'" data-test="port-status" class="text-xs">
+              <span v-if="portStatus === 'checking'" class="text-text-muted flex items-center gap-1">
+                {{ t('setup.step3.portChecking') }}
+              </span>
+              <span v-else-if="portStatus === 'available'" class="text-primary font-medium flex items-center gap-1">
+                ✓ {{ t('setup.step3.portAvailable', { port: backendPort }) }}
+              </span>
+              <span v-else-if="portStatus === 'in_use'" class="text-danger font-medium flex items-center gap-1">
+                ⚠ {{ t('setup.step3.portInUse', { port: backendPort }) }}
+              </span>
+              <span v-else-if="portStatus === 'invalid'" class="text-danger font-medium">
+                ⚠ {{ t('setup.step3.portInvalid') }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -527,6 +669,10 @@ async function handleFinish() {
           >
             <span class="text-text-muted">Logto Endpoint:</span>
             <span class="font-mono text-text text-[11px]">{{ logtoEndpoint }}</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-border/50">
+            <span class="text-text-muted">{{ t('setup.step4.backendPort') }}:</span>
+            <span class="font-mono font-bold text-text" data-test="summary-backend-port">{{ backendPort }}</span>
           </div>
         </div>
       </div>

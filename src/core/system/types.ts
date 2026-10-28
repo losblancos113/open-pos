@@ -21,6 +21,7 @@ export interface SystemConfigDoc extends DocEnvelope<typeof SYSTEM_CONFIG_DOC_TY
   defaultCurrency: string;
   primaryBranchId: string;
   authProviderMode: AuthProviderMode;
+  backendPort?: number | undefined;
   logtoConfig?: LogtoConfig | undefined;
   initializedAt?: string | undefined;
 }
@@ -30,6 +31,7 @@ export interface InitializeSystemInput {
   primaryBranchId: string;
   defaultCurrency?: string | undefined;
   authProviderMode: AuthProviderMode;
+  backendPort?: number | undefined;
   logtoConfig?: LogtoConfig | undefined;
 }
 
@@ -37,5 +39,6 @@ export interface UpdateSystemConfigInput {
   storeName?: string | undefined;
   defaultCurrency?: string | undefined;
   authProviderMode?: AuthProviderMode | undefined;
+  backendPort?: number | undefined;
   logtoConfig?: LogtoConfig | undefined;
 }

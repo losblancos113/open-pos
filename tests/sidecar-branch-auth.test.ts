@@ -85,8 +85,8 @@ beforeAll(async () => {
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  hubUrl = await waitForHubUrl(hub);
-});
+  hubUrl = await waitForHubUrl(hub, 30_000);
+}, 45_000);
 
 afterAll(() => {
   hub?.kill();

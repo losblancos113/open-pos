@@ -5,6 +5,7 @@ use axum::{
 
 pub mod auth;
 pub mod health;
+pub mod port;
 
 pub fn router() -> Router {
     Router::new()

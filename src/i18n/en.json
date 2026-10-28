@@ -479,12 +479,21 @@
       "logtoEndpoint": "Logto Endpoint URL",
       "logtoEndpointPlaceholder": "https://your-domain.logto.app",
       "logtoAppId": "Logto App ID (Client ID)",
-      "logtoAppIdPlaceholder": "Client ID of Open POS on Logto"
+      "logtoAppIdPlaceholder": "Client ID of Open POS on Logto",
+      "backendPort": "Backend Server Port",
+      "backendPortDesc": "LAN server port for synchronization and QR code table ordering (default: 8080)",
+      "findFreePort": "Find Available Port",
+      "checkPort": "Check",
+      "portChecking": "Checking port availability...",
+      "portAvailable": "Port {port} is available",
+      "portInUse": "Port {port} is already in use or unavailable!",
+      "portInvalid": "Port must be an integer between 1024 and 65535!"
     },
     "step4": {
       "title": "Review & Complete",
       "summary": "System Configuration Summary",
-      "finishBtn": "Finish Setup & Launch POS",
+      "backendPort": "Backend Server Port",
+      "finishBtn": "Complete Setup & Launch",
       "processing": "Initializing system..."
     },
     "next": "Next",

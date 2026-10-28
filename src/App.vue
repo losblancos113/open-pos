@@ -125,38 +125,12 @@ onMounted(async () => {
 
     restoreSession();
 
-    let dbUsers = await uRepo.listUsers({ includeInactive: true });
-    if (dbUsers.length === 0) {
-      const isFirst = await sRepo.isFirstRun();
-      if (isFirst) {
-        isInstallerOpen.value = true;
-      }
-      const defaultAdmin = await uRepo.createUser({
-        username: 'admin',
-        displayName: 'Quản trị viên (Chủ quán)',
-        password: 'AdminPassword123!',
-        pin: '1234',
-        role: 'owner',
-        branchIds: ['hq', 'dist1'],
-        isActive: true,
-      });
-      const defaultCashier = await uRepo.createUser({
-        username: 'cashier1',
-        displayName: 'Thu ngân HQ',
-        password: 'CashierPassword123!',
-        pin: '1111',
-        role: 'cashier',
-        branchIds: ['hq'],
-        isActive: true,
-      });
-      dbUsers = [defaultAdmin, defaultCashier];
-    } else {
-      const isFirst = await sRepo.isFirstRun();
-      if (isFirst) {
-        isInstallerOpen.value = true;
-      }
+    const isFirst = await sRepo.isFirstRun();
+    if (isFirst) {
+      isInstallerOpen.value = true;
     }
 
+    const dbUsers = await uRepo.listUsers({ includeInactive: true });
     defaultUsers.value = dbUsers;
   } catch (error) {
     storageError.value = error instanceof Error ? error.message : String(error);
@@ -207,69 +181,75 @@ onMounted(async () => {
         </div>
 
         <!-- Controls: Cross-Branch Report, Inventory, Shift, Store Reports, User Session -->
-        <div class="flex items-center gap-1.5 flex-wrap">
+        <div class="flex items-center gap-1.5 flex-wrap justify-end flex-1 min-w-0">
           <Button.Root
             v-if="isOwner"
             type="button"
             data-test="cross-branch-report-btn"
-            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            class="btn btn-ghost text-xs px-2 sm:px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            :title="t('report.crossBranch')"
             @click="isReportModalOpen = true"
           >
-            <Button.Content>📊 <span class="hidden md:inline">{{ t('report.crossBranch') }}</span></Button.Content>
+            <Button.Content>📊 <span class="hidden lg:inline">{{ t('report.crossBranch') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
             v-if="inventoryRepo !== null"
             type="button"
             data-test="inventory-btn"
-            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            class="btn btn-ghost text-xs px-2 sm:px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            :title="t('inventory.title')"
             @click="isInventoryModalOpen = true"
           >
-            <Button.Content>📦 <span class="hidden md:inline">{{ t('inventory.title') }}</span></Button.Content>
+            <Button.Content>📦 <span class="hidden lg:inline">{{ t('inventory.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
             v-if="shiftRepo !== null"
             type="button"
             data-test="shift-btn"
-            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            class="btn btn-ghost text-xs px-2 sm:px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            :title="t('shift.title')"
             @click="isShiftModalOpen = true"
           >
-            <Button.Content>⏰ <span class="hidden md:inline">{{ t('shift.title') }}</span></Button.Content>
+            <Button.Content>⏰ <span class="hidden lg:inline">{{ t('shift.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
             v-if="adapter !== null"
             type="button"
             data-test="store-reports-btn"
-            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            class="btn btn-ghost text-xs px-2 sm:px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            :title="t('storeReports.title')"
             @click="isStoreReportsModalOpen = true"
           >
-            <Button.Content>📈 <span class="hidden md:inline">{{ t('storeReports.title') }}</span></Button.Content>
+            <Button.Content>📈 <span class="hidden lg:inline">{{ t('storeReports.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
             v-if="orderRepo !== null"
             type="button"
             data-test="table-admin-btn"
-            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            class="btn btn-ghost text-xs px-2 sm:px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            :title="t('tableAdmin.title')"
             @click="isTableAdminModalOpen = true"
           >
-            <Button.Content>🪑 <span class="hidden md:inline">{{ t('tableAdmin.title') }}</span></Button.Content>
+            <Button.Content>🪑 <span class="hidden lg:inline">{{ t('tableAdmin.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
             v-if="can('manage_users')"
             type="button"
             data-test="user-admin-btn"
-            class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            class="btn btn-ghost text-xs px-2 sm:px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs"
+            :title="t('auth.userManagement')"
             @click="isUserAdminModalOpen = true"
           >
-            <Button.Content>👥 <span class="hidden md:inline">{{ t('auth.userManagement') }}</span></Button.Content>
+            <Button.Content>👥 <span class="hidden lg:inline">{{ t('auth.userManagement') }}</span></Button.Content>
           </Button.Root>
 
           <!-- User profile button & Dropdown menu -->
-          <div v-if="currentUser" class="relative">
+          <div v-if="currentUser" class="relative shrink-0">
             <Button.Root
               type="button"
               data-test="user-profile-btn"
@@ -303,7 +283,7 @@ onMounted(async () => {
             v-else
             type="button"
             data-test="login-btn"
-            class="btn btn-primary text-xs px-3 py-1.5 rounded-md font-medium shadow-2xs"
+            class="btn btn-primary text-xs px-3 py-1.5 rounded-md font-medium shadow-2xs shrink-0"
             @click="isLoginModalOpen = true"
           >
             <Button.Content>{{ t('auth.login') }}</Button.Content>
@@ -311,11 +291,11 @@ onMounted(async () => {
         </div>
       </div>
 
-      <nav class="app__nav w-full border-t border-border/60 pt-2 flex items-center">
+      <nav class="app__nav w-full border-t border-border/60 pt-2 flex items-center overflow-x-auto">
         <Button.Group
           v-model="view"
           mandatory
-          class="inline-flex gap-1 rounded-lg bg-surface p-1 border border-border shadow-2xs w-full sm:w-auto"
+          class="inline-flex gap-1 rounded-lg bg-surface p-1 border border-border shadow-2xs w-full sm:w-auto shrink-0"
         >
           <Button.Root
             type="button"

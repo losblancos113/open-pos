@@ -36,9 +36,11 @@ describe('App.vue Auth, Installer & Permissions Integration', () => {
 
     await flushPromises();
 
-    // 1. Check Installer Wizard is mounted on first run
+    // 1. Check Installer Wizard is mounted on first run and no pre-existing admin is seeded
     const installer = wrapper.findComponent({ name: 'InstallerWizard' });
     expect(installer.exists()).toBe(true);
+    const initialUsers = await (installer.props() as any).userRepo.listUsers({ includeInactive: true });
+    expect(initialUsers).toHaveLength(0);
 
     // 2. Log in as owner (super admin)
     const { setUser } = useCurrentUser();

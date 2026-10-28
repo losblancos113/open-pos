@@ -36,22 +36,36 @@ describe('SystemRepository', () => {
     expect(config.storeName).toBe('Cà phê Phố');
     expect(config.primaryBranchId).toBe('hq');
     expect(config.authProviderMode).toBe('both');
+    expect(config.backendPort).toBe(8080);
     expect(config.logtoConfig?.endpoint).toBe('https://sample.logto.app');
     expect(config.initializedAt).toBeTruthy();
 
     expect(await repo.isFirstRun()).toBe(false);
   });
 
-  it('updates existing system config', async () => {
+  it('initializes system with custom backend port', async () => {
+    const config = await repo.initializeSystem({
+      storeName: 'Cà phê 8088',
+      primaryBranchId: 'hq',
+      authProviderMode: 'local',
+      backendPort: 8088,
+    });
+
+    expect(config.backendPort).toBe(8088);
+  });
+
+  it('updates existing system config including backend port', async () => {
     await repo.initializeSystem({
       storeName: 'Original Name',
       primaryBranchId: 'hq',
       authProviderMode: 'local',
+      backendPort: 8080,
     });
 
     const updated = await repo.updateConfig({
       storeName: 'Updated Brand Name',
       authProviderMode: 'both',
+      backendPort: 8090,
       logtoConfig: {
         endpoint: 'https://new.logto.app',
         appId: 'new-id',
@@ -60,6 +74,7 @@ describe('SystemRepository', () => {
 
     expect(updated.storeName).toBe('Updated Brand Name');
     expect(updated.authProviderMode).toBe('both');
+    expect(updated.backendPort).toBe(8090);
     expect(updated.logtoConfig?.appId).toBe('new-id');
   });
 });

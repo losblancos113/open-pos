@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@vuetify/v0';
 import type { UserDoc } from '@/core/auth/types';
@@ -27,9 +27,51 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const { logout } = useCurrentUser();
 
+const menuRef = ref<HTMLElement | null>(null);
+const placement = ref<'right' | 'left'>('right');
+
 const initialLetter = computed(() => {
   if (!props.user?.displayName) return '?';
   return props.user.displayName.trim().charAt(0).toUpperCase();
+});
+
+function updatePlacement() {
+  if (typeof window === 'undefined') return;
+  const el = menuRef.value;
+  if (!el) return;
+  const container = el.closest('.relative') || el.parentElement;
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  const menuWidth = 288; // w-72 = 18rem = 288px
+
+  // If right-0 would clip past the left edge of the viewport (< 12px), align to left-0
+  if (rect.right < menuWidth + 12) {
+    placement.value = 'left';
+  } else {
+    placement.value = 'right';
+  }
+}
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) {
+      nextTick(updatePlacement);
+    }
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', updatePlacement);
+  }
+});
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updatePlacement);
+  }
 });
 
 function handleSwitchUser() {
@@ -55,8 +97,12 @@ function handleLogout() {
 
     <!-- Dropdown card -->
     <div
+      ref="menuRef"
       data-test="user-profile-menu"
-      class="panel-card absolute right-0 top-full mt-2 w-72 z-50 p-4 shadow-2xl bg-surface border border-border rounded-xl text-left space-y-3.5"
+      :class="[
+        'panel-card absolute top-full mt-2 w-72 max-w-[calc(100vw-1.5rem)] z-50 p-4 shadow-2xl bg-surface border border-border rounded-xl text-left space-y-3.5',
+        placement === 'left' ? 'left-0' : 'right-0',
+      ]"
     >
       <!-- User profile header -->
       <div class="flex items-center gap-3 pb-3 border-b border-border/80">
