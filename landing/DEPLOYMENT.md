@@ -137,5 +137,6 @@ gh workflow run deploy-landing.yml -f environment=production -f dry_run=true
 ## 6. Troubleshooting
 
 - **"Missing required Vercel credentials" error:** Ensure `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` are configured in GitHub Actions secrets/variables.
+- **"Deployment blocked because commit author email is not valid":** If Vercel enforces commit author verification, ensure your git author email (`git config user.email`) matches a verified email address on your GitHub / Vercel account.
 - **TypeScript build error:** Run `npm run landing:build` locally to reproduce and fix type errors before dispatching.
 - **Custom Domains:** Configure custom domains (e.g. `openpos.dev`) in the Vercel Project Dashboard under **Settings → Domains**. Production runs will automatically update the primary domain.
