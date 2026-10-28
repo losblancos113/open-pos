@@ -9,7 +9,7 @@ This document outlines the setup, secrets, and manual GitHub Actions workflow us
 The landing page (`landing/`) is a standalone Vue 3 + Vite Single Page Application. Deployment is handled via a **manual GitHub Actions workflow** (`.github/workflows/deploy-landing.yml`) featuring two distinct jobs:
 
 1. **`build` (Build & Validate)**:
-   - Runs on `ubuntu-latest` with Node.js 22.
+   - Runs on `ubuntu-latest` with Node.js 24.
    - Installs dependencies with `npm ci` inside `landing/`.
    - Runs strict TypeScript typechecking (`vue-tsc --noEmit`).
    - Compiles production assets (`vite build`).
@@ -33,9 +33,17 @@ Configure the following credentials in **GitHub Repository Settings** (`Settings
 
 | Name | Type | Description | Where to find |
 | :--- | :--- | :--- | :--- |
-| `VERCEL_TOKEN` | **Repository Secret** | Personal Access Token with deployment permissions | Vercel Dashboard → [Account Settings → Tokens](https://vercel.com/account/tokens) |
+| `VERCEL_TOKEN` | **Repository Secret** | Personal Access Token (24-char alphanumeric only, **no `-` or `.`**) | Vercel Dashboard → [Account Settings → Tokens](https://vercel.com/account/tokens) |
 | `VERCEL_ORG_ID` | **Secret or Variable** | Organization or User Account ID | In Vercel Project Settings or via `.vercel/project.json` |
 | `VERCEL_PROJECT_ID` | **Secret or Variable** | Vercel Project ID | In Vercel Project Settings → General or via `.vercel/project.json` |
+
+> ⚠️ **Important on `VERCEL_TOKEN` format:**
+> A Vercel Personal Access Token is a 24-character alphanumeric string (e.g. `wBqXy9Z2kP3mR7tV1nL8jFs0`).
+> **It must NOT contain hyphens (`-`) or dots (`.`)**. If you encounter `Error: You defined "--token", but its contents are invalid. Must not contain: "-", "."`, you likely entered:
+> - A Project ID (`prj_...`) or Team ID (`team_...`) instead of a Personal Access Token.
+> - A URL/domain (`...vercel.app`).
+> - A JWT or other formatted string.
+> Ensure you create a token specifically under **Account Settings → Tokens** on Vercel.
 
 > **Note on Org ID & Project ID:** The workflow supports setting `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` as either Repository Secrets or Repository Variables (`vars.*`).
 

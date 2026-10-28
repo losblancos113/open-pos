@@ -33,10 +33,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: landing/package-lock.json
 
@@ -87,10 +87,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: landing/package-lock.json
 
@@ -113,6 +113,24 @@ jobs:
             done
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "See \`landing/DEPLOYMENT.md\` for configuration details." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          # Vercel Personal Access Tokens are alphanumeric strings without hyphens or dots
+          if [[ "$VERCEL_TOKEN" =~ [-.] ]]; then
+            echo "::error::VERCEL_TOKEN contains '-' or '.', which Vercel CLI rejects."
+            echo "### ❌ Invalid VERCEL_TOKEN Value" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Vercel Personal Access Tokens must be pure alphanumeric strings (letters and numbers only) and **must not contain hyphens (\`-\`) or dots (\`.\`)**." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Common causes for this error:" >> $GITHUB_STEP_SUMMARY
+            echo "- You may have accidentally pasted a **Project ID** (\`prj_...\`) or **Team ID** (\`team_...\`) into \`VERCEL_TOKEN\`." >> $GITHUB_STEP_SUMMARY
+            echo "- You may have pasted a domain, URL, or JWT instead of a Personal Access Token." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "To generate a valid token:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Go to [https://vercel.com/account/tokens](https://vercel.com/account/tokens)" >> $GITHUB_STEP_SUMMARY
+            echo "2. Click **Create Token**" >> $GITHUB_STEP_SUMMARY
+            echo "3. Copy the resulting token string into the \`VERCEL_TOKEN\` repository secret in GitHub" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
 
