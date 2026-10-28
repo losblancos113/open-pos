@@ -43,7 +43,12 @@ fn compute_signature(payload_b64: &str, secret: &str) -> String {
 
 /// Simple session token generator for LAN simulation.
 /// Uses base64 payload with cryptographic signature format: `base64url(payload).sig`.
-pub fn create_lan_token(username: &str, role: &str, branch_ids: &[String], active_branch: &str) -> String {
+pub fn create_lan_token(
+    username: &str,
+    role: &str,
+    branch_ids: &[String],
+    active_branch: &str,
+) -> String {
     let payload = json!({
         "sub": username,
         "username": username,
@@ -76,8 +81,16 @@ fn base64_sim_encode(data: &[u8]) -> String {
     let mut out = String::new();
     for chunk in data.chunks(3) {
         let b0 = chunk[0] as usize;
-        let b1 = if chunk.len() > 1 { chunk[1] as usize } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as usize } else { 0 };
+        let b1 = if chunk.len() > 1 {
+            chunk[1] as usize
+        } else {
+            0
+        };
+        let b2 = if chunk.len() > 2 {
+            chunk[2] as usize
+        } else {
+            0
+        };
 
         out.push(CHARS[b0 >> 2] as char);
         out.push(CHARS[((b0 & 3) << 4) | (b1 >> 4)] as char);
@@ -109,7 +122,11 @@ fn base64_sim_decode(s: &str) -> Option<Vec<u8>> {
     let mut i = 0;
     while i < chars.len() {
         let c0 = decode_char(chars[i])?;
-        let c1 = if i + 1 < chars.len() { decode_char(chars[i + 1])? } else { 0 };
+        let c1 = if i + 1 < chars.len() {
+            decode_char(chars[i + 1])?
+        } else {
+            0
+        };
         out.push((c0 << 2) | (c1 >> 4));
 
         if i + 2 < chars.len() {
@@ -132,7 +149,12 @@ pub async fn login(
 ) -> Result<Json<LoginResponse>, (StatusCode, Json<Value>)> {
     // Basic verification against default accounts
     if payload.username == "admin" && payload.pin == "1234" {
-        let token = create_lan_token("admin", "owner", &["hq".to_string(), "dist1".to_string()], "hq");
+        let token = create_lan_token(
+            "admin",
+            "owner",
+            &["hq".to_string(), "dist1".to_string()],
+            "hq",
+        );
         Ok(Json(LoginResponse {
             token,
             active_branch_id: "hq".to_string(),
@@ -264,7 +286,12 @@ mod tests {
     #[tokio::test]
     async fn switch_branch_with_valid_token_succeeds() {
         let app = crate::lan::router();
-        let token = create_lan_token("admin", "owner", &["hq".to_string(), "dist1".to_string()], "hq");
+        let token = create_lan_token(
+            "admin",
+            "owner",
+            &["hq".to_string(), "dist1".to_string()],
+            "hq",
+        );
         let payload = json!({
             "target_branch_id": "dist1"
         });
