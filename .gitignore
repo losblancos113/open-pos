@@ -23,3 +23,8 @@ coverage/
 .qwen/
 .gemini/
 .vscode/
+
+# Vercel
+.vercel/
+.vercel
+.env*

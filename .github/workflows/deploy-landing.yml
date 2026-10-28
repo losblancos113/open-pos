@@ -1,0 +1,177 @@
+name: Deploy Landing Page to Vercel
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment target environment on Vercel'
+        required: true
+        type: choice
+        default: 'production'
+        options:
+          - 'production'
+          - 'preview'
+      dry_run:
+        description: 'Dry run: build and validate only (skip deployment to Vercel)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-landing-${{ inputs.environment }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  build:
+    name: Build & Validate Landing Page
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Install dependencies
+        working-directory: landing
+        run: npm ci
+
+      - name: Typecheck TypeScript
+        working-directory: landing
+        run: npx vue-tsc --noEmit
+
+      - name: Build production bundle
+        working-directory: landing
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: landing-dist
+          path: landing/dist
+          retention-days: 7
+
+      - name: Publish build summary
+        run: |
+          echo "### 📦 Landing Page Build Succeeded" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Environment** | \`${{ inputs.environment }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Dry Run** | \`${{ inputs.dry_run }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Node Version** | \`$(node -v)\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Bundle Size** | \`$(du -sh landing/dist | cut -f1)\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Triggered By** | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+
+  deploy:
+    name: Deploy to Vercel (${{ inputs.environment }})
+    needs: build
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID || vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID || vars.VERCEL_PROJECT_ID }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: landing/package-lock.json
+
+      - name: Validate Vercel credentials
+        run: |
+          MISSING=()
+          [ -z "$VERCEL_TOKEN" ] && MISSING+=("VERCEL_TOKEN (Secret)")
+          [ -z "$VERCEL_ORG_ID" ] && MISSING+=("VERCEL_ORG_ID (Secret or Variable)")
+          [ -z "$VERCEL_PROJECT_ID" ] && MISSING+=("VERCEL_PROJECT_ID (Secret or Variable)")
+
+          if [ ${#MISSING[@]} -ne 0 ]; then
+            echo "::error::Missing required Vercel credentials: ${MISSING[*]}"
+            echo "### ❌ Deployment Configuration Incomplete" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The deployment job could not proceed because required credentials are not set." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please configure the following in **GitHub Settings → Secrets and variables → Actions**:" >> $GITHUB_STEP_SUMMARY
+            for item in "${MISSING[@]}"; do
+              echo "- 🔴 \`$item\`" >> $GITHUB_STEP_SUMMARY
+            done
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "See \`landing/DEPLOYMENT.md\` for configuration details." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Install dependencies
+        working-directory: landing
+        run: npm ci
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment information
+        working-directory: landing
+        run: |
+          vercel pull --yes --environment=${{ inputs.environment }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build project with Vercel CLI
+        working-directory: landing
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          else
+            vercel build --token=${{ secrets.VERCEL_TOKEN }}
+          fi
+
+      - name: Deploy prebuilt artifacts to Vercel
+        id: deploy
+        working-directory: landing
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            RAW_OUTPUT=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          else
+            RAW_OUTPUT=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          fi
+
+          echo "$RAW_OUTPUT"
+
+          # Extract deployment URL from output
+          EXTRACTED_URL=$(echo "$RAW_OUTPUT" | grep -o 'https://[^ ]*' | tail -n 1)
+          if [ -z "$EXTRACTED_URL" ]; then
+            EXTRACTED_URL=$(echo "$RAW_OUTPUT" | tail -n 1 | tr -d '\r')
+          fi
+
+          if [[ "$EXTRACTED_URL" != http* ]]; then
+            EXTRACTED_URL="https://$EXTRACTED_URL"
+          fi
+
+          echo "url=$EXTRACTED_URL" >> $GITHUB_OUTPUT
+          echo "Deployment URL: $EXTRACTED_URL"
+
+      - name: Publish deployment summary
+        if: always() && steps.deploy.outputs.url != ''
+        run: |
+          echo "### 🚀 Vercel Deployment Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Environment** | \`${{ inputs.environment }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | ✅ Deployed Successfully |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployment URL** | [${{ steps.deploy.outputs.url }}](${{ steps.deploy.outputs.url }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Triggered By** | @${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch / Ref** | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
