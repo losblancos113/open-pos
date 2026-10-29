@@ -17,7 +17,7 @@ const { t } = useI18n();
 </script>
 
 <template>
-  <div class="flex flex-row gap-2">
+  <div class="flex flex-row gap-2 py-2 px-2">
     <Button.Root
       data-test="split-btn"
       type="button"
