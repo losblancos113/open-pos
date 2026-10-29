@@ -275,6 +275,15 @@
       "taxInclusive": "(Đã gồm thuế)",
       "taxExclusive": "(Chưa gồm thuế)",
       "voidedBadge": "Đã huỷ",
+      "sendToKitchen": "Xác nhận gửi bếp",
+      "sendSuccess": "Đã gửi {count} món vào bếp",
+      "allSentToKitchen": "Đã gửi bếp",
+      "statusUnconfirmed": "Chờ gửi bếp",
+      "statusPending": "Chờ làm",
+      "statusPreparing": "Đang nấu",
+      "statusReady": "Đã xong",
+      "deleteDraft": "Xoá món",
+      "addedLater": "Gọi thêm",
       "save": "Lưu",
       "cancel": "Huỷ",
       "confirmVoid": "Xác nhận huỷ",
@@ -750,6 +759,7 @@
       "history": "Lịch sử đã xong"
     },
     "status": {
+      "unconfirmed": "Chưa gửi bếp",
       "pending": "Chờ làm",
       "preparing": "Đang nấu",
       "ready": "Đã xong"
@@ -769,7 +779,8 @@
       "recall": "Khôi phục",
       "elapsed": "{minutes} phút",
       "itemsCount": "{count} món",
-      "note": "Ghi chú"
+      "note": "Ghi chú",
+      "addedLater": "Gọi thêm"
     },
     "history": {
       "title": "Lịch sử món đã hoàn thành",

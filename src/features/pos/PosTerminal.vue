@@ -82,6 +82,10 @@ const emit = defineEmits<{
   (e: 'bill-updated', bill: BillDoc): void;
   /** Emitted when a line is moved to another bill (handled inline by PosTerminal). */
   (e: 'move-line', lineId: string, targetBillId: string): void;
+  /** Emitted when an order or additional items are confirmed and sent to kitchen. */
+  (e: 'confirm-order', bill: BillDoc): void;
+  /** Emitted when an unconfirmed draft line is removed from ticket. */
+  (e: 'remove-line', lineId: string): void;
 }>();
 
 const { t } = useI18n();
@@ -476,22 +480,30 @@ function handleAddLine(item: OrderLineItem) {
       }
     }
 
+    const lineToAdd: OrderLineItem = {
+      ...item,
+      kdsStatus: item.kdsStatus || 'unconfirmed',
+    };
+
+    // Chỉ gộp với dòng món chưa gửi bếp (unconfirmed) trong cùng đợt chọn
+    // Nếu món đã gửi bếp (pending/preparing/ready), việc gọi thêm phải tạo dòng món mới
     const existingIndex = current.lines.findIndex(
       (l) =>
         l.status === 'placed' &&
-        l.productId === item.productId &&
-        l.variantId === item.variantId &&
-        JSON.stringify(l.modifiers) === JSON.stringify(item.modifiers) &&
-        JSON.stringify(l.comboSelections) === JSON.stringify(item.comboSelections),
+        l.kdsStatus === 'unconfirmed' &&
+        l.productId === lineToAdd.productId &&
+        l.variantId === lineToAdd.variantId &&
+        JSON.stringify(l.modifiers) === JSON.stringify(lineToAdd.modifiers) &&
+        JSON.stringify(l.comboSelections) === JSON.stringify(lineToAdd.comboSelections),
     );
 
     let updatedLines: OrderLineItem[];
     if (existingIndex >= 0) {
       updatedLines = current.lines.map((l, idx) =>
-        idx === existingIndex ? { ...l, qty: l.qty + item.qty } : l,
+        idx === existingIndex ? { ...l, qty: l.qty + lineToAdd.qty } : l,
       );
     } else {
-      updatedLines = [...current.lines, item];
+      updatedLines = [...current.lines, lineToAdd];
     }
 
     localBill.value = recalculateBill({
@@ -499,6 +511,170 @@ function handleAddLine(item: OrderLineItem) {
       lines: updatedLines,
       updatedAt: new Date().toISOString(),
     });
+  }
+}
+
+function handleRemoveLine(lineId: string) {
+  emit('remove-line', lineId);
+  if (!props.bill && localBill.value) {
+    const updatedLines = localBill.value.lines.filter((l) => l.lineId !== lineId);
+    localBill.value = recalculateBill({
+      ...localBill.value,
+      lines: updatedLines,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+}
+
+async function handleConfirmOrder() {
+  const current = localBill.value;
+  if (!current) return;
+
+  const unconfirmed = current.lines.filter(
+    (l) => l.status !== 'voided' && l.kdsStatus === 'unconfirmed',
+  );
+  if (unconfirmed.length === 0) return;
+
+  const now = new Date().toISOString();
+  const actor = cashierName.value || 'Thu ngân';
+  const device = terminalCode.value || 'T01';
+
+  try {
+    // 1. Chuyển các món unconfirmed sang pending và cập nhật thời gian gửi addedAt
+    const updatedLines = current.lines.map((l) => {
+      if (l.status !== 'voided' && l.kdsStatus === 'unconfirmed') {
+        return {
+          ...l,
+          kdsStatus: 'pending' as const,
+          addedAt: now,
+        };
+      }
+      return l;
+    });
+
+    const updatedBill: BillDoc = recalculateBill({
+      ...current,
+      status: current.status === 'draft' ? 'placed' : current.status,
+      lines: updatedLines,
+      updatedAt: now,
+    });
+
+    // 2. Xác định session & chuẩn bị sự kiện
+    let currentSession = effectiveSession.value;
+    const events: OrderEventDoc[] = [];
+
+    let isExistingInDb = false;
+    if (currentSession?._id) {
+      try {
+        const inDb = await orderRepository.getActiveSession(props.branchId, currentSession._id);
+        if (inDb && inDb.session) {
+          isExistingInDb = true;
+        }
+      } catch {
+        isExistingInDb = false;
+      }
+    }
+
+    if (!isExistingInDb || !currentSession) {
+      if (mode.value === 'floor' && selectedTableId.value) {
+        if (!currentSession) {
+          const initial = createEmptyTableOrder(selectedTableId.value, current.total.currency);
+          currentSession = initial.session;
+        }
+      } else {
+        if (!currentSession) {
+          currentSession = {
+            _id: `session:${props.branchId}:fast_${Date.now()}`,
+            branchId: props.branchId,
+            tableIds: [],
+            guestCount: 1,
+            status: 'open',
+            openedAt: now,
+            openedBy: actor,
+            billIds: [updatedBill._id],
+          };
+        }
+      }
+
+      events.push({
+        eventId: `ev-open-${Date.now()}`,
+        type: 'SESSION_OPENED',
+        sessionId: currentSession._id,
+        billId: updatedBill._id,
+        actorId: actor,
+        deviceId: device,
+        payload: {
+          tableIds: currentSession.tableIds,
+          guestCount: currentSession.guestCount,
+          openedBy: actor,
+        },
+        createdAt: now,
+        schemaVersion: 1,
+      });
+
+      events.push({
+        eventId: `ev-placed-${Date.now()}`,
+        type: 'ORDER_PLACED',
+        sessionId: currentSession._id,
+        billId: updatedBill._id,
+        actorId: actor,
+        deviceId: device,
+        payload: {},
+        createdAt: now,
+        schemaVersion: 1,
+      });
+    }
+
+    // Gửi sự kiện LINE_ADDED cho từng món mới xác nhận
+    for (const line of unconfirmed) {
+      events.push({
+        eventId: `ev-line-${line.lineId}-${Date.now()}`,
+        type: 'LINE_ADDED',
+        sessionId: currentSession._id,
+        billId: updatedBill._id,
+        actorId: actor,
+        deviceId: device,
+        payload: {
+          ...line,
+          kdsStatus: 'pending',
+          addedAt: now,
+        },
+        createdAt: now,
+        schemaVersion: 1,
+      });
+    }
+
+    const stateToSave: OrderAggregateState = {
+      session: currentSession,
+      bill: updatedBill,
+      tableStatus: 'occupied',
+    };
+
+    await orderRepository.appendEvents(props.branchId, currentSession._id, events, stateToSave);
+
+    if (mode.value === 'floor' && selectedTableId.value) {
+      tableOrders.value = {
+        ...tableOrders.value,
+        [selectedTableId.value]: {
+          session: currentSession,
+          bill: updatedBill,
+          guestCount: currentSession.guestCount,
+        },
+      };
+      await refreshFloorSessions();
+    } else {
+      fastSaleOrder.value = {
+        session: currentSession,
+        bill: updatedBill,
+        guestCount: null,
+      };
+    }
+
+    emit('confirm-order', updatedBill);
+    showSuccessToast(t('pos.ticket.sendSuccess', { count: unconfirmed.length }));
+  } catch (err) {
+    console.error('Failed to confirm order / send to kitchen:', err);
+    showSnackbar('Không thể gửi đơn vào bếp', 'error');
   }
 }
 
@@ -610,7 +786,11 @@ function handlePrintDraft() {
 }
 
 async function handlePaymentComplete(completedBill: BillDoc) {
-  receiptBill.value = completedBill;
+  const normalizedLines = completedBill.lines.map((l) =>
+    l.kdsStatus === 'unconfirmed' ? { ...l, kdsStatus: 'pending' as const } : l,
+  );
+  const finalBill = { ...completedBill, lines: normalizedLines };
+  receiptBill.value = finalBill;
   isReceiptModalOpen.value = true;
   if (!props.bill) {
     if (mode.value === 'floor' && selectedTableId.value) {
@@ -623,17 +803,17 @@ async function handlePaymentComplete(completedBill: BillDoc) {
               eventId: `ev-close-${Date.now()}`,
               type: 'BILL_CLOSED',
               sessionId: order.session._id,
-              billId: completedBill._id,
+              billId: finalBill._id,
               actorId: cashierName.value || 'Thu ngân',
               deviceId: terminalCode.value || 'T01',
-              payload: { bill: completedBill },
+              payload: { bill: finalBill },
               createdAt: new Date().toISOString(),
               schemaVersion: 1,
             },
           ];
           await orderRepository.appendEvents(props.branchId, order.session._id, events, {
             session: { ...order.session, status: 'closed', closedAt: new Date().toISOString() },
-            bill: completedBill,
+            bill: finalBill,
           });
         } catch (e) {
           console.warn('Failed to close session on payment complete:', e);
@@ -647,7 +827,7 @@ async function handlePaymentComplete(completedBill: BillDoc) {
       fastSaleOrder.value = { session: null, bill: null, guestCount: null };
     }
   }
-  emit('payment-complete', completedBill);
+  emit('payment-complete', finalBill);
 }
 
 // ─── M5: Split / Merge / Transfer ───────────────────────────────────────────
@@ -1001,6 +1181,8 @@ defineExpose({
   handlePaymentAdded,
   handlePrintDraft,
   handlePaymentComplete,
+  handleConfirmOrder,
+  handleRemoveLine,
 });
 </script>
 
@@ -1300,6 +1482,8 @@ defineExpose({
               @void-line="handleVoidLine"
               @print-draft="handlePrintDraft"
               @checkout="handleCheckout"
+              @confirm-order="handleConfirmOrder"
+              @remove-line="handleRemoveLine"
             />
             <div v-else class="p-6 text-center text-text-muted my-auto" data-test="empty-ticket-hint">
               <template v-if="mode === 'floor' && selectedTableId">

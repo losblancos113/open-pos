@@ -15,6 +15,7 @@ export interface KdsTicket {
   tableName: string;
   guestCount: number;
   createdAt: string;
+  firstOrderAt?: string;
   elapsedMinutes: number;
   agingStage: 'fresh' | 'warning' | 'delayed';
   lines: OrderLineItem[];
@@ -114,6 +115,15 @@ function inferStation(line: OrderLineItem): StationType {
   return 'kitchen';
 }
 
+/** Xác định món có phải được gọi thêm sau lượt gọi đầu tiên không */
+function isLineAddedLater(ticket: KdsTicket, line: OrderLineItem): boolean {
+  const baseTime = ticket.firstOrderAt || ticket.createdAt;
+  if (!baseTime || !line.addedAt) return false;
+  const initialTime = new Date(baseTime).getTime();
+  const lineTime = new Date(line.addedAt).getTime();
+  return lineTime - initialTime >= 60000;
+}
+
 /** Chuyển đổi các phiên đang hoạt động thành danh sách vé bếp (KDS Tickets) */
 const activeTickets = computed<KdsTicket[]>(() => {
   const result: KdsTicket[] = [];
@@ -124,8 +134,10 @@ const activeTickets = computed<KdsTicket[]>(() => {
     if (processedSessions.has(state.session._id)) continue;
     processedSessions.add(state.session._id);
 
-    // Lọc các món còn hoạt động (chưa huỷ)
-    let candidateLines = (state.bill.lines || []).filter((l) => l.status !== 'voided');
+    // Lọc các món còn hoạt động (chưa huỷ) và ĐÃ XÁC NHẬN GỬI BẾP (loại bỏ món unconfirmed)
+    let candidateLines = (state.bill.lines || []).filter(
+      (l) => l.status !== 'voided' && l.kdsStatus !== 'unconfirmed',
+    );
 
     // Lọc theo trạm chế biến nếu không phải 'all'
     if (activeStation.value !== 'all') {
@@ -133,14 +145,25 @@ const activeTickets = computed<KdsTicket[]>(() => {
     }
 
     // Chỉ giữ lại các món chưa hoàn thành (kdsStatus !== 'ready')
-    const activeLines = candidateLines.filter((l) => l.kdsStatus !== 'ready');
+    // Sắp xếp các món theo thời gian gọi (addedAt) tăng dần: món gọi ban đầu ở trước, món gọi thêm ở sau hàng chờ
+    const activeLines = candidateLines
+      .filter((l) => l.kdsStatus !== 'ready')
+      .sort((a, b) => new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
     if (activeLines.length === 0) continue;
 
-    // Thời gian gọi món sớm nhất trong đơn
+    // Thời gian gọi món sớm nhất trong các món đang chờ/nấu
     const earliestTime = activeLines.reduce<string>((earliest, line) => {
       if (!earliest) return line.addedAt || state.session.openedAt;
       return new Date(line.addedAt).getTime() < new Date(earliest).getTime() ? line.addedAt : earliest;
     }, '');
+
+    // Thời gian gọi món đầu tiên của cả đơn (để nhận biết món gọi thêm)
+    const firstOrderAt = (state.bill.lines || [])
+      .filter((l) => l.status !== 'voided' && l.kdsStatus !== 'unconfirmed')
+      .reduce<string>((first, line) => {
+        if (!first) return line.addedAt || state.session.openedAt;
+        return new Date(line.addedAt).getTime() < new Date(first).getTime() ? line.addedAt : first;
+      }, '') || state.session.openedAt || new Date().toISOString();
 
     const createdAt = earliestTime || state.session.openedAt || new Date().toISOString();
     const elapsedMinutes = Math.max(0, Math.floor((currentTime.value - new Date(createdAt).getTime()) / 60000));
@@ -159,6 +182,7 @@ const activeTickets = computed<KdsTicket[]>(() => {
       tableName: resolveTableName(state.session.tableIds),
       guestCount: state.session.guestCount ?? 1,
       createdAt,
+      firstOrderAt,
       elapsedMinutes,
       agingStage,
       lines: activeLines,
@@ -568,6 +592,13 @@ defineExpose({
                     class="text-[10px] px-1.5 py-0.5 rounded bg-bg text-text-muted border border-border"
                   >
                     {{ line.variantNameSnapshot }}
+                  </span>
+                  <span
+                    v-if="isLineAddedLater(ticket, line)"
+                    data-test="line-added-later-badge"
+                    class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 font-semibold border border-purple-500/30"
+                  >
+                    ➕ {{ t('kds.ticket.addedLater') }}
                   </span>
                 </div>
 

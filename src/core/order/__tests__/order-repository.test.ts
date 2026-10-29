@@ -1106,4 +1106,138 @@ describe('OrderRepository', () => {
     expect(l1Recalled?.kdsStatus).toBe('preparing');
     expect(l1Recalled?.bumpedAt).toBeUndefined();
   });
+
+  it('allows bumping ticket lines for fast sale session when other sessions exist without throwing tableId error', async () => {
+    const adapter = await createMemoryAdapter();
+    const repo = createOrderRepository(adapter);
+
+    // Session 1: Table 1
+    const sessionTable: SessionDoc = {
+      _id: 'session:dist1:table_1',
+      branchId: 'dist1',
+      tableIds: ['table:dist1:t1'],
+      guestCount: 2,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:dist1:b_tbl'],
+    };
+    const billTable: BillDoc = {
+      _id: 'bill:dist1:b_tbl',
+      branchId: 'dist1',
+      sessionId: sessionTable._id,
+      billNumber: 'DIST1-T01-001',
+      paymentRef: 'REFTBL01',
+      status: 'placed',
+      lines: [
+        {
+          lineId: 'l_tbl',
+          productId: 'p_tbl',
+          nameSnapshot: { vi: 'Phở bò', en: 'Beef Pho' },
+          unitPriceSnapshot: money(60000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'pending',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(60000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(60000, 'VND'),
+      payments: [],
+      balanceRemaining: money(60000, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await repo.appendEvents('dist1', sessionTable._id, [
+      {
+        eventId: 'ev-tbl',
+        type: 'LINE_ADDED',
+        sessionId: sessionTable._id,
+        billId: billTable._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: billTable.lines[0],
+        createdAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+    ], { session: sessionTable, bill: billTable });
+
+    // Session 2: Fast Sale
+    const sessionFast: SessionDoc = {
+      _id: 'session:dist1:fast_1793243636901',
+      branchId: 'dist1',
+      tableIds: [],
+      guestCount: 1,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:dist1:b_fast'],
+    };
+    const billFast: BillDoc = {
+      _id: 'bill:dist1:b_fast',
+      branchId: 'dist1',
+      sessionId: sessionFast._id,
+      billNumber: 'DIST1-T01-002',
+      paymentRef: 'REFFAST02',
+      status: 'placed',
+      lines: [
+        {
+          lineId: 'l_fast',
+          productId: 'p_fast',
+          nameSnapshot: { vi: 'Bạc xỉu', en: 'White Coffee' },
+          unitPriceSnapshot: money(35000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'pending',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(35000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(35000, 'VND'),
+      payments: [],
+      balanceRemaining: money(35000, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await repo.appendEvents('dist1', sessionFast._id, [
+      {
+        eventId: 'ev-fast',
+        type: 'LINE_ADDED',
+        sessionId: sessionFast._id,
+        billId: billFast._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: billFast.lines[0],
+        createdAt: new Date().toISOString(),
+        schemaVersion: 1,
+      },
+    ], { session: sessionFast, bill: billFast });
+
+    // Bumping ticket lines for sessionFast must not throw "tableId must not contain ':'"
+    const bumped = await repo.bumpTicketLines(
+      'dist1',
+      sessionFast._id,
+      billFast._id,
+      ['l_fast'],
+      'Bếp',
+      'KDS',
+    );
+    expect(bumped.bill.lines[0]?.kdsStatus).toBe('ready');
+  });
 });

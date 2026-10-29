@@ -319,6 +319,18 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
       if (payload.seat !== undefined) {
         newLine.seat = payload.seat;
       }
+      if (payload.kdsStatus !== undefined) {
+        newLine.kdsStatus = payload.kdsStatus;
+      }
+      if (payload.stationId !== undefined) {
+        newLine.stationId = payload.stationId;
+      }
+      if (payload.bumpedAt !== undefined) {
+        newLine.bumpedAt = payload.bumpedAt;
+      }
+      if (payload.bumpedBy !== undefined) {
+        newLine.bumpedBy = payload.bumpedBy;
+      }
       nextBill.lines.push(newLine);
       nextBill.updatedAt = event.createdAt;
       break;

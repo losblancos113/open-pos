@@ -30,7 +30,7 @@ export interface ComboSelection {
   optionIds: string[]; // selected option IDs
 }
 
-export type KdsLineStatus = 'pending' | 'preparing' | 'ready';
+export type KdsLineStatus = 'unconfirmed' | 'pending' | 'preparing' | 'ready';
 
 export interface OrderLineItem {
   lineId: string; // uuid

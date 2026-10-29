@@ -34,6 +34,8 @@ const emit = defineEmits<{
   (e: 'move-line', lineId: string, targetBillId: string): void;
   (e: 'print-draft'): void;
   (e: 'checkout'): void;
+  (e: 'confirm-order'): void;
+  (e: 'remove-line', lineId: string): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -67,6 +69,18 @@ const activeLines = computed(() => {
   return (props.bill?.lines ?? []).filter((l) => l.status !== 'voided');
 });
 
+const unconfirmedLines = computed(() => {
+  return (props.bill?.lines ?? []).filter(
+    (l) => l.status !== 'voided' && l.kdsStatus === 'unconfirmed',
+  );
+});
+
+const hasUnconfirmedLines = computed(() => unconfirmedLines.value.length > 0);
+
+const unconfirmedCount = computed(() => {
+  return unconfirmedLines.value.reduce((sum, l) => sum + l.qty, 0);
+});
+
 const hasLines = computed(() => {
   return (props.bill?.lines?.length ?? 0) > 0;
 });
@@ -74,9 +88,17 @@ const hasLines = computed(() => {
 // --- Steppers & Actions ---
 function handleDecreaseQty(line: OrderLineItem) {
   if (props.readOnly || line.status === 'voided') return;
-  if (line.qty <= 1) return;
-  const nextQty = Math.max(1, line.qty - 1);
-  emit('update-qty', line.lineId, nextQty);
+  if (line.kdsStatus === 'unconfirmed') {
+    if (line.qty <= 1) {
+      emit('remove-line', line.lineId);
+    } else {
+      emit('update-qty', line.lineId, line.qty - 1);
+    }
+  } else {
+    if (line.qty <= 1) return;
+    const nextQty = Math.max(1, line.qty - 1);
+    emit('update-qty', line.lineId, nextQty);
+  }
 }
 
 function handleIncreaseQty(line: OrderLineItem) {
@@ -218,6 +240,34 @@ function confirmMove() {
               >
                 {{ t('pos.ticket.voidedBadge') }}: {{ line.voidReason || '' }}
               </span>
+              <span
+                v-else-if="line.kdsStatus === 'unconfirmed'"
+                data-test="line-status-badge"
+                class="px-1.5 py-0.5 text-[10px] rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold border border-amber-500/30"
+              >
+                ⏱️ {{ t('pos.ticket.statusUnconfirmed') }}
+              </span>
+              <span
+                v-else-if="line.kdsStatus === 'pending'"
+                data-test="line-status-badge"
+                class="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/15 text-blue-700 dark:text-blue-400 font-medium border border-blue-500/30"
+              >
+                ⏳ {{ t('pos.ticket.statusPending') }}
+              </span>
+              <span
+                v-else-if="line.kdsStatus === 'preparing'"
+                data-test="line-status-badge"
+                class="px-1.5 py-0.5 text-[10px] rounded bg-amber-600/15 text-amber-800 dark:text-amber-300 font-medium border border-amber-600/30 animate-pulse"
+              >
+                🍳 {{ t('pos.ticket.statusPreparing') }}
+              </span>
+              <span
+                v-else-if="line.kdsStatus === 'ready'"
+                data-test="line-status-badge"
+                class="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-medium border border-emerald-500/30"
+              >
+                ✅ {{ t('pos.ticket.statusReady') }}
+              </span>
             </div>
 
             <!-- Topping & Modifiers -->
@@ -272,7 +322,7 @@ function confirmMove() {
             <Button.Root
               type="button"
               data-test="qty-decrease-btn"
-              :disabled="props.readOnly || line.status === 'voided' || line.qty <= 1"
+              :disabled="props.readOnly || line.status === 'voided' || (line.kdsStatus !== 'unconfirmed' && line.qty <= 1)"
               class="btn btn-ghost px-2 py-0.5 text-xs rounded border border-border font-bold hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed"
               @click="handleDecreaseQty(line)"
             >
@@ -307,6 +357,18 @@ function confirmMove() {
               {{ t('pos.ticket.note') }}
             </Button.Root>
             <Button.Root
+              v-if="line.kdsStatus === 'unconfirmed'"
+              type="button"
+              data-test="line-remove-draft-btn"
+              :disabled="props.readOnly"
+              class="btn btn-ghost text-xs px-2 py-1 rounded text-danger hover:bg-danger/10 disabled:opacity-40 disabled:cursor-not-allowed"
+              :title="t('pos.ticket.deleteDraft')"
+              @click="emit('remove-line', line.lineId)"
+            >
+              ✕ {{ t('pos.ticket.deleteDraft') }}
+            </Button.Root>
+            <Button.Root
+              v-else
               type="button"
               data-test="line-void-btn"
               :disabled="props.readOnly || line.status === 'voided'"
@@ -417,29 +479,45 @@ function confirmMove() {
       </div>
     </div>
 
-    <!-- Nút hành động: In tạm tính & Thanh toán -->
-    <div class="ticket-actions p-3 border-t border-border grid grid-cols-2 gap-2 shrink-0">
+    <!-- Nút hành động: Xác nhận gửi bếp, In tạm tính & Thanh toán -->
+    <div class="ticket-actions p-3 border-t border-border flex flex-col gap-2 shrink-0">
+      <!-- Nút Xác nhận gửi bếp khi có món chưa gửi -->
       <Button.Root
+        v-if="hasUnconfirmedLines"
         type="button"
-        data-test="print-draft-btn"
-        :disabled="props.readOnly || !hasLines || activeLines.length === 0"
-        class="btn btn-ghost border border-border text-xs py-2.5 rounded-md font-medium flex items-center justify-center gap-1.5 cursor-pointer hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed"
-        @click="emit('print-draft')"
+        data-test="confirm-order-btn"
+        :disabled="props.readOnly || !hasLines"
+        class="btn btn-primary text-sm py-2.5 rounded-md font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:opacity-95 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        @click="emit('confirm-order')"
       >
-        <span>🖨️</span>
-        <span>{{ t('pos.ticket.printDraft') }}</span>
+        <span>🍳</span>
+        <span>{{ t('pos.ticket.sendToKitchen') }} ({{ unconfirmedCount }})</span>
       </Button.Root>
 
-      <Button.Root
-        type="button"
-        data-test="checkout-btn"
-        :disabled="props.readOnly || !hasLines || activeLines.length === 0"
-        class="btn btn-primary text-xs py-2.5 rounded-md font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-        @click="emit('checkout')"
-      >
-        <span>💳</span>
-        <span>{{ t('pos.ticket.checkout') }}</span>
-      </Button.Root>
+      <div class="grid grid-cols-2 gap-2">
+        <Button.Root
+          type="button"
+          data-test="print-draft-btn"
+          :disabled="props.readOnly || !hasLines || activeLines.length === 0"
+          class="btn btn-ghost border border-border text-xs py-2.5 rounded-md font-medium flex items-center justify-center gap-1.5 cursor-pointer hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed"
+          @click="emit('print-draft')"
+        >
+          <span>🖨️</span>
+          <span>{{ t('pos.ticket.printDraft') }}</span>
+        </Button.Root>
+
+        <Button.Root
+          type="button"
+          data-test="checkout-btn"
+          :disabled="props.readOnly || !hasLines || activeLines.length === 0"
+          class="btn text-xs py-2.5 rounded-md font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+          :class="hasUnconfirmedLines ? 'btn-ghost border border-primary/50 text-primary' : 'btn-primary'"
+          @click="emit('checkout')"
+        >
+          <span>💳</span>
+          <span>{{ t('pos.ticket.checkout') }}</span>
+        </Button.Root>
+      </div>
     </div>
 
     <!-- Dialog nhập ghi chú món -->

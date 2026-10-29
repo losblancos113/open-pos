@@ -356,4 +356,154 @@ describe('OrderTicket.vue', () => {
     expect(wrapper.emitted('move-line')).toBeTruthy();
     expect(wrapper.emitted('move-line')?.[0]).toEqual(['l1', 'bill:hq:b2']);
   });
+
+  it('renders confirm-order-btn when bill has unconfirmed lines and emits confirm-order', async () => {
+    const billWithUnconfirmed: BillDoc = {
+      ...bill,
+      lines: [
+        {
+          lineId: 'l1',
+          productId: 'p1',
+          nameSnapshot: { vi: 'Phở tái', en: 'Beef Pho' },
+          unitPriceSnapshot: money(65000, 'VND'),
+          qty: 2,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'unconfirmed',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const wrapper = mount(OrderTicket, {
+      props: { bill: billWithUnconfirmed },
+      global: { plugins: [i18n] },
+    });
+
+    const confirmBtn = wrapper.find('[data-test="confirm-order-btn"]');
+    expect(confirmBtn.exists()).toBe(true);
+    expect(confirmBtn.text()).toContain('2');
+
+    await confirmBtn.trigger('click');
+    expect(wrapper.emitted('confirm-order')).toBeTruthy();
+  });
+
+  it('hides confirm-order-btn when all active lines are already confirmed', () => {
+    const billAllConfirmed: BillDoc = {
+      ...bill,
+      lines: [
+        {
+          lineId: 'l1',
+          productId: 'p1',
+          nameSnapshot: { vi: 'Phở chín', en: 'Well-done Pho' },
+          unitPriceSnapshot: money(65000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'pending',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const wrapper = mount(OrderTicket, {
+      props: { bill: billAllConfirmed },
+      global: { plugins: [i18n] },
+    });
+
+    expect(wrapper.find('[data-test="confirm-order-btn"]').exists()).toBe(false);
+  });
+
+  it('renders line status badges for unconfirmed, pending, preparing, and ready', () => {
+    const multiStatusBill: BillDoc = {
+      ...bill,
+      lines: [
+        {
+          lineId: 'l1',
+          productId: 'p1',
+          nameSnapshot: { vi: 'Món 1', en: 'Dish 1' },
+          unitPriceSnapshot: money(50000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'unconfirmed',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+        {
+          lineId: 'l2',
+          productId: 'p2',
+          nameSnapshot: { vi: 'Món 2', en: 'Dish 2' },
+          unitPriceSnapshot: money(50000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'pending',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+        {
+          lineId: 'l3',
+          productId: 'p3',
+          nameSnapshot: { vi: 'Món 3', en: 'Dish 3' },
+          unitPriceSnapshot: money(50000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'preparing',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+        {
+          lineId: 'l4',
+          productId: 'p4',
+          nameSnapshot: { vi: 'Món 4', en: 'Dish 4' },
+          unitPriceSnapshot: money(50000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'ready',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const wrapper = mount(OrderTicket, {
+      props: { bill: multiStatusBill },
+      global: { plugins: [i18n] },
+    });
+
+    const badges = wrapper.findAll('[data-test="line-status-badge"]');
+    expect(badges.length).toBe(4);
+    expect(badges[0]?.text()).toContain('Chờ gửi bếp');
+    expect(badges[1]?.text()).toContain('Chờ làm');
+    expect(badges[2]?.text()).toContain('Đang nấu');
+    expect(badges[3]?.text()).toContain('Đã xong');
+  });
+
+  it('allows removing unconfirmed line without void dialog', async () => {
+    const unconfirmedBill: BillDoc = {
+      ...bill,
+      lines: [
+        {
+          lineId: 'l1',
+          productId: 'p1',
+          nameSnapshot: { vi: 'Món nháp', en: 'Draft dish' },
+          unitPriceSnapshot: money(40000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'unconfirmed',
+          addedAt: '2026-10-24T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const wrapper = mount(OrderTicket, {
+      props: { bill: unconfirmedBill },
+      global: { plugins: [i18n] },
+    });
+
+    const removeBtn = wrapper.find('[data-test="line-remove-draft-btn"]');
+    expect(removeBtn.exists()).toBe(true);
+    await removeBtn.trigger('click');
+    expect(wrapper.emitted('remove-line')?.[0]).toEqual(['l1']);
+  });
 });

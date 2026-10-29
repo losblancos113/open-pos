@@ -168,7 +168,17 @@ function extractCleanId(id: string, prefix: string, branchId: string): string {
 }
 
 function matchesTableId(tableIds: string[], tableId: string, branchId: string): boolean {
-  const fullTableId = tableId.startsWith('table:') ? tableId : tableDocId(branchId, tableId);
+  if (!tableId || (tableId.includes(':') && !tableId.startsWith('table:'))) {
+    return false;
+  }
+  let fullTableId = tableId;
+  if (!tableId.startsWith('table:')) {
+    try {
+      fullTableId = tableDocId(branchId, tableId);
+    } catch {
+      return false;
+    }
+  }
   const shortTableId = tableId.startsWith('table:') ? tableId.split(':').pop()! : tableId;
 
   return tableIds.some(
@@ -190,6 +200,9 @@ function matchesSessionId(session: SessionDoc, targetId: string, branchId: strin
 
 function matchesTableOrSession(session: SessionDoc, targetId: string, branchId: string): boolean {
   if (matchesSessionId(session, targetId, branchId)) return true;
+  if (targetId.includes(':') && !targetId.startsWith('table:')) {
+    return false;
+  }
   return matchesTableId(session.tableIds, targetId, branchId);
 }
 

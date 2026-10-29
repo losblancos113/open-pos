@@ -1030,4 +1030,169 @@ describe('PosTerminal.vue shell', () => {
     // Table 2 is now cleared
     expect(vm.activeTableStatuses['table:hq:t2']).toBe('empty');
   });
+
+  it('confirms order items to kitchen and persists them to the repository', async () => {
+    const adapter = await createMemoryAdapter();
+    const repo = createOrderRepository(adapter);
+    await repo.saveArea({
+      _id: 'area:hq:a1',
+      branchId: 'hq',
+      name: 'Tầng 1',
+      sortOrder: 1,
+      createdAt: '2026-10-24T00:00:00.000Z',
+    });
+    await repo.saveTable({
+      _id: 'table:hq:t1',
+      branchId: 'hq',
+      areaId: 'area:hq:a1',
+      code: 'B01',
+      name: 'Bàn 1',
+      capacity: 4,
+      sortOrder: 1,
+      createdAt: '2026-10-24T00:00:00.000Z',
+    });
+
+    wrapper = mount(PosTerminal, {
+      props: { adapter, branchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 20));
+    await nextTick();
+
+    const vm = wrapper.vm as unknown as {
+      handleSelectTable: (tid: string) => Promise<void>;
+      handleAddLine: (item: any) => void;
+      handleConfirmOrder: () => Promise<void>;
+      effectiveBill: BillDoc | null;
+      selectedTableId: string | null;
+    };
+
+    // 1. Select table and add item
+    await vm.handleSelectTable('table:hq:t1');
+    await nextTick();
+
+    vm.handleAddLine({
+      lineId: 'line-unconfirmed',
+      productId: 'prod-bun',
+      nameSnapshot: { vi: 'Bún bò', en: 'Beef Noodle' },
+      unitPriceSnapshot: money(50000, 'VND'),
+      qty: 1,
+      modifiers: [],
+      status: 'placed',
+      addedAt: new Date().toISOString(),
+    });
+    await nextTick();
+
+    // Line should initially be unconfirmed
+    expect(vm.effectiveBill?.lines[0]?.kdsStatus).toBe('unconfirmed');
+
+    // 2. Confirm order and send to kitchen
+    await vm.handleConfirmOrder();
+    await nextTick();
+
+    // Line should now be pending
+    expect(vm.effectiveBill?.lines[0]?.kdsStatus).toBe('pending');
+    expect(wrapper.emitted('confirm-order')).toBeTruthy();
+
+    // Verify session is persisted in DB so KDS sees it
+    const activeSession = await repo.getActiveSession('hq', 'table:hq:t1');
+    expect(activeSession).not.toBeNull();
+    expect(activeSession?.bill.lines[0]?.kdsStatus).toBe('pending');
+  });
+
+  it('allows calling additional items on a table without merging into confirmed items', async () => {
+    const adapter = await createMemoryAdapter();
+    const repo = createOrderRepository(adapter);
+    await repo.saveArea({
+      _id: 'area:hq:a1',
+      branchId: 'hq',
+      name: 'Tầng 1',
+      sortOrder: 1,
+      createdAt: '2026-10-24T00:00:00.000Z',
+    });
+    await repo.saveTable({
+      _id: 'table:hq:t1',
+      branchId: 'hq',
+      areaId: 'area:hq:a1',
+      code: 'B01',
+      name: 'Bàn 1',
+      capacity: 4,
+      sortOrder: 1,
+      createdAt: '2026-10-24T00:00:00.000Z',
+    });
+
+    wrapper = mount(PosTerminal, {
+      props: { adapter, branchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 20));
+    await nextTick();
+
+    const vm = wrapper.vm as unknown as {
+      handleSelectTable: (tid: string) => Promise<void>;
+      handleAddLine: (item: any) => void;
+      handleConfirmOrder: () => Promise<void>;
+      effectiveBill: BillDoc | null;
+      effectiveSession: SessionDoc | null;
+    };
+
+    // 1. Order round 1: 1x Phở bò
+    await vm.handleSelectTable('table:hq:t1');
+    await nextTick();
+
+    vm.handleAddLine({
+      lineId: 'line-r1',
+      productId: 'prod-pho',
+      nameSnapshot: { vi: 'Phở bò', en: 'Beef Pho' },
+      unitPriceSnapshot: money(60000, 'VND'),
+      qty: 1,
+      modifiers: [],
+      status: 'placed',
+      addedAt: new Date().toISOString(),
+    });
+    await nextTick();
+
+    await vm.handleConfirmOrder();
+    await nextTick();
+    expect(vm.effectiveBill?.lines[0]?.kdsStatus).toBe('pending');
+
+    // 2. Kitchen starts preparing round 1 item
+    await repo.updateLineKdsStatus('hq', vm.effectiveSession!._id, vm.effectiveBill!._id, 'line-r1', 'preparing', 'Chef', 'KDS');
+
+    // 3. Customer calls MORE of the same dish (1x Phở bò again)
+    vm.handleAddLine({
+      lineId: 'line-r2',
+      productId: 'prod-pho',
+      nameSnapshot: { vi: 'Phở bò', en: 'Beef Pho' },
+      unitPriceSnapshot: money(60000, 'VND'),
+      qty: 1,
+      modifiers: [],
+      status: 'placed',
+      addedAt: new Date().toISOString(),
+    });
+    await nextTick();
+
+    // Crucial requirement: Must NOT merge into line-r1 which is already cooking!
+    expect(vm.effectiveBill?.lines).toHaveLength(2);
+    expect(vm.effectiveBill?.lines[0]?.lineId).toBe('line-r1');
+    expect(vm.effectiveBill?.lines[0]?.qty).toBe(1);
+    expect(vm.effectiveBill?.lines[1]?.lineId).toBe('line-r2');
+    expect(vm.effectiveBill?.lines[1]?.qty).toBe(1);
+    expect(vm.effectiveBill?.lines[1]?.kdsStatus).toBe('unconfirmed');
+
+    // 4. Confirm additional round
+    await vm.handleConfirmOrder();
+    await nextTick();
+
+    expect(vm.effectiveBill?.lines[1]?.kdsStatus).toBe('pending');
+    expect(vm.effectiveBill?.total.minor).toBe(120000);
+
+    // Verify DB state has both lines
+    const activeSession = await repo.getActiveSession('hq', 'table:hq:t1');
+    expect(activeSession?.bill.lines).toHaveLength(2);
+  });
 });

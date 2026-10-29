@@ -275,6 +275,15 @@
       "taxInclusive": "(Tax inclusive)",
       "taxExclusive": "(Tax exclusive)",
       "voidedBadge": "Voided",
+      "sendToKitchen": "Send to Kitchen",
+      "sendSuccess": "Sent {count} items to kitchen",
+      "allSentToKitchen": "All sent to kitchen",
+      "statusUnconfirmed": "Not sent",
+      "statusPending": "Pending",
+      "statusPreparing": "Preparing",
+      "statusReady": "Ready",
+      "deleteDraft": "Remove item",
+      "addedLater": "Added later",
       "save": "Save",
       "cancel": "Cancel",
       "confirmVoid": "Confirm Void",
@@ -750,6 +759,7 @@
       "history": "Completed History"
     },
     "status": {
+      "unconfirmed": "Not sent",
       "pending": "Pending",
       "preparing": "Preparing",
       "ready": "Ready"
@@ -769,7 +779,8 @@
       "recall": "Recall",
       "elapsed": "{minutes} min",
       "itemsCount": "{count} items",
-      "note": "Note"
+      "note": "Note",
+      "addedLater": "Added later"
     },
     "history": {
       "title": "Completed Items History",

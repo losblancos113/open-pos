@@ -378,4 +378,193 @@ describe('KitchenDisplay.vue', () => {
     expect(wrapper.find('[data-test="kds-empty-state"]').exists()).toBe(false);
     expect(wrapper.text()).toContain('Mì Quảng');
   });
+
+  it('does not display unconfirmed line items until they are confirmed', async () => {
+    const adapter = await createMemoryAdapter();
+    const repo = createOrderRepository(adapter);
+
+    const session: SessionDoc = {
+      _id: 'session:hq:s_unconfirmed',
+      branchId: 'hq',
+      tableIds: [],
+      guestCount: 1,
+      status: 'open',
+      openedAt: new Date().toISOString(),
+      openedBy: 'c1',
+      billIds: ['bill:hq:b_unconfirmed'],
+    };
+
+    const bill: BillDoc = {
+      _id: 'bill:hq:b_unconfirmed',
+      branchId: 'hq',
+      sessionId: session._id,
+      billNumber: 'HQ-T01-0099',
+      paymentRef: 'REF0099',
+      status: 'draft',
+      lines: [
+        {
+          lineId: 'l_draft',
+          productId: 'p_draft',
+          nameSnapshot: { vi: 'Món chưa gửi bếp', en: 'Unconfirmed dish' },
+          unitPriceSnapshot: money(50000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'unconfirmed',
+          addedAt: new Date().toISOString(),
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(50000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(50000, 'VND'),
+      payments: [],
+      balanceRemaining: money(50000, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await repo.appendEvents('hq', session._id, [
+      {
+        eventId: 'ev-draft',
+        type: 'LINE_ADDED',
+        sessionId: session._id,
+        billId: bill._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: bill.lines[0],
+        createdAt: bill.lines[0]!.addedAt,
+        schemaVersion: 1,
+      },
+    ], { session, bill });
+
+    wrapper = mount(KitchenDisplay, {
+      props: { adapter, branchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 40));
+    await nextTick();
+
+    // Since the only line is unconfirmed, KDS shows empty state
+    expect(wrapper.find('[data-test="kds-empty-state"]').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('Món chưa gửi bếp');
+  });
+
+  it('places newly added lines behind in queue and marks them with added-later badge', async () => {
+    const adapter = await createMemoryAdapter();
+    const repo = createOrderRepository(adapter);
+
+    const initialTime = new Date(Date.now() - 10 * 60000).toISOString();
+    const laterTime = new Date().toISOString();
+
+    const session: SessionDoc = {
+      _id: 'session:hq:s_multi',
+      branchId: 'hq',
+      tableIds: [],
+      guestCount: 2,
+      status: 'open',
+      openedAt: initialTime,
+      openedBy: 'c1',
+      billIds: ['bill:hq:b_multi'],
+    };
+
+    const bill: BillDoc = {
+      _id: 'bill:hq:b_multi',
+      branchId: 'hq',
+      sessionId: session._id,
+      billNumber: 'HQ-T01-0088',
+      paymentRef: 'REF0088',
+      status: 'placed',
+      lines: [
+        {
+          lineId: 'l_early',
+          productId: 'p_early',
+          nameSnapshot: { vi: 'Món gọi đợt 1', en: 'First round dish' },
+          unitPriceSnapshot: money(60000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'preparing',
+          addedAt: initialTime,
+        },
+        {
+          lineId: 'l_later',
+          productId: 'p_later',
+          nameSnapshot: { vi: 'Món gọi thêm sau', en: 'Added later dish' },
+          unitPriceSnapshot: money(40000, 'VND'),
+          qty: 1,
+          modifiers: [],
+          status: 'placed',
+          kdsStatus: 'pending',
+          addedAt: laterTime,
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(100000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(100000, 'VND'),
+      payments: [],
+      balanceRemaining: money(100000, 'VND'),
+      createdAt: initialTime,
+      updatedAt: laterTime,
+    };
+
+    await repo.appendEvents('hq', session._id, [
+      {
+        eventId: 'ev-1',
+        type: 'LINE_ADDED',
+        sessionId: session._id,
+        billId: bill._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: bill.lines[0],
+        createdAt: initialTime,
+        schemaVersion: 1,
+      },
+      {
+        eventId: 'ev-2',
+        type: 'LINE_ADDED',
+        sessionId: session._id,
+        billId: bill._id,
+        actorId: 'c1',
+        deviceId: 'T01',
+        payload: bill.lines[1],
+        createdAt: laterTime,
+        schemaVersion: 1,
+      },
+    ], { session, bill });
+
+    wrapper = mount(KitchenDisplay, {
+      props: { adapter, branchId: 'hq' },
+      global: { plugins: [i18n] },
+    });
+
+    await nextTick();
+    await new Promise((r) => setTimeout(r, 40));
+    await nextTick();
+
+    const lineItems = wrapper.findAll('[data-test="kds-line-item"]');
+    expect(lineItems.length).toBe(2);
+
+    // First line should be early item
+    expect(lineItems[0]?.text()).toContain('Món gọi đợt 1');
+    expect(lineItems[0]?.find('[data-test="line-added-later-badge"]').exists()).toBe(false);
+
+    // Second line should be later item (behind in queue)
+    expect(lineItems[1]?.text()).toContain('Món gọi thêm sau');
+    expect(lineItems[1]?.find('[data-test="line-added-later-badge"]').exists()).toBe(true);
+    expect(lineItems[1]?.find('[data-test="line-added-later-badge"]').text()).toContain('Gọi thêm');
+  });
 });
