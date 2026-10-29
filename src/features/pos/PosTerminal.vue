@@ -786,33 +786,67 @@ function handlePrintDraft() {
 }
 
 async function handlePaymentComplete(completedBill: BillDoc) {
+  const now = new Date().toISOString();
+  const actor = cashierName.value || 'Thu ngân';
+  const device = terminalCode.value || 'T01';
+
   const normalizedLines = completedBill.lines.map((l) =>
     l.kdsStatus === 'unconfirmed' ? { ...l, kdsStatus: 'pending' as const } : l,
   );
-  const finalBill = { ...completedBill, lines: normalizedLines };
+  const tableNameSnap = effectiveTableName.value || completedBill.tableNameSnapshot || '';
+
+  const finalBill: BillDoc = recalculateBill({
+    ...completedBill,
+    status: 'paid',
+    paidAt: completedBill.paidAt || now,
+    lines: normalizedLines,
+    tableNameSnapshot: tableNameSnap,
+    updatedAt: now,
+  });
+
   receiptBill.value = finalBill;
   isReceiptModalOpen.value = true;
+  emit('payment-complete', finalBill);
+
   if (!props.bill) {
     if (mode.value === 'floor' && selectedTableId.value) {
       const tid = selectedTableId.value;
       const order = tableOrders.value[tid];
-      if (order?.session) {
+      const curSession = order?.session || effectiveSession.value;
+      if (curSession) {
         try {
-          const events: OrderEventDoc[] = [
-            {
-              eventId: `ev-close-${Date.now()}`,
-              type: 'BILL_CLOSED',
-              sessionId: order.session._id,
+          const events: OrderEventDoc[] = [];
+
+          // 1. Ghi nhận các sự kiện thanh toán
+          for (const payment of finalBill.payments) {
+            events.push({
+              eventId: `ev-pay-${payment.paymentId}`,
+              type: 'PAYMENT_ADDED',
+              sessionId: curSession._id,
               billId: finalBill._id,
-              actorId: cashierName.value || 'Thu ngân',
-              deviceId: terminalCode.value || 'T01',
-              payload: { bill: finalBill },
-              createdAt: new Date().toISOString(),
+              actorId: actor,
+              deviceId: device,
+              payload: payment,
+              createdAt: payment.createdAt || now,
               schemaVersion: 1,
-            },
-          ];
-          await orderRepository.appendEvents(props.branchId, order.session._id, events, {
-            session: { ...order.session, status: 'closed', closedAt: new Date().toISOString() },
+            });
+          }
+
+          // 2. Ghi nhận sự kiện đóng hoá đơn
+          events.push({
+            eventId: `ev-close-${Date.now()}`,
+            type: 'BILL_CLOSED',
+            sessionId: curSession._id,
+            billId: finalBill._id,
+            actorId: actor,
+            deviceId: device,
+            payload: { bill: finalBill },
+            createdAt: now,
+            schemaVersion: 1,
+          });
+
+          await orderRepository.appendEvents(props.branchId, curSession._id, events, {
+            session: { ...curSession, status: 'closed', closedAt: now },
             bill: finalBill,
           });
         } catch (e) {
@@ -824,10 +858,111 @@ async function handlePaymentComplete(completedBill: BillDoc) {
       tableOrders.value = updated;
       await refreshFloorSessions();
     } else {
+      // Chế độ Bán mang về (Fast sale)
+      const fastSess = effectiveSession.value || {
+        _id: `session:${props.branchId}:fast_${Date.now()}`,
+        branchId: props.branchId,
+        tableIds: [],
+        guestCount: 1,
+        status: 'closed' as const,
+        openedAt: finalBill.createdAt || now,
+        closedAt: now,
+        openedBy: actor,
+        billIds: [finalBill._id],
+      };
+
+      try {
+        const events: OrderEventDoc[] = [
+          {
+            eventId: `ev-open-${Date.now()}`,
+            type: 'SESSION_OPENED',
+            sessionId: fastSess._id,
+            billId: finalBill._id,
+            actorId: actor,
+            deviceId: device,
+            payload: { tableIds: [], guestCount: 1, openedBy: actor },
+            createdAt: finalBill.createdAt || now,
+            schemaVersion: 1,
+          },
+          {
+            eventId: `ev-placed-${Date.now()}`,
+            type: 'ORDER_PLACED',
+            sessionId: fastSess._id,
+            billId: finalBill._id,
+            actorId: actor,
+            deviceId: device,
+            payload: {},
+            createdAt: finalBill.createdAt || now,
+            schemaVersion: 1,
+          },
+        ];
+
+        for (const line of finalBill.lines) {
+          events.push({
+            eventId: `ev-line-${line.lineId}-${Date.now()}`,
+            type: 'LINE_ADDED',
+            sessionId: fastSess._id,
+            billId: finalBill._id,
+            actorId: actor,
+            deviceId: device,
+            payload: line,
+            createdAt: line.addedAt || now,
+            schemaVersion: 1,
+          });
+        }
+
+        for (const payment of finalBill.payments) {
+          events.push({
+            eventId: `ev-pay-${payment.paymentId}`,
+            type: 'PAYMENT_ADDED',
+            sessionId: fastSess._id,
+            billId: finalBill._id,
+            actorId: actor,
+            deviceId: device,
+            payload: payment,
+            createdAt: payment.createdAt || now,
+            schemaVersion: 1,
+          });
+        }
+
+        events.push({
+          eventId: `ev-close-${Date.now()}`,
+          type: 'BILL_CLOSED',
+          sessionId: fastSess._id,
+          billId: finalBill._id,
+          actorId: actor,
+          deviceId: device,
+          payload: { bill: finalBill },
+          createdAt: now,
+          schemaVersion: 1,
+        });
+
+        await orderRepository.appendEvents(props.branchId, fastSess._id, events, {
+          session: { ...fastSess, status: 'closed', closedAt: now },
+          bill: finalBill,
+        });
+      } catch (e) {
+        console.warn('Failed to persist fast sale on payment complete:', e);
+      }
+
       fastSaleOrder.value = { session: null, bill: null, guestCount: null };
     }
+  } else {
+    try {
+      const existing = await props.adapter?.get(finalBill._id);
+      await props.adapter?.put({
+        ...finalBill,
+        docType: 'bill',
+        schemaVersion: 1,
+        status: 'paid',
+        paidAt: finalBill.paidAt || now,
+        updatedAt: now,
+        ...(existing?._rev ? { _rev: existing._rev } : {}),
+      } as any);
+    } catch (e) {
+      console.warn('Failed to update external bill status to paid:', e);
+    }
   }
-  emit('payment-complete', finalBill);
 }
 
 // ─── M5: Split / Merge / Transfer ───────────────────────────────────────────

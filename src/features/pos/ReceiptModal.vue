@@ -274,6 +274,15 @@ function handleClose() {
               <span class="text-text-muted">{{ t('pos.receipt.cashier') }}:</span>
               <span>{{ effectiveCashierName }}</span>
             </div>
+            <div class="flex justify-between" data-test="receipt-status">
+              <span class="text-text-muted">{{ t('storeReports.invoices.colStatus') }}:</span>
+              <span
+                class="font-semibold"
+                :class="bill?.status === 'paid' ? 'text-success' : 'text-warning'"
+              >
+                {{ bill?.status === 'paid' ? t('pos.receipt.paid') : t('pos.receipt.unpaid') }}
+              </span>
+            </div>
           </div>
 
           <!-- Itemized Lines -->

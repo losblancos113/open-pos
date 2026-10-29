@@ -111,6 +111,12 @@ export interface BillDoc {
   updatedAt: string;
   printedAt?: string;
   paidAt?: string;
+  tableNameSnapshot?: string;
+  guestCount?: number;
+  note?: string;
+  voidReason?: string;
+  voidedAt?: string;
+  voidedBy?: string;
 }
 
 export interface OrderAggregateState {

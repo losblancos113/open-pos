@@ -5,6 +5,7 @@ import { Button, Dialog, Input } from '@vuetify/v0';
 import { format, money, type Money } from '@/core/money';
 import { buildVietQrPayload } from '@/core/qr/vietqr';
 import { generateQrSvg } from '@/core/qr/qr-matrix';
+import { recalculateBill } from '@/core/order/reducer';
 import type { BillDoc, PaymentEntry, PaymentMethod } from '@/core/order/types';
 import type { BankAccountDoc } from '@/core/qr/bank-account';
 
@@ -217,7 +218,15 @@ function handleConfirmPayment() {
 
   // Check if balance cleared
   if (currentBalanceMinor.value - paymentAmount.minor <= 0) {
-    emit('complete', props.bill);
+    const updatedPayments = [...(props.bill.payments ?? []), entry];
+    const paidBill: BillDoc = recalculateBill({
+      ...props.bill,
+      status: 'paid',
+      paidAt: createdAt,
+      payments: updatedPayments,
+      updatedAt: createdAt,
+    });
+    emit('complete', paidBill);
     isOpen.value = false;
   }
 }

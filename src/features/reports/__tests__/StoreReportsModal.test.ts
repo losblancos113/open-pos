@@ -98,7 +98,7 @@ describe('StoreReportsModal.vue', () => {
     expect(wrapper.emitted('close')).toBeTruthy();
   });
 
-  it('renders Z-Report KPI cards and supports tab switching', async () => {
+  it('renders Invoices tab by default and supports tab switching to Z-Report, Categories, Hourly, Payments', async () => {
     const wrapper = mount(StoreReportsModal, {
       props: {
         open: true,
@@ -111,6 +111,14 @@ describe('StoreReportsModal.vue', () => {
     });
 
     await new Promise((r) => setTimeout(r, 60));
+
+    // Default tab is Invoices
+    expect(wrapper.find('[data-test="invoices-panel"]').exists()).toBe(true);
+
+    // Switch to Z-Report tab
+    const zReportTabBtn = wrapper.find('[data-test="tab-zreport"]');
+    expect(zReportTabBtn.exists()).toBe(true);
+    await zReportTabBtn.trigger('click');
 
     expect(wrapper.find('[data-test="z-report-panel"]').exists()).toBe(true);
 
@@ -127,5 +135,12 @@ describe('StoreReportsModal.vue', () => {
     await hourlyTabBtn.trigger('click');
 
     expect(wrapper.find('[data-test="hourly-panel"]').exists()).toBe(true);
+
+    // Switch to Payments tab
+    const paymentsTabBtn = wrapper.find('[data-test="tab-payments"]');
+    expect(paymentsTabBtn.exists()).toBe(true);
+    await paymentsTabBtn.trigger('click');
+
+    expect(wrapper.find('[data-test="payments-panel"]').exists()).toBe(true);
   });
 });

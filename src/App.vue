@@ -403,6 +403,8 @@ onMounted(async () => {
         :open="isStoreReportsModalOpen"
         :adapter="adapter"
         :branch-id="activeBranchId"
+        :current-user="currentUser"
+        :order-repo="orderRepo"
         @close="isStoreReportsModalOpen = false"
       />
 
