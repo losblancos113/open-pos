@@ -42,6 +42,31 @@ function requireBranchId(doc: DocEnvelope): void {
  * việc tạo index mà không phải đổi API.
  */
 export async function createPouchAdapter(db: PouchDB.Database): Promise<DbAdapter> {
+  const listeners = new Set<() => void>();
+
+  function notifyListeners() {
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch (err) {
+        console.error('pouch-adapter subscriber error:', err);
+      }
+    }
+  }
+
+  try {
+    if (typeof (db as unknown as { changes?: unknown }).changes === 'function') {
+      db.changes({
+        since: 'now',
+        live: true,
+      }).on('change', () => {
+        notifyListeners();
+      });
+    }
+  } catch (err) {
+    console.warn('pouch-adapter: db.changes not available, using in-process notifications only:', err);
+  }
+
   const adapter: DbAdapter = {
     async get(id) {
       let raw: unknown;
@@ -73,6 +98,7 @@ export async function createPouchAdapter(db: PouchDB.Database): Promise<DbAdapte
         throw error;
       }
 
+      notifyListeners();
       return { ...doc, _rev: rev };
     },
 
@@ -105,6 +131,7 @@ export async function createPouchAdapter(db: PouchDB.Database): Promise<DbAdapte
     async remove(id, rev) {
       try {
         await db.remove(id, rev);
+        notifyListeners();
       } catch (error) {
         const status = statusOf(error);
         // Xoá document không tồn tại là no-op (giống memory adapter)
@@ -114,6 +141,13 @@ export async function createPouchAdapter(db: PouchDB.Database): Promise<DbAdapte
         }
         throw error;
       }
+    },
+
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
   };
 

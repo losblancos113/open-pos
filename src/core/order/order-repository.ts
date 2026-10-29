@@ -27,6 +27,11 @@ import type {
 } from './types';
 import type { OrderEventDoc, SessionEventsDoc } from './events';
 import type { BankAccountDoc } from '../qr/bank-account';
+import type { BillingSettingsDoc } from './billing-settings';
+import {
+  getBillingSettings as fetchBillingSettings,
+  saveBillingSettings as persistBillingSettings,
+} from './billing-settings';
 import type { InventoryRepository } from '../inventory/inventory-repository';
 import { createMovementDoc } from '../inventory/movements';
 import { resolveBillDeductions } from '../inventory/deduction';
@@ -53,6 +58,8 @@ export interface OrderRepository {
   ): Promise<OrderAggregateState>;
   getBankAccount(branchId: string): Promise<BankAccountDoc | null>;
   saveBankAccount(doc: BankAccountDoc): Promise<void>;
+  getBillingSettings(branchId: string): Promise<BillingSettingsDoc>;
+  saveBillingSettings(doc: BillingSettingsDoc): Promise<void>;
   nextSequence(branchId: string, deviceId: string, dateStr: string): Promise<number>;
 
   // ─── M4: Split / Merge / Transfer ─────────────────────────────────────────
@@ -549,6 +556,10 @@ export function createOrderRepository(
             ? finalState.session.closedAt || finalState.bill.paidAt || clock()
             : undefined;
 
+          const effectiveTableNameSnapshot =
+            finalState.bill.tableNameSnapshot ||
+            projected?.bill?.tableNameSnapshot;
+
           const docToSave = {
             _id: eventsDocId,
             branchId,
@@ -558,7 +569,10 @@ export function createOrderRepository(
             events: allEvents,
             snapshot: {
               session: finalState.session,
-              bill: finalState.bill,
+              bill: {
+                ...finalState.bill,
+                ...(effectiveTableNameSnapshot ? { tableNameSnapshot: effectiveTableNameSnapshot } : {}),
+              },
             },
             ...(closedAt !== undefined ? { closedAt } : {}),
             createdAt: (existingDoc as unknown as DocEnvelope)?.createdAt || clock(),
@@ -574,7 +588,11 @@ export function createOrderRepository(
           if (isClosed) {
             const existingBill = await adapter.get(finalState.bill._id);
             const billEnvelope = {
+              ...existingBill,
               ...finalState.bill,
+              ...(effectiveTableNameSnapshot || (existingBill as unknown as BillDoc)?.tableNameSnapshot
+                ? { tableNameSnapshot: effectiveTableNameSnapshot || (existingBill as unknown as BillDoc)?.tableNameSnapshot }
+                : {}),
               docType: 'bill',
               schemaVersion: SCHEMA_VERSION,
               createdAt: finalState.bill.createdAt || clock(),
@@ -660,6 +678,14 @@ export function createOrderRepository(
           throw err;
         }
       }
+    },
+
+    async getBillingSettings(branchId: string): Promise<BillingSettingsDoc> {
+      return fetchBillingSettings(adapter, branchId);
+    },
+
+    async saveBillingSettings(doc: BillingSettingsDoc): Promise<void> {
+      await persistBillingSettings(adapter, doc, clock);
     },
 
     async nextSequence(branchId: string, deviceId: string, dateStr: string): Promise<number> {

@@ -242,6 +242,80 @@ describe('bill-service', () => {
   });
 
   describe('canEditBill', () => {
+    it('auto-resolves tableNameSnapshot from session and table docs when bill document lacks tableNameSnapshot', async () => {
+      // Seed table
+      await adapter.put({
+        _id: `table:${branchId}:t10`,
+        branchId,
+        docType: 'table',
+        name: 'Bàn VIP 10',
+        code: 'T10',
+        areaId: 'area_1',
+        capacity: 4,
+        sortOrder: 1,
+        createdAt: '2026-10-29T08:00:00.000Z',
+      } as any);
+
+      // Seed session with tableIds
+      await adapter.put({
+        _id: `session:${branchId}:sess_vip`,
+        branchId,
+        docType: 'session',
+        tableIds: [`table:${branchId}:t10`],
+        billIds: [`bill:${branchId}:b_vip`],
+        guestCount: 4,
+        status: 'closed',
+        openedAt: '2026-10-29T11:00:00.000Z',
+        openedBy: 'cashier',
+      } as any);
+
+      // Seed bill with NO tableNameSnapshot
+      await adapter.put({
+        _id: `bill:${branchId}:b_vip`,
+        branchId,
+        sessionId: 'sess_vip',
+        billNumber: 'HN01-T01-20261029-0099',
+        paymentRef: 'POSHN01099',
+        status: 'paid',
+        lines: [],
+        discounts: [],
+        surcharges: [],
+        taxMode: 'inclusive',
+        taxLines: [],
+        taxTotal: money(0, 'VND'),
+        subtotal: money(150000, 'VND'),
+        discountTotal: money(0, 'VND'),
+        surchargeTotal: money(0, 'VND'),
+        total: money(150000, 'VND'),
+        payments: [
+          {
+            paymentId: 'pay_vip',
+            method: 'cash',
+            amount: money(150000, 'VND'),
+            createdAt: '2026-10-29T11:30:00.000Z',
+          },
+        ],
+        balanceRemaining: money(0, 'VND'),
+        createdAt: '2026-10-29T11:00:00.000Z',
+        updatedAt: '2026-10-29T11:30:00.000Z',
+        paidAt: '2026-10-29T11:30:00.000Z',
+      } as any);
+
+      // listBills should auto-resolve the table name
+      const bills = await listBills(adapter, branchId);
+      const vipBill = bills.find((b) => b._id === `bill:${branchId}:b_vip`);
+      expect(vipBill).toBeDefined();
+      expect(vipBill?.tableNameSnapshot).toBe('Bàn VIP 10');
+
+      // Querying by table name should match
+      const queried = await listBills(adapter, branchId, { query: 'VIP' });
+      expect(queried.some((b) => b._id === `bill:${branchId}:b_vip`)).toBe(true);
+
+      // getBill should also auto-resolve
+      const single = await getBill(adapter, branchId, 'b_vip');
+      expect(single?.tableNameSnapshot).toBe('Bàn VIP 10');
+    });
+
     it('returns true for owner and manager only', () => {
       expect(canEditBill('owner')).toBe(true);
       expect(canEditBill('manager')).toBe(true);

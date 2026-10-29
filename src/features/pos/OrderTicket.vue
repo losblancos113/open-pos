@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input, Dialog } from '@vuetify/v0';
 import type { BillDoc, SessionDoc, TableDoc, OrderLineItem } from '@/core/order/types';
+import type { BillingSettingsDoc } from '@/core/order/billing-settings';
 import { calculateLineTotal } from '@/core/order/reducer';
 import { format } from '@/core/money';
 
@@ -15,6 +16,7 @@ const props = withDefaults(
     guestCount?: number | null;
     readOnly?: boolean;
     otherBills?: BillDoc[];
+    billingSettings?: BillingSettingsDoc | null;
   }>(),
   {
     bill: null,
@@ -24,6 +26,7 @@ const props = withDefaults(
     guestCount: null,
     readOnly: false,
     otherBills: () => [],
+    billingSettings: null,
   },
 );
 
@@ -36,6 +39,10 @@ const emit = defineEmits<{
   (e: 'checkout'): void;
   (e: 'confirm-order'): void;
   (e: 'remove-line', lineId: string): void;
+  (e: 'open-adjustment', tab: 'discount' | 'surcharge' | 'tax'): void;
+  (e: 'remove-discount', index?: number): void;
+  (e: 'remove-surcharge', index?: number): void;
+  (e: 'toggle-tax', enable: boolean): void;
 }>();
 
 const { t, locale } = useI18n();
@@ -64,6 +71,12 @@ const referenceNumber = computed(() => {
 const effectiveGuestCount = computed(() => {
   return props.guestCount ?? props.session?.guestCount;
 });
+
+const isDiscountEnabled = computed(() => props.billingSettings?.discountEnabled ?? true);
+const isSurchargeEnabled = computed(() => props.billingSettings?.surchargeEnabled ?? true);
+const isTaxEnabled = computed(() => props.billingSettings?.taxEnabled ?? true);
+const allowManualTaxToggle = computed(() => props.billingSettings?.allowManualTaxToggle ?? true);
+const hasTax = computed(() => Boolean(props.bill?.taxLines && props.bill.taxLines.length > 0));
 
 const activeLines = computed(() => {
   return (props.bill?.lines ?? []).filter((l) => l.status !== 'voided');
@@ -406,61 +419,159 @@ function confirmMove() {
       </div>
 
       <!-- Giảm giá (Discounts) -->
-      <div
-        v-if="bill.discountTotal.minor > 0 || bill.discounts.length > 0"
-        class="flex items-center justify-between text-danger"
-      >
-        <span class="flex items-center gap-1.5">
-          <span>{{ t('pos.ticket.discount') }}</span>
-          <span
-            v-for="(disc, idx) in bill.discounts"
-            :key="idx"
-            class="px-1.5 py-0.2 rounded bg-danger/10 text-danger text-[10px] font-medium"
-          >
-            {{ disc.reason || (disc.type === 'percent' ? `${disc.value}%` : '') }}
+      <template v-if="isDiscountEnabled">
+        <div
+          v-if="bill.discountTotal.minor > 0 || bill.discounts.length > 0"
+          class="flex items-center justify-between text-danger"
+          data-test="ticket-discount-row"
+        >
+          <span class="flex items-center gap-1.5 flex-wrap">
+            <span>{{ t('pos.ticket.discount') }}</span>
+            <span
+              v-for="(disc, idx) in bill.discounts"
+              :key="idx"
+              class="px-1.5 py-0.2 rounded bg-danger/10 text-danger text-[10px] font-medium"
+            >
+              {{ disc.reason || (disc.type === 'percent' ? `${disc.value}%` : '') }}
+            </span>
+            <button
+              v-if="!props.readOnly"
+              type="button"
+              class="text-xs text-danger/80 hover:text-danger hover:underline font-bold px-1"
+              data-test="remove-discount-btn"
+              :title="t('pos.ticket.removeDiscount')"
+              @click.stop="emit('remove-discount')"
+            >
+              ✕
+            </button>
           </span>
-        </span>
-        <span data-test="ticket-discount" class="font-medium tabular-nums">
-          -{{ format(bill.discountTotal, formatLocale) }}
-        </span>
-      </div>
+          <span
+            data-test="ticket-discount"
+            class="font-medium tabular-nums cursor-pointer hover:underline"
+            :title="t('pos.ticket.editDiscount')"
+            @click="!props.readOnly && emit('open-adjustment', 'discount')"
+          >
+            -{{ format(bill.discountTotal, formatLocale) }}
+          </span>
+        </div>
+        <div
+          v-else-if="!props.readOnly"
+          class="flex items-center justify-between text-text-muted py-0.5"
+        >
+          <span>{{ t('pos.ticket.discount') }}</span>
+          <button
+            type="button"
+            data-test="add-discount-trigger"
+            class="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+            @click="emit('open-adjustment', 'discount')"
+          >
+            {{ t('pos.ticket.addDiscount') }}
+          </button>
+        </div>
+      </template>
 
       <!-- Phụ thu (Surcharges) -->
-      <div
-        v-if="bill.surchargeTotal.minor > 0 || bill.surcharges.length > 0"
-        class="flex items-center justify-between text-text-muted"
-      >
-        <span class="flex items-center gap-1.5">
-          <span>{{ t('pos.ticket.surcharge') }}</span>
-          <span
-            v-for="(sur, idx) in bill.surcharges"
-            :key="idx"
-            class="px-1.5 py-0.2 rounded bg-bg text-text text-[10px] border border-border"
-          >
-            {{ sur.name }}
+      <template v-if="isSurchargeEnabled">
+        <div
+          v-if="bill.surchargeTotal.minor > 0 || bill.surcharges.length > 0"
+          class="flex items-center justify-between text-text-muted"
+          data-test="ticket-surcharge-row"
+        >
+          <span class="flex items-center gap-1.5 flex-wrap">
+            <span>{{ t('pos.ticket.surcharge') }}</span>
+            <span
+              v-for="(sur, idx) in bill.surcharges"
+              :key="idx"
+              class="px-1.5 py-0.2 rounded bg-bg text-text text-[10px] border border-border"
+            >
+              {{ sur.name }}
+            </span>
+            <button
+              v-if="!props.readOnly"
+              type="button"
+              class="text-xs text-text-muted hover:text-danger font-bold px-1"
+              data-test="remove-surcharge-btn"
+              :title="t('pos.ticket.removeSurcharge')"
+              @click.stop="emit('remove-surcharge')"
+            >
+              ✕
+            </button>
           </span>
-        </span>
-        <span data-test="ticket-surcharge" class="font-medium tabular-nums">
-          +{{ format(bill.surchargeTotal, formatLocale) }}
-        </span>
-      </div>
+          <span
+            data-test="ticket-surcharge"
+            class="font-medium tabular-nums cursor-pointer hover:underline"
+            :title="t('pos.ticket.editSurcharge')"
+            @click="!props.readOnly && emit('open-adjustment', 'surcharge')"
+          >
+            +{{ format(bill.surchargeTotal, formatLocale) }}
+          </span>
+        </div>
+        <div
+          v-else-if="!props.readOnly"
+          class="flex items-center justify-between text-text-muted py-0.5"
+        >
+          <span>{{ t('pos.ticket.surcharge') }}</span>
+          <button
+            type="button"
+            data-test="add-surcharge-trigger"
+            class="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+            @click="emit('open-adjustment', 'surcharge')"
+          >
+            {{ t('pos.ticket.addSurcharge') }}
+          </button>
+        </div>
+      </template>
 
       <!-- Thuế VAT (Tax Lines) -->
-      <div
-        v-for="tax in bill.taxLines"
-        :key="tax.rateId"
-        class="flex items-center justify-between text-text-muted"
-      >
-        <span>
-          {{ tax.label[locale as 'vi' | 'en'] || tax.label.vi || tax.label.en }} ({{ tax.rate }}%)
-          <span class="text-[10px] opacity-75">
-            {{ bill.taxMode === 'inclusive' ? t('pos.ticket.taxInclusive') : t('pos.ticket.taxExclusive') }}
+      <template v-if="isTaxEnabled">
+        <div
+          v-for="tax in bill.taxLines"
+          :key="tax.rateId"
+          class="flex items-center justify-between text-text-muted"
+          data-test="ticket-tax-row"
+        >
+          <span class="flex items-center gap-1.5">
+            <span>
+              {{ tax.label[locale as 'vi' | 'en'] || tax.label.vi || tax.label.en }} ({{ tax.rate }}%)
+            </span>
+            <span class="text-[10px] opacity-75">
+              {{ bill.taxMode === 'inclusive' ? t('pos.ticket.taxInclusive') : t('pos.ticket.taxExclusive') }}
+            </span>
+            <button
+              v-if="allowManualTaxToggle && !props.readOnly"
+              type="button"
+              class="text-[10px] text-danger/80 hover:text-danger hover:underline px-1"
+              data-test="toggle-tax-off-btn"
+              :title="t('pos.adjustments.vatToggleOff')"
+              @click.stop="emit('toggle-tax', false)"
+            >
+              ✕
+            </button>
           </span>
-        </span>
-        <span data-test="ticket-tax" class="font-medium tabular-nums">
-          {{ bill.taxMode === 'inclusive' ? `[${format(tax.amount, formatLocale)}]` : `+${format(tax.amount, formatLocale)}` }}
-        </span>
-      </div>
+          <span
+            data-test="ticket-tax"
+            class="font-medium tabular-nums cursor-pointer hover:underline"
+            :title="t('pos.ticket.editTax')"
+            @click="!props.readOnly && emit('open-adjustment', 'tax')"
+          >
+            {{ bill.taxMode === 'inclusive' ? `[${format(tax.amount, formatLocale)}]` : `+${format(tax.amount, formatLocale)}` }}
+          </span>
+        </div>
+        <div
+          v-if="bill.taxLines.length === 0 && allowManualTaxToggle && !props.readOnly"
+          class="flex items-center justify-between text-text-muted py-0.5"
+        >
+          <span>{{ t('pos.ticket.tax') }}</span>
+          <button
+            type="button"
+            data-test="toggle-tax-on-trigger"
+            class="text-[11px] text-primary hover:underline font-medium cursor-pointer"
+            @click="emit('open-adjustment', 'tax')"
+          >
+            + {{ t('pos.adjustments.vatToggleOn') }}
+          </button>
+        </div>
+      </template>
 
       <!-- Tổng thanh toán (Total) -->
       <div class="flex items-center justify-between text-sm font-bold text-text pt-1.5 border-t border-border/50">

@@ -34,9 +34,11 @@ const props = withDefaults(
     adapter: DbAdapter;
     branchId: string;
     pollInterval?: number;
+    active?: boolean;
   }>(),
   {
-    pollInterval: 5000,
+    pollInterval: 2000,
+    active: true,
   },
 );
 
@@ -53,6 +55,7 @@ const recentlyCompletedItems = ref<RecalledItem[]>([]);
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let clockTimer: ReturnType<typeof setInterval> | null = null;
+let unsubscribeAdapter: (() => void) | null = null;
 
 async function loadData() {
   try {
@@ -365,8 +368,22 @@ async function handleRecallItem(item: RecalledItem, index: number) {
   }
 }
 
+function onWindowFocusOrVisible() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    loadData();
+  }
+}
+
 onMounted(() => {
   loadData();
+
+  if (typeof props.adapter.subscribe === 'function') {
+    unsubscribeAdapter = props.adapter.subscribe(() => {
+      if (autoRefresh.value) {
+        loadData();
+      }
+    });
+  }
 
   // Đồng hồ cập nhật thời gian trôi qua mỗi 15 giây
   clockTimer = setInterval(() => {
@@ -379,17 +396,36 @@ onMounted(() => {
       loadData();
     }
   }, props.pollInterval);
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', onWindowFocusOrVisible);
+    document.addEventListener('visibilitychange', onWindowFocusOrVisible);
+  }
 });
 
 onUnmounted(() => {
+  if (unsubscribeAdapter) unsubscribeAdapter();
   if (pollTimer) clearInterval(pollTimer);
   if (clockTimer) clearInterval(clockTimer);
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', onWindowFocusOrVisible);
+    document.removeEventListener('visibilitychange', onWindowFocusOrVisible);
+  }
 });
 
 watch(
   () => props.branchId,
   () => {
     loadData();
+  },
+);
+
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive) {
+      loadData();
+    }
   },
 );
 

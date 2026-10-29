@@ -335,6 +335,8 @@ onMounted(async () => {
         :key="posTerminalKey"
         :adapter="adapter"
         :branch-id="activeBranchId"
+        :current-user="currentUser"
+        :active="view === 'pos'"
       />
       <p v-else>{{ t('common.loading') }}</p>
     </div>
@@ -345,6 +347,7 @@ onMounted(async () => {
         v-else-if="adapter !== null"
         :adapter="adapter"
         :branch-id="activeBranchId"
+        :active="view === 'kds'"
       />
       <p v-else>{{ t('common.loading') }}</p>
     </div>

@@ -126,6 +126,7 @@ describe('ReceiptModal.vue', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    document.body.innerHTML = '';
   });
 
   it('renders bill receipt details and print trigger button', () => {
@@ -296,5 +297,26 @@ describe('ReceiptModal.vue', () => {
 
     await wrapper.setProps({ paperWidth: '80mm' });
     expect(wrapper.find('[data-test="receipt-slip"]').classes()).toContain('paper-80mm');
+  });
+
+  it('renders dedicated print mount in body when open and removes when closed', async () => {
+    const wrapper = mount(ReceiptModal, {
+      props: {
+        open: true,
+        bill: sampleBill,
+        paperWidth: '80mm',
+      },
+      global: { plugins: [i18n] },
+      attachTo: document.body,
+    });
+
+    const printMount = document.body.querySelector('#openpos-print-mount');
+    expect(printMount).not.toBeNull();
+    expect(printMount?.classList.contains('paper-80mm')).toBe(true);
+    expect(printMount?.querySelector('[data-test="print-receipt-slip"]')).not.toBeNull();
+
+    await wrapper.setProps({ open: false });
+    expect(document.body.querySelector('#openpos-print-mount')).toBeNull();
+    wrapper.unmount();
   });
 });

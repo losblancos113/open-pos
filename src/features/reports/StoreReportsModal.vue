@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { Button, DataTable } from '@vuetify/v0';
+import { Button, DataTable, Input } from '@vuetify/v0';
 import type { DbAdapter } from '@/core/db/adapter';
 import type { UserDoc } from '@/core/auth/types';
 import type { OrderRepository } from '@/core/order/order-repository';
@@ -20,7 +20,7 @@ import {
   exportCategoryReportToCsv,
   exportHourlyReportToCsv,
 } from '@/core/reports/export';
-import { format } from '@/core/money';
+import { format, money } from '@/core/money';
 
 const props = withDefaults(
   defineProps<{
@@ -55,6 +55,44 @@ const categories = ref<CategorySalesReport[]>([]);
 const hourly = ref<HourlySalesReport[]>([]);
 const isLoading = ref(false);
 const exportFeedback = ref(false);
+
+const categorySearchQuery = ref('');
+const expandedCategories = ref<Set<string>>(new Set());
+
+function toggleExpandCategory(categoryId: string) {
+  const next = new Set(expandedCategories.value);
+  if (next.has(categoryId)) {
+    next.delete(categoryId);
+  } else {
+    next.add(categoryId);
+  }
+  expandedCategories.value = next;
+}
+
+const totalCategoryQuantity = computed(() => {
+  return categories.value.reduce((sum, c) => sum + c.quantitySold, 0);
+});
+
+const totalCategoryRevenue = computed(() => {
+  const currency = categories.value[0]?.netRevenue.currency || 'VND';
+  const minor = categories.value.reduce((sum, c) => sum + c.netRevenue.minor, 0);
+  return money(minor, currency);
+});
+
+const topCategory = computed(() => {
+  if (categories.value.length === 0) return null;
+  return categories.value[0];
+});
+
+const filteredCategories = computed(() => {
+  const q = categorySearchQuery.value.trim().toLowerCase();
+  if (!q) return categories.value;
+  return categories.value.filter((cat) => {
+    if (cat.categoryName.toLowerCase().includes(q)) return true;
+    if (cat.items?.some((item) => item.productName.toLowerCase().includes(q))) return true;
+    return false;
+  });
+});
 
 function getDateRange(): { start: string; end: string } {
   const now = new Date();
@@ -369,7 +407,50 @@ function handleInvoicesUpdated() {
       </div>
 
       <!-- TAB 3: CATEGORIES (HEADLESS DATATABLE) -->
-      <div v-if="!isLoading && activeTab === 'categories'" class="space-y-3" data-test="categories-panel">
+      <div v-if="!isLoading && activeTab === 'categories'" class="space-y-4" data-test="categories-panel">
+        <!-- Overview summary cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div class="panel-card border border-border p-3 flex flex-col gap-1">
+            <span class="text-text-muted font-medium">{{ t('storeReports.totalCategories') }}</span>
+            <span class="font-mono text-base font-bold text-text" data-test="total-categories-count">{{ categories.length }}</span>
+          </div>
+          <div class="panel-card border border-border p-3 flex flex-col gap-1">
+            <span class="text-text-muted font-medium">{{ t('storeReports.totalQuantity') }}</span>
+            <span class="font-mono text-base font-bold text-text" data-test="total-categories-qty">{{ totalCategoryQuantity }}</span>
+          </div>
+          <div class="panel-card border border-border p-3 flex flex-col gap-1">
+            <span class="text-text-muted font-medium">{{ t('storeReports.totalCategoryRevenue') }}</span>
+            <span class="font-mono text-base font-bold text-primary" data-test="total-categories-revenue">{{ format(totalCategoryRevenue) }}</span>
+          </div>
+          <div class="panel-card border border-border p-3 flex flex-col gap-1">
+            <span class="text-text-muted font-medium">{{ t('storeReports.topCategory') }}</span>
+            <span class="font-mono text-sm font-bold text-success truncate" data-test="top-category-name">
+              {{ topCategory ? `${topCategory.categoryName} (${topCategory.percentageOfTotal}%)` : '—' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Search input & count -->
+        <div class="flex items-center justify-between gap-3">
+          <div class="w-full sm:w-72">
+            <Input.Root
+              v-model="categorySearchQuery"
+              type="text"
+              :label="t('storeReports.searchCategory')"
+              data-test="category-search-input"
+              class="w-full"
+            >
+              <Input.Control
+                class="field-input w-full bg-surface text-xs"
+                :placeholder="t('storeReports.searchCategory')"
+              />
+            </Input.Root>
+          </div>
+          <div class="text-xs text-text-muted font-mono">
+            {{ filteredCategories.length }} / {{ categories.length }} {{ t('storeReports.tabs.categories').toLowerCase() }}
+          </div>
+        </div>
+
         <div class="panel-card overflow-x-auto p-0 border border-border">
           <DataTable.Root>
             <DataTable.Table :aria-label="t('storeReports.tabs.categories')" class="w-full text-xs text-left">
@@ -379,27 +460,108 @@ function handleInvoicesUpdated() {
                   <DataTable.Column id="qty" class="table-cell text-right">{{ t('storeReports.quantitySold') }}</DataTable.Column>
                   <DataTable.Column id="sales" class="table-cell text-right">{{ t('storeReports.netSales') }}</DataTable.Column>
                   <DataTable.Column id="share" class="table-cell text-right">{{ t('storeReports.share') }}</DataTable.Column>
+                  <DataTable.Column id="actions" class="table-cell text-center w-28">{{ t('storeReports.itemBreakdown') }}</DataTable.Column>
                 </DataTable.Row>
               </DataTable.Header>
               <DataTable.Body>
-                <DataTable.Row
-                  v-for="cat in categories"
-                  :id="cat.categoryId"
-                  :key="cat.categoryId"
-                  class="border-b border-border last:border-b-0 hover:bg-surface/50"
-                >
-                  <DataTable.Cell class="table-cell font-medium text-text">{{ cat.categoryName }}</DataTable.Cell>
-                  <DataTable.Cell class="table-cell text-right font-mono text-text-muted">{{ cat.quantitySold }}</DataTable.Cell>
-                  <DataTable.Cell class="table-cell text-right font-mono font-semibold text-text">{{ format(cat.netRevenue) }}</DataTable.Cell>
-                  <DataTable.Cell class="table-cell text-right font-mono text-text-muted">{{ cat.percentageOfTotal }}%</DataTable.Cell>
-                </DataTable.Row>
-                <DataTable.Empty v-if="categories.length === 0" v-slot="{ columnCount }">
-                  <DataTable.Row>
-                    <DataTable.Cell :colspan="columnCount" class="table-cell text-center text-text-muted py-6">
-                      {{ t('catalog.noItems') }}
+                <template v-for="cat in filteredCategories" :key="cat.categoryId">
+                  <DataTable.Row
+                    :id="cat.categoryId"
+                    class="border-b border-border last:border-b-0 hover:bg-surface/50 cursor-pointer transition-colors"
+                    :class="{ 'bg-surface/30': expandedCategories.has(cat.categoryId) }"
+                    @click="toggleExpandCategory(cat.categoryId)"
+                  >
+                    <DataTable.Cell class="table-cell font-medium text-text">
+                      <div class="flex items-center gap-2">
+                        <span class="text-text-muted text-[10px] transition-transform inline-block" :class="{ 'rotate-90': expandedCategories.has(cat.categoryId) }">▶</span>
+                        <span>{{ cat.categoryName }}</span>
+                        <span
+                          v-if="cat.items && cat.items.length > 0"
+                          class="text-[10px] bg-surface-variant text-text-muted px-1.5 py-0.5 rounded-full"
+                        >
+                          {{ cat.items.length }} {{ t('catalog.tab.products')?.toLowerCase() || 'món' }}
+                        </span>
+                      </div>
+                    </DataTable.Cell>
+                    <DataTable.Cell class="table-cell text-right font-mono text-text-muted">{{ cat.quantitySold }}</DataTable.Cell>
+                    <DataTable.Cell class="table-cell text-right font-mono font-semibold text-text">{{ format(cat.netRevenue) }}</DataTable.Cell>
+                    <DataTable.Cell class="table-cell text-right font-mono text-text-muted">
+                      <div class="flex items-center justify-end gap-2">
+                        <div class="w-16 bg-surface-variant rounded-full h-1.5 overflow-hidden hidden sm:block">
+                          <div class="bg-primary h-full rounded-full" :style="{ width: `${cat.percentageOfTotal}%` }"></div>
+                        </div>
+                        <span>{{ cat.percentageOfTotal }}%</span>
+                      </div>
+                    </DataTable.Cell>
+                    <DataTable.Cell class="table-cell text-center" @click.stop>
+                      <Button.Root
+                        class="btn-ghost text-xs px-2 py-0.5 text-primary hover:bg-surface-variant rounded"
+                        :data-test="`toggle-items-${cat.categoryId}`"
+                        @click="toggleExpandCategory(cat.categoryId)"
+                      >
+                        <Button.Content>
+                          {{ expandedCategories.has(cat.categoryId) ? t('storeReports.hideItems') : t('storeReports.viewItems') }}
+                        </Button.Content>
+                      </Button.Root>
                     </DataTable.Cell>
                   </DataTable.Row>
-                </DataTable.Empty>
+
+                  <!-- Expanded Item Breakdown -->
+                  <DataTable.Row
+                    v-if="expandedCategories.has(cat.categoryId)"
+                    :id="`${cat.categoryId}-items`"
+                    class="bg-surface/80 border-b border-border"
+                    :data-test="`cat-items-row-${cat.categoryId}`"
+                  >
+                    <DataTable.Cell :colspan="5" class="p-3 pl-8">
+                      <div class="rounded border border-border/80 bg-background overflow-hidden">
+                        <div class="bg-surface px-3 py-1.5 border-b border-border text-[11px] font-semibold text-text-muted flex justify-between">
+                          <span>📋 {{ t('storeReports.itemBreakdown') }}: {{ cat.categoryName }}</span>
+                          <span v-if="cat.items">{{ cat.items.length }} món</span>
+                        </div>
+                        <table v-if="cat.items && cat.items.length > 0" class="w-full text-xs text-left">
+                          <thead>
+                            <tr class="border-b border-border/60 text-text-muted text-[11px]">
+                              <th class="px-3 py-1.5 font-medium">{{ t('storeReports.itemName') }}</th>
+                              <th class="px-3 py-1.5 font-medium text-right">{{ t('storeReports.quantitySold') }}</th>
+                              <th class="px-3 py-1.5 font-medium text-right">{{ t('storeReports.netSales') }}</th>
+                              <th class="px-3 py-1.5 font-medium text-right">{{ t('storeReports.shareInCategory') }}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr
+                              v-for="item in cat.items"
+                              :key="item.productId"
+                              class="border-b border-border/40 last:border-b-0 hover:bg-surface/30"
+                              :data-test="`cat-item-${item.productId}`"
+                            >
+                              <td class="px-3 py-1.5 text-text font-medium">{{ item.productName }}</td>
+                              <td class="px-3 py-1.5 text-right font-mono text-text-muted">{{ item.quantitySold }}</td>
+                              <td class="px-3 py-1.5 text-right font-mono text-text">{{ format(item.netRevenue) }}</td>
+                              <td class="px-3 py-1.5 text-right font-mono text-text-muted">
+                                <div class="flex items-center justify-end gap-1.5">
+                                  <div class="w-12 bg-surface-variant rounded-full h-1 overflow-hidden hidden sm:block">
+                                    <div class="bg-success h-full rounded-full" :style="{ width: `${item.percentageOfCategory}%` }"></div>
+                                  </div>
+                                  <span>{{ item.percentageOfCategory }}%</span>
+                                </div>
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <div v-else class="p-3 text-center text-text-muted text-xs">
+                          {{ t('storeReports.noItemsInCategory') }}
+                        </div>
+                      </div>
+                    </DataTable.Cell>
+                  </DataTable.Row>
+                </template>
+
+                <DataTable.Row v-if="filteredCategories.length === 0">
+                  <DataTable.Cell :colspan="5" class="p-6 text-center text-text-muted">
+                    {{ t('common.empty') }}
+                  </DataTable.Cell>
+                </DataTable.Row>
               </DataTable.Body>
             </DataTable.Table>
           </DataTable.Root>

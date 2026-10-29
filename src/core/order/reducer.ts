@@ -13,6 +13,7 @@ import type {
   PaymentEntry,
   OrderAggregateState,
   TableStatus,
+  TaxLine,
 } from './types';
 import type { OrderEventDoc } from './events';
 
@@ -270,6 +271,11 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
       if (!nextSession.openedAt) {
         nextSession.openedAt = event.createdAt;
       }
+      if (typeof payload.tableNameSnapshot === 'string' && payload.tableNameSnapshot) {
+        nextBill.tableNameSnapshot = payload.tableNameSnapshot;
+      } else if (typeof payload.tableName === 'string' && payload.tableName) {
+        nextBill.tableNameSnapshot = payload.tableName;
+      }
       break;
     }
 
@@ -282,6 +288,11 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
     case 'ORDER_PLACED': {
       if (nextBill.status === 'draft') {
         nextBill.status = 'placed';
+      }
+      if (typeof payload.tableNameSnapshot === 'string' && payload.tableNameSnapshot) {
+        nextBill.tableNameSnapshot = payload.tableNameSnapshot;
+      } else if (typeof payload.tableName === 'string' && payload.tableName) {
+        nextBill.tableNameSnapshot = payload.tableName;
       }
       nextBill.updatedAt = event.createdAt;
       break;
@@ -414,6 +425,19 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
       break;
     }
 
+    case 'TAX_UPDATED': {
+      if (payload.taxMode !== undefined) {
+        nextBill.taxMode = payload.taxMode;
+      }
+      if (payload.taxLines !== undefined) {
+        nextBill.taxLines = Array.isArray(payload.taxLines)
+          ? payload.taxLines.map((t: TaxLine) => ({ ...t }))
+          : [];
+      }
+      nextBill.updatedAt = event.createdAt;
+      break;
+    }
+
     case 'BILL_PRINTED': {
       nextBill.printedAt = payload.printedAt ?? event.createdAt;
       nextBill.updatedAt = event.createdAt;
@@ -444,6 +468,14 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
 
     case 'BILL_CLOSED': {
       nextBill.updatedAt = event.createdAt;
+      const closedBillPayload = payload.bill as BillDoc | undefined;
+      if (typeof closedBillPayload?.tableNameSnapshot === 'string' && closedBillPayload.tableNameSnapshot) {
+        nextBill.tableNameSnapshot = closedBillPayload.tableNameSnapshot;
+      } else if (typeof payload.tableNameSnapshot === 'string' && payload.tableNameSnapshot) {
+        nextBill.tableNameSnapshot = payload.tableNameSnapshot;
+      } else if (typeof payload.tableName === 'string' && payload.tableName) {
+        nextBill.tableNameSnapshot = payload.tableName;
+      }
       if (nextBill.balanceRemaining.minor === 0 && nextBill.status !== 'voided') {
         nextBill.status = 'paid';
         if (!nextBill.paidAt) {
@@ -489,6 +521,13 @@ export function applyOrderEvent(state: OrderAggregateState, event: OrderEventDoc
       );
       if (!nextSession.tableIds.includes(toTableId)) {
         nextSession.tableIds.push(toTableId);
+      }
+      if (typeof payload.toTableNameSnapshot === 'string' && payload.toTableNameSnapshot) {
+        nextBill.tableNameSnapshot = payload.toTableNameSnapshot;
+      } else if (typeof payload.tableNameSnapshot === 'string' && payload.tableNameSnapshot) {
+        nextBill.tableNameSnapshot = payload.tableNameSnapshot;
+      } else if (typeof payload.tableName === 'string' && payload.tableName) {
+        nextBill.tableNameSnapshot = payload.tableName;
       }
       break;
     }

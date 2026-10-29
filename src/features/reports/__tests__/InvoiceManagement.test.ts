@@ -240,4 +240,78 @@ describe('InvoiceManagement.vue', () => {
     expect(wrapper.find('[data-test="receipt-modal"]').exists()).toBe(true);
     expect(wrapper.find('[data-test="receipt-slip"]').exists()).toBe(true);
   });
+
+  it('displays resolved table name when bill document does not have tableNameSnapshot stored', async () => {
+    // Seed Table
+    await adapter.put({
+      _id: `table:${branchId}:t07`,
+      branchId,
+      docType: 'table',
+      name: 'Bàn Ngoài Trời 7',
+      code: 'T07',
+    } as any);
+
+    // Seed Session with tableIds
+    await adapter.put({
+      _id: `session:${branchId}:sess_outdoor`,
+      branchId,
+      docType: 'session',
+      tableIds: [`table:${branchId}:t07`],
+      billIds: [`bill:${branchId}:b_outdoor`],
+      status: 'closed',
+    } as any);
+
+    // Seed Bill with NO tableNameSnapshot
+    await adapter.put({
+      _id: `bill:${branchId}:b_outdoor`,
+      branchId,
+      sessionId: 'sess_outdoor',
+      billNumber: 'HQ-T01-20261029-9999',
+      paymentRef: 'POSHQ9999',
+      status: 'paid',
+      lines: [],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(80000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(80000, 'VND'),
+      payments: [
+        {
+          paymentId: 'pay_out',
+          method: 'cash',
+          amount: money(80000, 'VND'),
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      balanceRemaining: money(0, 'VND'),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      paidAt: new Date().toISOString(),
+      docType: 'bill',
+    } as any);
+
+    const wrapper = mount(InvoiceManagement, {
+      props: {
+        adapter,
+        branchId,
+        currentUser: adminUser,
+      },
+      global: {
+        plugins: [i18n, vuetifyLocale],
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 60));
+
+    // The outdoor bill should display 'Bàn Ngoài Trời 7', not 'Mang về / Bán nhanh'
+    const rows = wrapper.findAll('[data-test="invoice-row"]');
+    const outdoorRow = rows.find((r) => r.text().includes('HQ-T01-20261029-9999'));
+    expect(outdoorRow).toBeDefined();
+    expect(outdoorRow?.text()).toContain('Bàn Ngoài Trời 7');
+    expect(outdoorRow?.text()).not.toContain('Mang về / Bán nhanh');
+  });
 });

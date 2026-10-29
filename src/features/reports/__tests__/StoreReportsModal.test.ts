@@ -125,6 +125,7 @@ describe('StoreReportsModal.vue', () => {
     // Switch to Categories tab
     const catTabBtn = wrapper.find('[data-test="tab-categories"]');
     expect(catTabBtn.exists()).toBe(true);
+    expect(catTabBtn.text()).toContain('Báo cáo theo danh mục');
     await catTabBtn.trigger('click');
 
     expect(wrapper.find('[data-test="categories-panel"]').exists()).toBe(true);
@@ -142,5 +143,73 @@ describe('StoreReportsModal.vue', () => {
     await paymentsTabBtn.trigger('click');
 
     expect(wrapper.find('[data-test="payments-panel"]').exists()).toBe(true);
+  });
+
+  it('renders Category Report (Báo cáo theo danh mục) with KPI cards, item breakdown and search filter', async () => {
+    const wrapper = mount(StoreReportsModal, {
+      props: {
+        open: true,
+        adapter,
+        branchId: activeBranchId.value,
+        initialTab: 'categories',
+      },
+      global: {
+        plugins: [i18n, vuetifyLocale],
+      },
+    });
+
+    await new Promise((r) => setTimeout(r, 80));
+
+    expect(wrapper.find('[data-test="categories-panel"]').exists()).toBe(true);
+
+    // Overview cards
+    const countCard = wrapper.find('[data-test="total-categories-count"]');
+    expect(countCard.exists()).toBe(true);
+    expect(countCard.text()).toBe('1');
+
+    const qtyCard = wrapper.find('[data-test="total-categories-qty"]');
+    expect(qtyCard.exists()).toBe(true);
+    expect(qtyCard.text()).toBe('2');
+
+    const revCard = wrapper.find('[data-test="total-categories-revenue"]');
+    expect(revCard.exists()).toBe(true);
+    expect(revCard.text()).toContain('70.000');
+
+    const topCard = wrapper.find('[data-test="top-category-name"]');
+    expect(topCard.exists()).toBe(true);
+    expect(topCard.text()).toContain('Cà phê');
+
+    // Toggle expand items breakdown
+    expect(wrapper.find('[data-test="cat-items-row-cat_coffee"]').exists()).toBe(false);
+
+    const toggleBtn = wrapper.find('[data-test="toggle-items-cat_coffee"]');
+    expect(toggleBtn.exists()).toBe(true);
+    await toggleBtn.trigger('click');
+
+    // Now expanded
+    const itemsRow = wrapper.find('[data-test="cat-items-row-cat_coffee"]');
+    expect(itemsRow.exists()).toBe(true);
+
+    const itemRow = wrapper.find('[data-test="cat-item-p1"]');
+    expect(itemRow.exists()).toBe(true);
+    expect(itemRow.text()).toContain('Cà phê');
+    expect(itemRow.text()).toContain('2');
+    expect(itemRow.text()).toContain('70.000');
+    expect(itemRow.text()).toContain('100%');
+
+    // Toggle collapse
+    await toggleBtn.trigger('click');
+    expect(wrapper.find('[data-test="cat-items-row-cat_coffee"]').exists()).toBe(false);
+
+    // Search filter
+    const searchInput = wrapper.find('[data-test="category-search-input"] input');
+    if (searchInput.exists()) {
+      await searchInput.setValue('Trà');
+      // Should show empty state
+      expect(wrapper.text()).toContain('Chưa có');
+
+      await searchInput.setValue('Cà phê');
+      expect(wrapper.find('[data-test="toggle-items-cat_coffee"]').exists()).toBe(true);
+    }
   });
 });

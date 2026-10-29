@@ -28,4 +28,10 @@ export interface DbAdapter {
 
   /** Xoá document; cần _rev để phát hiện xung đột ghi. */
   remove(id: string, rev: string): Promise<void>;
+
+  /**
+   * Đăng ký lắng nghe thay đổi dữ liệu (real-time changes / mutations).
+   * Trả về hàm huỷ đăng ký (unsubscribe).
+   */
+  subscribe?(listener: () => void): () => void;
 }

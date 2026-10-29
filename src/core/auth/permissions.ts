@@ -15,6 +15,7 @@ export type BranchPermission =
   | 'manage_tables'
   | 'void_refund'
   | 'configure_bank_account'
+  | 'configure_billing_settings'
   | 'manage_shifts'
   | 'apply_discount'
   | 'create_order'
@@ -49,6 +50,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'manage_tables',
     'void_refund',
     'configure_bank_account',
+    'configure_billing_settings',
     'manage_shifts',
     'apply_discount',
     'create_order',
@@ -63,6 +65,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'manage_tables',
     'void_refund',
     'configure_bank_account',
+    'configure_billing_settings',
     'manage_shifts',
     'apply_discount',
     'create_order',
@@ -133,3 +136,12 @@ export function hasPermission(
 
   return true;
 }
+
+/**
+ * Checks if a user role has authority to configure billing settings (VAT, discounts, surcharges).
+ * Only owner (admin) and manager roles have this privilege.
+ */
+export function canConfigureBilling(role?: string | null): boolean {
+  return role === 'owner' || role === 'manager';
+}
+

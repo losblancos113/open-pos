@@ -9,6 +9,8 @@ import { money } from '../../money';
 import type { BillDoc } from '../../order/types';
 import type { ShiftDoc, ShiftCashMovementDoc } from '../../shift/types';
 import { shiftDocId, shiftCashMovementDocId } from '../../db/ids';
+import { createCategoryDoc } from '../../catalog/category';
+import { createProductDoc } from '../../catalog/product';
 
 describe('Store Reports Engine', () => {
   let adapter: Awaited<ReturnType<typeof createMemoryAdapter>>;
@@ -261,11 +263,21 @@ describe('Store Reports Engine', () => {
     expect(drinks?.quantitySold).toBe(4);
     expect(drinks?.netRevenue.minor).toBe(120000);
     expect(drinks?.percentageOfTotal).toBe(60); // 120k / 200k = 60%
+    expect(drinks?.items).toHaveLength(1);
+    expect(drinks?.items?.[0]?.productName).toBe('Cà phê');
+    expect(drinks?.items?.[0]?.quantitySold).toBe(4);
+    expect(drinks?.items?.[0]?.netRevenue.minor).toBe(120000);
+    expect(drinks?.items?.[0]?.percentageOfCategory).toBe(100);
 
     const bakery = categories.find((c) => c.categoryId === 'cat_bakery');
     expect(bakery?.quantitySold).toBe(1);
     expect(bakery?.netRevenue.minor).toBe(80000);
     expect(bakery?.percentageOfTotal).toBe(40); // 80k / 200k = 40%
+    expect(bakery?.items).toHaveLength(1);
+    expect(bakery?.items?.[0]?.productName).toBe('Bánh ngọt');
+    expect(bakery?.items?.[0]?.quantitySold).toBe(1);
+    expect(bakery?.items?.[0]?.netRevenue.minor).toBe(80000);
+    expect(bakery?.items?.[0]?.percentageOfCategory).toBe(100);
   });
 
   it('generates hourly sales report covering all 24 hours (0..23)', async () => {
@@ -317,5 +329,106 @@ describe('Store Reports Engine', () => {
     expect(hourly[0]?.hour).toBe(0);
     expect(hourly[0]?.orderCount).toBe(0);
     expect(hourly[0]?.netRevenue.minor).toBe(0);
+  });
+
+  it('correctly maps standard catalog_product and catalog_category documents created with createProductDoc and createCategoryDoc', async () => {
+    const cat = createCategoryDoc({
+      id: 'main_dish',
+      name: { vi: 'Món chính', en: 'Main Course' },
+    });
+    await adapter.put(cat);
+
+    const phoBo = createProductDoc({
+      id: 'pho-bo',
+      name: { vi: 'Phở Bò', en: 'Beef Pho' },
+      basePrice: money(55000, 'VND'),
+      categoryId: cat._id, // "category:main_dish"
+    });
+    await adapter.put(phoBo);
+
+    const comRang = createProductDoc({
+      id: 'com-rang',
+      name: { vi: 'Cơm rang dưa bò', en: 'Fried Rice' },
+      basePrice: money(55000, 'VND'),
+      categoryId: cat._id,
+    });
+    await adapter.put(comRang);
+
+    const bill: BillDoc = {
+      _id: 'bill:dist1:b500',
+      branchId: 'dist1',
+      sessionId: 's500',
+      billNumber: 'B-500',
+      paymentRef: 'P-500',
+      status: 'paid',
+      lines: [
+        {
+          lineId: 'l1',
+          productId: phoBo._id, // "product:pho-bo"
+          nameSnapshot: phoBo.name,
+          unitPriceSnapshot: money(55000, 'VND'),
+          qty: 10,
+          status: 'placed',
+          addedAt: '2026-10-26T12:00:00.000Z',
+          modifiers: [],
+        },
+        {
+          lineId: 'l2',
+          productId: comRang._id, // "product:com-rang"
+          nameSnapshot: comRang.name,
+          unitPriceSnapshot: money(55000, 'VND'),
+          qty: 5,
+          status: 'placed',
+          addedAt: '2026-10-26T12:00:00.000Z',
+          modifiers: [],
+        },
+      ],
+      discounts: [],
+      surcharges: [],
+      taxMode: 'inclusive',
+      taxLines: [],
+      taxTotal: money(0, 'VND'),
+      subtotal: money(825000, 'VND'),
+      discountTotal: money(0, 'VND'),
+      surchargeTotal: money(0, 'VND'),
+      total: money(825000, 'VND'),
+      payments: [
+        {
+          paymentId: 'pay1',
+          method: 'cash',
+          amount: money(825000, 'VND'),
+          tendered: money(825000, 'VND'),
+          change: money(0, 'VND'),
+          createdAt: '2026-10-26T12:05:00.000Z',
+        },
+      ],
+      balanceRemaining: money(0, 'VND'),
+      createdAt: '2026-10-26T12:00:00.000Z',
+      updatedAt: '2026-10-26T12:05:00.000Z',
+    };
+    await adapter.put(bill as unknown as any);
+
+    const report = await generateCategorySalesReport(adapter, 'dist1', {
+      startDate: '2026-10-26T00:00:00.000Z',
+      endDate: '2026-10-26T23:59:59.000Z',
+    });
+
+    expect(report).toHaveLength(1);
+    expect(report[0]?.categoryId).toBe('main_dish');
+    expect(report[0]?.categoryName).toBe('Món chính');
+    expect(report[0]?.quantitySold).toBe(15);
+    expect(report[0]?.netRevenue.minor).toBe(825000);
+    expect(report[0]?.percentageOfTotal).toBe(100);
+
+    expect(report[0]?.items).toHaveLength(2);
+    expect(report[0]?.items?.[0]?.productName).toBe('Phở Bò');
+    expect(report[0]?.items?.[0]?.quantitySold).toBe(10);
+    expect(report[0]?.items?.[0]?.netRevenue.minor).toBe(550000);
+    expect(report[0]?.items?.[0]?.percentageOfCategory).toBe(67);
+
+    expect(report[0]?.items?.[1]?.productName).toBe('Cơm rang dưa bò');
+    expect(report[0]?.items?.[1]?.quantitySold).toBe(5);
+    expect(report[0]?.items?.[1]?.netRevenue.minor).toBe(275000);
+    expect(report[0]?.items?.[1]?.percentageOfCategory).toBe(33);
   });
 });

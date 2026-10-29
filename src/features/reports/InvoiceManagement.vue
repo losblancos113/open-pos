@@ -9,6 +9,7 @@ import type { BillDoc, PaymentMethod } from '@/core/order/types';
 import { bankAccountDocId } from '@/core/db/ids';
 import type { BankAccountDoc } from '@/core/qr/bank-account';
 import ReceiptModal from '@/features/pos/ReceiptModal.vue';
+import BillingSettingsModal from '@/features/pos/BillingSettingsModal.vue';
 import { format, money } from '@/core/money';
 import {
   listBills,
@@ -56,6 +57,7 @@ const isDetailOpen = ref(false);
 const isVoidDialogOpen = ref(false);
 const isEditNoteDialogOpen = ref(false);
 const isReceiptModalOpen = ref(false);
+const isBillingSettingsOpen = ref(false);
 const reprintTargetBill = ref<BillDoc | null>(null);
 const bankAccount = ref<BankAccountDoc | null>(null);
 
@@ -359,6 +361,16 @@ function handleReprint(bill: BillDoc): void {
         <span v-if="!canEdit" class="text-xs text-text-muted italic bg-surface/60 px-2 py-1 rounded border border-border">
           🔒 {{ t('storeReports.invoices.adminOnlyTooltip') }}
         </span>
+        <Button.Root
+          v-if="canEdit"
+          type="button"
+          data-test="open-billing-settings-btn"
+          class="btn btn-ghost border border-border text-xs px-2.5 py-1"
+          :title="t('storeReports.invoices.billingSettingsBtn')"
+          @click="isBillingSettingsOpen = true"
+        >
+          <Button.Content>⚙️ {{ t('storeReports.invoices.billingSettingsBtn') }}</Button.Content>
+        </Button.Root>
         <Button.Root
           type="button"
           data-test="refresh-invoices-btn"
@@ -868,6 +880,14 @@ function handleReprint(bill: BillDoc): void {
       :branch-name="branchId ? branchId.toUpperCase() : ''"
       :bank-account="bankAccount"
       data-test="reprint-receipt-modal"
+    />
+
+    <!-- MODAL 5: BILLING & TAX SETTINGS (MANAGER / ADMIN ONLY) -->
+    <BillingSettingsModal
+      v-model:open="isBillingSettingsOpen"
+      :branch-id="branchId"
+      :order-repository="orderRepo"
+      :current-user="currentUser"
     />
   </div>
 </template>

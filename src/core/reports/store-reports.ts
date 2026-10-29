@@ -27,12 +27,21 @@ export interface ZReportSummary {
   readonly variance?: Money;
 }
 
+export interface CategoryItemSalesReport {
+  readonly productId: string;
+  readonly productName: string;
+  readonly quantitySold: number;
+  readonly netRevenue: Money;
+  readonly percentageOfCategory: number;
+}
+
 export interface CategorySalesReport {
   readonly categoryId: string;
   readonly categoryName: string;
   readonly quantitySold: number;
   readonly netRevenue: Money;
   readonly percentageOfTotal: number;
+  readonly items?: readonly CategoryItemSalesReport[];
 }
 
 export interface HourlySalesReport {
@@ -186,18 +195,80 @@ export async function generateCategorySalesReport(
 
   const categoryMap = new Map<string, string>();
   for (const doc of allDocs) {
-    if ((doc as unknown as { docType?: string }).docType === 'catalog_category' && !doc.deletedAt) {
-      const cat = doc as unknown as { categoryId: string; name: { vi?: string; en?: string } };
-      categoryMap.set(cat.categoryId, cat.name.vi || cat.name.en || cat.categoryId);
+    const raw = doc as unknown as Record<string, unknown>;
+    const isCat = raw.docType === 'catalog_category' || doc._id.startsWith('category:');
+    if (isCat && !doc.deletedAt) {
+      const nameObj = raw.name as { vi?: string; en?: string } | string | undefined;
+      const catName =
+        (typeof nameObj === 'object' && nameObj !== null ? (nameObj.vi || nameObj.en) : '') ||
+        (typeof nameObj === 'string' ? nameObj : '') ||
+        (typeof raw.categoryId === 'string' ? raw.categoryId : '') ||
+        doc._id.replace(/^category:/, '');
+
+      // Index under all variations: _id, stripped _id, categoryId property, id property
+      categoryMap.set(doc._id, catName);
+      categoryMap.set(doc._id.replace(/^category:/, ''), catName);
+      if (typeof raw.categoryId === 'string') {
+        categoryMap.set(raw.categoryId, catName);
+        categoryMap.set(`category:${raw.categoryId}`, catName);
+      }
+      if (typeof raw.id === 'string') {
+        categoryMap.set(raw.id, catName);
+        categoryMap.set(`category:${raw.id}`, catName);
+      }
     }
   }
 
   const productCategoryMap = new Map<string, string>();
+  const productCategoryByNameMap = new Map<string, string>();
+  const productNameMap = new Map<string, string>();
+
   for (const doc of allDocs) {
-    if ((doc as unknown as { docType?: string }).docType === 'catalog_product' && !doc.deletedAt) {
-      const prod = doc as unknown as { productId: string; categoryId?: string };
-      if (prod.categoryId) {
-        productCategoryMap.set(prod.productId, prod.categoryId);
+    const raw = doc as unknown as Record<string, unknown>;
+    const isProd = raw.docType === 'catalog_product' || doc._id.startsWith('product:');
+    if (isProd && !doc.deletedAt) {
+      const catId =
+        (raw.categoryId as string | undefined | null) ||
+        (raw.category_id as string | undefined | null) ||
+        null;
+      const nameObj = raw.name as { vi?: string; en?: string } | string | undefined;
+      const prodName =
+        (typeof nameObj === 'object' && nameObj !== null ? (nameObj.vi || nameObj.en) : '') ||
+        (typeof nameObj === 'string' ? nameObj : '') ||
+        doc._id.replace(/^product:/, '');
+
+      // Index product name
+      productNameMap.set(doc._id, prodName);
+      productNameMap.set(doc._id.replace(/^product:/, ''), prodName);
+      if (typeof raw.productId === 'string') {
+        productNameMap.set(raw.productId, prodName);
+        productNameMap.set(`product:${raw.productId}`, prodName);
+      }
+      if (typeof raw.id === 'string') {
+        productNameMap.set(raw.id, prodName);
+        productNameMap.set(`product:${raw.id}`, prodName);
+      }
+
+      // Index product category
+      if (catId) {
+        productCategoryMap.set(doc._id, catId);
+        productCategoryMap.set(doc._id.replace(/^product:/, ''), catId);
+        if (typeof raw.productId === 'string') {
+          productCategoryMap.set(raw.productId, catId);
+          productCategoryMap.set(`product:${raw.productId}`, catId);
+        }
+        if (typeof raw.id === 'string') {
+          productCategoryMap.set(raw.id, catId);
+          productCategoryMap.set(`product:${raw.id}`, catId);
+        }
+
+        // Also map by localized names for fallback
+        if (typeof nameObj === 'object' && nameObj !== null) {
+          if (nameObj.vi) productCategoryByNameMap.set(nameObj.vi.trim().toLowerCase(), catId);
+          if (nameObj.en) productCategoryByNameMap.set(nameObj.en.trim().toLowerCase(), catId);
+        } else if (typeof nameObj === 'string' && nameObj.trim()) {
+          productCategoryByNameMap.set(nameObj.trim().toLowerCase(), catId);
+        }
       }
     }
   }
@@ -216,19 +287,68 @@ export async function generateCategorySalesReport(
     );
   }) as unknown as BillDoc[];
 
-  const categoryStats = new Map<string, { qty: number; revenue: Money }>();
+  const categoryStats = new Map<
+    string,
+    {
+      qty: number;
+      revenue: Money;
+      itemStats: Map<string, { name: string; qty: number; revenue: Money }>;
+    }
+  >();
 
   for (const bill of paidBills) {
     for (const line of bill.lines) {
       if (line.status === 'voided') continue;
-      const catId = productCategoryMap.get(line.productId) || 'uncategorized';
-      const existing = categoryStats.get(catId) || { qty: 0, revenue: money(0, currency) };
+
+      // 1. Try productId variations
+      let rawCatId =
+        productCategoryMap.get(line.productId) ||
+        productCategoryMap.get(line.productId.replace(/^product:/, '')) ||
+        productCategoryMap.get(`product:${line.productId}`) ||
+        ((line as unknown as Record<string, unknown>).categoryId as string | undefined);
+
+      // 2. Try product name fallback
+      if (!rawCatId) {
+        const lineNameVi = line.nameSnapshot?.vi?.trim().toLowerCase();
+        const lineNameEn = line.nameSnapshot?.en?.trim().toLowerCase();
+        if (lineNameVi && productCategoryByNameMap.has(lineNameVi)) {
+          rawCatId = productCategoryByNameMap.get(lineNameVi);
+        } else if (lineNameEn && productCategoryByNameMap.has(lineNameEn)) {
+          rawCatId = productCategoryByNameMap.get(lineNameEn);
+        }
+      }
+
+      const catId = rawCatId || 'uncategorized';
+      const normalizedCatId =
+        catId === 'uncategorized' ? 'uncategorized' : catId.replace(/^category:/, '');
+
+      const existing = categoryStats.get(normalizedCatId) || {
+        qty: 0,
+        revenue: money(0, currency),
+        itemStats: new Map(),
+      };
       existing.qty += line.qty;
 
       // Line revenue: unitPriceSnapshot * qty
       const lineRevenue = money(line.unitPriceSnapshot.minor * line.qty, currency);
       existing.revenue = add(existing.revenue, lineRevenue);
-      categoryStats.set(catId, existing);
+
+      // Track item
+      const itemName =
+        line.nameSnapshot?.vi ||
+        line.nameSnapshot?.en ||
+        productNameMap.get(line.productId) ||
+        line.productId.replace(/^product:/, '');
+      const itemExisting = existing.itemStats.get(line.productId) || {
+        name: itemName,
+        qty: 0,
+        revenue: money(0, currency),
+      };
+      itemExisting.qty += line.qty;
+      itemExisting.revenue = add(itemExisting.revenue, lineRevenue);
+      existing.itemStats.set(line.productId, itemExisting);
+
+      categoryStats.set(normalizedCatId, existing);
     }
   }
 
@@ -239,9 +359,27 @@ export async function generateCategorySalesReport(
 
   const results: CategorySalesReport[] = [];
   for (const [catId, stat] of categoryStats.entries()) {
-    const catName = categoryMap.get(catId) || (catId === 'uncategorized' ? 'Khác' : catId);
+    const catName =
+      categoryMap.get(catId) ||
+      categoryMap.get(`category:${catId}`) ||
+      (catId === 'uncategorized' ? 'Chưa phân loại' : catId);
     const percentageOfTotal =
       totalRevenueMinor > 0 ? Math.round((stat.revenue.minor / totalRevenueMinor) * 100) : 0;
+
+    const items: CategoryItemSalesReport[] = [];
+    const catTotalMinor = stat.revenue.minor;
+    for (const [prodId, iStat] of stat.itemStats.entries()) {
+      const percentageOfCategory =
+        catTotalMinor > 0 ? Math.round((iStat.revenue.minor / catTotalMinor) * 100) : 0;
+      items.push({
+        productId: prodId,
+        productName: iStat.name,
+        quantitySold: iStat.qty,
+        netRevenue: iStat.revenue,
+        percentageOfCategory,
+      });
+    }
+    items.sort((a, b) => b.netRevenue.minor - a.netRevenue.minor);
 
     results.push({
       categoryId: catId,
@@ -249,6 +387,7 @@ export async function generateCategorySalesReport(
       quantitySold: stat.qty,
       netRevenue: stat.revenue,
       percentageOfTotal,
+      items,
     });
   }
 

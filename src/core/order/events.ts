@@ -12,6 +12,7 @@ export type OrderEventType =
   | 'DISCOUNT_REMOVED'
   | 'SURCHARGE_APPLIED'
   | 'SURCHARGE_REMOVED'
+  | 'TAX_UPDATED'
   | 'BILL_PRINTED'
   | 'BILL_VOIDED'
   | 'PAYMENT_ADDED'

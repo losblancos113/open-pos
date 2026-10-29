@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input, Select, Snackbar, Alert } from '@vuetify/v0';
 import type { DbAdapter } from '@/core/db/adapter';
@@ -11,13 +11,20 @@ import type { BranchMenu } from '@/core/catalog/menu';
 import type { ModifierGroupDoc } from '@/core/catalog/modifier-group';
 import type { ComboDoc } from '@/core/catalog/combo';
 import type { CatalogRepository } from '@/core/catalog/catalog-repository';
-import type { OrderLineItem, BillDoc, SessionDoc, TableDoc, PaymentEntry, TableStatus, OrderAggregateState } from '@/core/order/types';
+import type { OrderLineItem, BillDoc, SessionDoc, TableDoc, PaymentEntry, TableStatus, OrderAggregateState, OrderDiscount, OrderSurcharge, TaxLine } from '@/core/order/types';
 import type { OrderEventDoc } from '@/core/order/events';
 import type { BankAccountDoc } from '@/core/qr/bank-account';
+import type { UserDoc } from '@/core/auth/types';
+import { canConfigureBilling } from '@/core/auth/permissions';
+import { useCurrentUser } from '@/features/auth/use-current-user';
+import type { BillingSettingsDoc } from '@/core/order/billing-settings';
+import { createDefaultBillingSettings } from '@/core/order/billing-settings';
 import FloorPlanView from './FloorPlanView.vue';
 import PosCatalogPicker from './PosCatalogPicker.vue';
 import OrderTicket from './OrderTicket.vue';
 import BankSettingsModal from './BankSettingsModal.vue';
+import BillingSettingsModal from './BillingSettingsModal.vue';
+import BillAdjustmentModal from './BillAdjustmentModal.vue';
 import PaymentModal from './PaymentModal.vue';
 import ReceiptModal, { type StoreInfo } from './ReceiptModal.vue';
 import BillMenuItem from './BillMenuItem.vue';
@@ -50,6 +57,8 @@ const props = withDefaults(
     tableName?: string;
     guestCount?: number | null;
     storeInfo?: StoreInfo | null;
+    currentUser?: UserDoc | null;
+    active?: boolean;
   }>(),
   {
     branchId: DEFAULT_BRANCH_ID,
@@ -63,6 +72,8 @@ const props = withDefaults(
     tableName: '',
     guestCount: null,
     storeInfo: null,
+    currentUser: null,
+    active: true,
   },
 );
 
@@ -89,6 +100,10 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+const { currentUser: authUser } = useCurrentUser();
+const effectiveUser = computed(() => props.currentUser ?? authUser.value);
+const canManageBilling = computed(() => canConfigureBilling(effectiveUser.value?.role));
 
 /**
  * Kho dữ liệu đơn hàng dùng chung cho toàn bộ luồng POS.
@@ -308,12 +323,68 @@ const activeTableTotals = computed<Record<string, Money>>(() => {
   return result;
 });
 
+const billingSettings = ref<BillingSettingsDoc | null>(null);
+const isBillingSettingsOpen = ref(false);
+const isAdjustmentModalOpen = ref(false);
+const adjustmentTab = ref<'discount' | 'surcharge' | 'tax'>('discount');
+
+async function loadBillingSettings() {
+  try {
+    billingSettings.value = await orderRepository.getBillingSettings(props.branchId);
+  } catch {
+    billingSettings.value = createDefaultBillingSettings(props.branchId);
+  }
+}
+
+function getInitialTaxAndSurcharge(currency: CurrencyCode): {
+  taxMode: 'inclusive' | 'exclusive';
+  taxLines: TaxLine[];
+  surcharges: OrderSurcharge[];
+} {
+  let taxMode: 'inclusive' | 'exclusive' = 'inclusive';
+  const taxLines: TaxLine[] = [];
+  const surcharges: OrderSurcharge[] = [];
+
+  if (billingSettings.value?.taxEnabled && billingSettings.value.autoApplyTax) {
+    taxMode = billingSettings.value.taxMode;
+    taxLines.push({
+      rateId: 'tax_vat',
+      label: {
+        vi: billingSettings.value.taxName || 'Thuế GTGT',
+        en: billingSettings.value.taxCode || 'VAT',
+      },
+      rate: billingSettings.value.defaultTaxRate ?? 10,
+      base: money(0, currency),
+      amount: money(0, currency),
+    });
+  }
+
+  if (billingSettings.value?.surchargeEnabled && billingSettings.value.autoApplySurcharge) {
+    if (billingSettings.value.defaultSurchargeType === 'fixed') {
+      surcharges.push({
+        type: 'custom',
+        name: billingSettings.value.defaultSurchargeName || 'Phí dịch vụ',
+        fixedAmount: money(billingSettings.value.defaultSurchargeAmountMinor || 0, currency),
+      });
+    } else {
+      surcharges.push({
+        type: 'service_charge',
+        name: billingSettings.value.defaultSurchargeName || 'Phí dịch vụ',
+        ratePercent: billingSettings.value.defaultSurchargeRate || 5,
+      });
+    }
+  }
+
+  return { taxMode, taxLines, surcharges };
+}
+
 function createEmptyBill(currency: CurrencyCode = 'VND'): BillDoc {
   const id = `bill:${props.branchId}:${Date.now()}`;
   const code = terminalCode.value || 'T01';
   const rand = Math.floor(1000 + Math.random() * 9000);
   const paymentRef = `POS${props.branchId.toUpperCase()}${code}${rand}`;
-  return {
+  const { taxMode, taxLines, surcharges } = getInitialTaxAndSurcharge(currency);
+  const emptyBill: BillDoc = {
     _id: id,
     branchId: props.branchId,
     sessionId: `session:${props.branchId}:fast_${Date.now()}`,
@@ -322,9 +393,9 @@ function createEmptyBill(currency: CurrencyCode = 'VND'): BillDoc {
     status: 'draft',
     lines: [],
     discounts: [],
-    surcharges: [],
-    taxMode: 'inclusive',
-    taxLines: [],
+    surcharges,
+    taxMode,
+    taxLines,
     taxTotal: money(0, currency),
     subtotal: money(0, currency),
     discountTotal: money(0, currency),
@@ -335,6 +406,7 @@ function createEmptyBill(currency: CurrencyCode = 'VND'): BillDoc {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
+  return recalculateBill(emptyBill);
 }
 
 function createEmptyTableOrder(
@@ -352,6 +424,11 @@ function createEmptyTableOrder(
   const sessId = `session:${props.branchId}:${tableClean}_${Date.now()}`;
   const bId = `bill:${props.branchId}:${tableClean}_${Date.now()}`;
 
+  const targetTable = floorTables.value.find(
+    (t) => t._id === tableId || t._id.endsWith(`:${tableId}`) || t.code === tableClean,
+  );
+  const tableNameSnap = targetTable ? (targetTable.name || targetTable.code) : tableClean;
+
   const session: SessionDoc = {
     _id: sessId,
     branchId: props.branchId,
@@ -363,6 +440,7 @@ function createEmptyTableOrder(
     billIds: [bId],
   };
 
+  const { taxMode, taxLines, surcharges } = getInitialTaxAndSurcharge(currency);
   const bill: BillDoc = {
     _id: bId,
     branchId: props.branchId,
@@ -372,9 +450,9 @@ function createEmptyTableOrder(
     status: 'draft',
     lines: [],
     discounts: [],
-    surcharges: [],
-    taxMode: 'inclusive',
-    taxLines: [],
+    surcharges,
+    taxMode,
+    taxLines,
     taxTotal: money(0, currency),
     subtotal: money(0, currency),
     discountTotal: money(0, currency),
@@ -382,11 +460,12 @@ function createEmptyTableOrder(
     total: money(0, currency),
     payments: [],
     balanceRemaining: money(0, currency),
+    tableNameSnapshot: tableNameSnap,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
-  return { session, bill };
+  return { session, bill: recalculateBill(bill) };
 }
 
 async function handleSelectTable(tableId: string) {
@@ -394,23 +473,36 @@ async function handleSelectTable(tableId: string) {
   floorSubView.value = 'catalog';
   emit('select-table', tableId);
 
-  // Nạp session active từ CSDL nếu chưa có trong tableOrders
-  if (!tableOrders.value[tableId] || !tableOrders.value[tableId].bill) {
-    try {
-      const active = await orderRepository.getActiveSession(props.branchId, tableId);
-      if (active && active.bill && active.session) {
-        tableOrders.value = {
-          ...tableOrders.value,
-          [tableId]: {
-            session: active.session,
-            bill: active.bill,
-            guestCount: active.session.guestCount ?? null,
-          },
-        };
-      }
-    } catch (e) {
-      console.warn('getActiveSession failed for table:', tableId, e);
+  // Nạp session active từ CSDL và giữ lại món nháp unconfirmed (nếu có)
+  try {
+    const active = await orderRepository.getActiveSession(props.branchId, tableId);
+    if (active && active.bill && active.session) {
+      const existing = tableOrders.value[tableId];
+      const dbLineIds = new Set((active.bill.lines || []).map((l) => l.lineId));
+      const unconfirmed = (existing?.bill?.lines || []).filter(
+        (l) => l.status !== 'voided' && l.kdsStatus === 'unconfirmed' && !dbLineIds.has(l.lineId),
+      );
+      const mergedLines = unconfirmed.length > 0
+        ? [...(active.bill.lines || []), ...unconfirmed]
+        : (active.bill.lines || []);
+
+      const mergedBill = recalculateBill({
+        ...active.bill,
+        lines: mergedLines,
+      });
+
+      tableOrders.value = {
+        ...tableOrders.value,
+        [tableId]: {
+          session: active.session,
+          bill: mergedBill,
+          guestCount: active.session.guestCount ?? null,
+        },
+      };
+      emit('bill-updated', mergedBill);
     }
+  } catch (e) {
+    console.warn('getActiveSession failed for table:', tableId, e);
   }
 }
 
@@ -552,8 +644,11 @@ async function handleConfirmOrder() {
       return l;
     });
 
+    const tableSnapshotName = effectiveTableName.value || current.tableNameSnapshot || '';
+
     const updatedBill: BillDoc = recalculateBill({
       ...current,
+      ...(tableSnapshotName ? { tableNameSnapshot: tableSnapshotName } : {}),
       status: current.status === 'draft' ? 'placed' : current.status,
       lines: updatedLines,
       updatedAt: now,
@@ -607,6 +702,7 @@ async function handleConfirmOrder() {
           tableIds: currentSession.tableIds,
           guestCount: currentSession.guestCount,
           openedBy: actor,
+          tableNameSnapshot: tableSnapshotName,
         },
         createdAt: now,
         schemaVersion: 1,
@@ -619,7 +715,9 @@ async function handleConfirmOrder() {
         billId: updatedBill._id,
         actorId: actor,
         deviceId: device,
-        payload: {},
+        payload: {
+          tableNameSnapshot: tableSnapshotName,
+        },
         createdAt: now,
         schemaVersion: 1,
       });
@@ -650,27 +748,32 @@ async function handleConfirmOrder() {
       tableStatus: 'occupied',
     };
 
-    await orderRepository.appendEvents(props.branchId, currentSession._id, events, stateToSave);
+    const savedState = await orderRepository.appendEvents(props.branchId, currentSession._id, events, stateToSave);
+
+    const canonicalBill = savedState?.bill || updatedBill;
+    const canonicalSession = savedState?.session || currentSession;
+
+    localBill.value = canonicalBill;
 
     if (mode.value === 'floor' && selectedTableId.value) {
       tableOrders.value = {
         ...tableOrders.value,
         [selectedTableId.value]: {
-          session: currentSession,
-          bill: updatedBill,
-          guestCount: currentSession.guestCount,
+          session: canonicalSession,
+          bill: canonicalBill,
+          guestCount: canonicalSession.guestCount ?? null,
         },
       };
       await refreshFloorSessions();
     } else {
       fastSaleOrder.value = {
-        session: currentSession,
-        bill: updatedBill,
+        session: canonicalSession,
+        bill: canonicalBill,
         guestCount: null,
       };
     }
 
-    emit('confirm-order', updatedBill);
+    emit('confirm-order', canonicalBill);
     showSuccessToast(t('pos.ticket.sendSuccess', { count: unconfirmed.length }));
   } catch (err) {
     console.error('Failed to confirm order / send to kitchen:', err);
@@ -735,6 +838,7 @@ watch(
   () => props.branchId,
   () => {
     loadBankAccount();
+    loadBillingSettings();
   },
   { immediate: true },
 );
@@ -747,6 +851,112 @@ function handleOpenBankSettings() {
 function handleSaveBankAccount(account: BankAccountDoc) {
   currentBankAccount.value = account;
   emit('save-bank-account', account);
+}
+
+function handleOpenBillingSettings() {
+  isBillingSettingsOpen.value = true;
+}
+
+function handleSaveBillingSettings(settings: BillingSettingsDoc) {
+  billingSettings.value = settings;
+}
+
+function updateCurrentBill(mutator: (bill: BillDoc) => void) {
+  if (!effectiveBill.value) return;
+  const clone: BillDoc = {
+    ...effectiveBill.value,
+    lines: [...effectiveBill.value.lines],
+    discounts: [...effectiveBill.value.discounts],
+    surcharges: [...effectiveBill.value.surcharges],
+    taxLines: [...effectiveBill.value.taxLines],
+    payments: [...effectiveBill.value.payments],
+  };
+  mutator(clone);
+  const recalculated = recalculateBill({
+    ...clone,
+    updatedAt: new Date().toISOString(),
+  });
+  localBill.value = recalculated;
+  emit('bill-updated', recalculated);
+}
+
+function handleOpenAdjustment(tab: 'discount' | 'surcharge' | 'tax') {
+  adjustmentTab.value = tab;
+  isAdjustmentModalOpen.value = true;
+}
+
+function handleApplyDiscount(discount: OrderDiscount) {
+  updateCurrentBill((bill) => {
+    bill.discounts = [{ ...discount }];
+  });
+}
+
+function handleRemoveDiscount(index?: number) {
+  updateCurrentBill((bill) => {
+    if (typeof index === 'number') {
+      bill.discounts.splice(index, 1);
+    } else {
+      bill.discounts = [];
+    }
+  });
+}
+
+function handleApplySurcharge(surcharge: OrderSurcharge) {
+  updateCurrentBill((bill) => {
+    bill.surcharges = [{ ...surcharge }];
+  });
+}
+
+function handleRemoveSurcharge(index?: number) {
+  updateCurrentBill((bill) => {
+    if (typeof index === 'number') {
+      bill.surcharges.splice(index, 1);
+    } else {
+      bill.surcharges = [];
+    }
+  });
+}
+
+function handleSetTax(payload: { rate: number; taxMode: 'inclusive' | 'exclusive' }) {
+  updateCurrentBill((bill) => {
+    const cur = bill.total?.currency ?? 'VND';
+    bill.taxMode = payload.taxMode;
+    bill.taxLines = [
+      {
+        rateId: 'tax_vat',
+        label: {
+          vi: billingSettings.value?.taxName || 'Thuế GTGT',
+          en: billingSettings.value?.taxCode || 'VAT',
+        },
+        rate: Math.max(0, Math.min(100, payload.rate)),
+        base: money(0, cur),
+        amount: money(0, cur),
+      },
+    ];
+  });
+}
+
+function handleToggleTax(enable: boolean) {
+  updateCurrentBill((bill) => {
+    if (enable) {
+      const cur = bill.total?.currency ?? 'VND';
+      bill.taxMode = billingSettings.value?.taxMode || 'inclusive';
+      bill.taxLines = [
+        {
+          rateId: 'tax_vat',
+          label: {
+            vi: billingSettings.value?.taxName || 'Thuế GTGT',
+            en: billingSettings.value?.taxCode || 'VAT',
+          },
+          rate: billingSettings.value?.defaultTaxRate ?? 10,
+          base: money(0, cur),
+          amount: money(0, cur),
+        },
+      ];
+    } else {
+      bill.taxLines = [];
+    }
+  });
 }
 
 const isPaymentModalOpen = ref(false);
@@ -840,7 +1050,7 @@ async function handlePaymentComplete(completedBill: BillDoc) {
             billId: finalBill._id,
             actorId: actor,
             deviceId: device,
-            payload: { bill: finalBill },
+            payload: { bill: finalBill, tableNameSnapshot: tableNameSnap },
             createdAt: now,
             schemaVersion: 1,
           });
@@ -1159,31 +1369,129 @@ function getCurrentTableId(session: SessionDoc | null, table: TableDoc | null | 
   return session?.tableIds[0] ?? '';
 }
 
-/** Reload current session after a mutation */
-async function refreshSession() {
-  const curBill = effectiveBill.value;
-  const curSession = effectiveSession.value;
-  if (!curBill || !curSession) return;
-  try {
-    const state = await orderRepository.getActiveSession(props.branchId, curSession._id);
-    if (state && state.bill) {
-      if (mode.value === 'floor' && selectedTableId.value) {
+/** Làm mới đơn hàng hiện tại từ CSDL (cập nhật trạng thái chế biến KDS, món mới từ thiết bị khác) */
+async function refreshCurrentOrder() {
+  if (mode.value === 'floor' && selectedTableId.value) {
+    const tid = selectedTableId.value;
+    try {
+      const active = await orderRepository.getActiveSession(props.branchId, tid);
+      if (active && active.bill && active.session) {
+        const existing = tableOrders.value[tid];
+        const dbLines = active.bill.lines || [];
+        const dbLineIds = new Set(dbLines.map((l) => l.lineId));
+        const unconfirmed = (existing?.bill?.lines || []).filter(
+          (l) => l.status !== 'voided' && l.kdsStatus === 'unconfirmed' && !dbLineIds.has(l.lineId),
+        );
+
+        const mergedLines = unconfirmed.length > 0
+          ? [...dbLines, ...unconfirmed]
+          : dbLines;
+
+        const mergedBill = recalculateBill({
+          ...active.bill,
+          lines: mergedLines,
+        });
+
         tableOrders.value = {
           ...tableOrders.value,
-          [selectedTableId.value]: {
-            session: state.session,
-            bill: state.bill,
-            guestCount: state.session.guestCount ?? null,
+          [tid]: {
+            session: active.session,
+            bill: mergedBill,
+            guestCount: active.session.guestCount ?? null,
           },
         };
+        emit('bill-updated', mergedBill);
+      } else {
+        // Bàn không còn phiên hoạt động trên CSDL (đã thanh toán hoặc đóng trên thiết bị khác)
+        const existing = tableOrders.value[tid];
+        const hasUnconfirmed = (existing?.bill?.lines || []).some(
+          (l) => l.status !== 'voided' && l.kdsStatus === 'unconfirmed',
+        );
+        if (existing?.session && !hasUnconfirmed) {
+          const updated = { ...tableOrders.value };
+          delete updated[tid];
+          tableOrders.value = updated;
+        }
       }
-      emit('bill-updated', state.bill);
-      await refreshFloorSessions();
+    } catch (e) {
+      console.warn('refreshCurrentOrder failed (non-fatal):', e);
     }
-  } catch (e) {
-    console.warn('refreshSession failed (non-fatal):', e);
+  } else if (mode.value === 'fast_sale') {
+    if (fastSaleOrder.value.session?._id) {
+      try {
+        const active = await orderRepository.getActiveSession(props.branchId, fastSaleOrder.value.session._id);
+        if (active && active.bill && active.session) {
+          fastSaleOrder.value = {
+            session: active.session,
+            bill: active.bill,
+            guestCount: active.session.guestCount ?? null,
+          };
+          emit('bill-updated', active.bill);
+        }
+      } catch (e) {
+        console.warn('refresh fast sale order error:', e);
+      }
+    }
   }
 }
+
+/** Reload current session after a mutation */
+async function refreshSession() {
+  await refreshCurrentOrder();
+  await refreshFloorSessions();
+}
+
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+let unsubscribeAdapter: (() => void) | null = null;
+
+function onWindowFocusOrVisible() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    refreshFloorSessions();
+    refreshCurrentOrder();
+  }
+}
+
+onMounted(() => {
+  refreshFloorSessions();
+  refreshCurrentOrder();
+
+  if (typeof props.adapter?.subscribe === 'function') {
+    unsubscribeAdapter = props.adapter.subscribe(() => {
+      refreshFloorSessions();
+      refreshCurrentOrder();
+    });
+  }
+
+  // Polling liên tục mỗi 2 giây để đồng bộ trạng thái bếp (KDS) và các bàn
+  pollTimer = setInterval(() => {
+    refreshFloorSessions();
+    refreshCurrentOrder();
+  }, 2000);
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('focus', onWindowFocusOrVisible);
+    document.addEventListener('visibilitychange', onWindowFocusOrVisible);
+  }
+});
+
+onUnmounted(() => {
+  if (unsubscribeAdapter) unsubscribeAdapter();
+  if (pollTimer) clearInterval(pollTimer);
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('focus', onWindowFocusOrVisible);
+    document.removeEventListener('visibilitychange', onWindowFocusOrVisible);
+  }
+});
+
+watch(
+  () => props.active,
+  (isActive) => {
+    if (isActive) {
+      refreshFloorSessions();
+      refreshCurrentOrder();
+    }
+  },
+);
 
 /** Snackbar / toast helpers */
 function showSuccessToast(message: string) {
@@ -1416,6 +1724,18 @@ defineExpose({
         >
           <span>{{ t('pos.bank.title') }}</span>
         </Button.Root>
+
+        <!-- Nút mở cấu hình hoá đơn & thuế (Quản lý & Owner) -->
+        <Button.Root
+          v-if="canManageBilling"
+          type="button"
+          class="btn btn-ghost text-xs px-2.5 py-1.5 flex items-center gap-1 border border-border rounded-md cursor-pointer hover:bg-bg"
+          data-test="billing-settings-trigger"
+          :title="t('pos.billingSettings.title')"
+          @click="handleOpenBillingSettings"
+        >
+          <span>⚙️ {{ t('pos.billingSettings.title') }}</span>
+        </Button.Root>
       </div>
     </header>
 
@@ -1612,6 +1932,7 @@ defineExpose({
               :table="effectiveTable"
               :table-name="effectiveTableName"
               :guest-count="effectiveGuestCount"
+              :billing-settings="billingSettings"
               @update-qty="handleUpdateQty"
               @set-line-note="handleSetNote"
               @void-line="handleVoidLine"
@@ -1619,6 +1940,10 @@ defineExpose({
               @checkout="handleCheckout"
               @confirm-order="handleConfirmOrder"
               @remove-line="handleRemoveLine"
+              @open-adjustment="handleOpenAdjustment"
+              @remove-discount="handleRemoveDiscount"
+              @remove-surcharge="handleRemoveSurcharge"
+              @toggle-tax="handleToggleTax"
             />
             <div v-else class="p-6 text-center text-text-muted my-auto" data-test="empty-ticket-hint">
               <template v-if="mode === 'floor' && selectedTableId">
@@ -1652,6 +1977,35 @@ defineExpose({
       :current-account="currentBankAccount"
       :order-repository="orderRepository"
       @save="handleSaveBankAccount"
+    />
+
+    <!-- Modal cấu hình hoá đơn & thuế VAT (Quản lý & Owner) -->
+    <BillingSettingsModal
+      v-model:open="isBillingSettingsOpen"
+      :branch-id="branchId"
+      :current-settings="billingSettings"
+      :order-repository="orderRepository"
+      :current-user="effectiveUser"
+      @save="handleSaveBillingSettings"
+    />
+
+    <!-- Modal tuỳ chỉnh chiết khấu, phụ thu & thuế VAT cho hoá đơn -->
+    <BillAdjustmentModal
+      v-model:open="isAdjustmentModalOpen"
+      :initial-tab="adjustmentTab"
+      :current-discount="effectiveBill?.discounts?.[0] || null"
+      :current-surcharge="effectiveBill?.surcharges?.[0] || null"
+      :current-tax-rate="effectiveBill?.taxLines?.[0]?.rate ?? (billingSettings?.defaultTaxRate || 10)"
+      :current-tax-mode="effectiveBill?.taxMode || billingSettings?.taxMode || 'inclusive'"
+      :currency="effectiveBill?.total?.currency || 'VND'"
+      :subtotal-minor="effectiveBill?.subtotal?.minor || 0"
+      :max-discount-percent="billingSettings?.maxDiscountPercent || 100"
+      @apply-discount="handleApplyDiscount"
+      @remove-discount="handleRemoveDiscount"
+      @apply-surcharge="handleApplySurcharge"
+      @remove-surcharge="handleRemoveSurcharge"
+      @set-tax="handleSetTax"
+      @remove-tax="handleToggleTax(false)"
     />
 
     <!-- Modal thanh toán (Tiền mặt, VietQR, Thẻ, Khác, Split Payment) -->

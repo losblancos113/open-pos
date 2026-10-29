@@ -9,7 +9,18 @@ import type { DocEnvelope } from './envelope';
  */
 export function createMemoryAdapter(): Promise<DbAdapter> {
   const store = new Map<string, DocEnvelope>();
+  const listeners = new Set<() => void>();
   let revCounter = 0;
+
+  function notifyListeners() {
+    for (const listener of listeners) {
+      try {
+        listener();
+      } catch (err) {
+        console.error('memory-adapter subscriber error:', err);
+      }
+    }
+  }
 
   function nextRev(): string {
     revCounter += 1;
@@ -41,6 +52,7 @@ export function createMemoryAdapter(): Promise<DbAdapter> {
 
       const saved: DocEnvelope = { ...doc, _rev: nextRev() };
       store.set(saved._id, saved);
+      notifyListeners();
       return { ...saved };
     },
 
@@ -65,6 +77,14 @@ export function createMemoryAdapter(): Promise<DbAdapter> {
         throw new Error(`conflict: document ${id} has _rev ${existing._rev}, got ${rev}`);
       }
       store.delete(id);
+      notifyListeners();
+    },
+
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
     },
   };
 

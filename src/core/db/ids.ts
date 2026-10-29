@@ -135,5 +135,11 @@ export function systemConfigDocId(): string {
   return 'system:config';
 }
 
+/** `_id` của tài liệu cấu hình thuế VAT, chiết khấu và phụ thu tại chi nhánh. */
+export function billingSettingsDocId(branchId: string): string {
+  return `billing_settings:${requireSegment(branchId, 'branchId')}`;
+}
+
+
 
 

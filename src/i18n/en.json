@@ -14,7 +14,8 @@
     "loading": "Loading…",
     "error": "An error occurred",
     "all": "All",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "empty": "No data available"
   },
   "type": {
     "designer": {
@@ -290,7 +291,15 @@
       "cancel": "Cancel",
       "confirmVoid": "Confirm Void",
       "voidReasonPlaceholder": "Reason for voiding...",
-      "notePlaceholder": "Enter note for item..."
+      "notePlaceholder": "Enter note for item...",
+      "addDiscount": "+ Discount",
+      "addSurcharge": "+ Surcharge",
+      "editDiscount": "Edit discount",
+      "editSurcharge": "Edit surcharge",
+      "removeDiscount": "Remove discount",
+      "removeSurcharge": "Remove surcharge",
+      "toggleTax": "VAT",
+      "editTax": "Edit VAT"
     },
     "options": {
       "title": "Item Options",
@@ -400,6 +409,72 @@
       "mergeError": "Could not merge bills. Please try again.",
       "transferSuccess": "Table transferred successfully",
       "transferError": "Could not transfer table. Please try again."
+    },
+    "billingSettings": {
+      "title": "Billing & Tax Settings",
+      "description": "Configure Discounts, Surcharges, and VAT for this branch",
+      "discountSection": "Promotions & Discounts",
+      "enableDiscount": "Enable discounts on bills",
+      "maxDiscount": "Maximum discount rate (%)",
+      "surchargeSection": "Surcharges & Service Fees",
+      "enableSurcharge": "Enable surcharges on bills",
+      "surchargeName": "Default surcharge name",
+      "surchargeType": "Surcharge type",
+      "surchargePercent": "Percentage (%)",
+      "surchargeFixed": "Fixed amount (₫)",
+      "surchargeRate": "Surcharge rate (%)",
+      "surchargeAmount": "Fixed surcharge amount (₫)",
+      "autoApplySurcharge": "Auto-apply surcharge on new orders",
+      "taxSection": "Value Added Tax (VAT)",
+      "enableTax": "Enable VAT feature",
+      "taxRate": "Tax rate (%)",
+      "taxMode": "Tax calculation mode",
+      "taxModeInclusive": "Listed prices include tax (Inclusive)",
+      "taxModeInclusiveHint": "Transparently separates tax amount without increasing total price",
+      "taxModeExclusive": "Tax added on top of subtotal (Exclusive)",
+      "taxModeExclusiveHint": "Tax is added to the final total upon checkout",
+      "autoApplyTax": "Auto-apply VAT on new orders",
+      "allowManualTaxToggle": "Allow cashiers to toggle VAT per bill",
+      "saveBtn": "Save Settings",
+      "close": "Close",
+      "saveSuccess": "Billing settings saved successfully",
+      "saveError": "Failed to save billing settings",
+      "permissionDenied": "Only Managers or Admin/Owner can modify these settings.",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "adjustments": {
+      "title": "Bill Adjustments",
+      "tabDiscount": "Discount / Promo",
+      "tabSurcharge": "Surcharge / Fee",
+      "discountType": "Discount Type",
+      "percent": "Percentage (%)",
+      "fixedAmount": "Fixed Amount (₫)",
+      "discountValue": "Discount value",
+      "discountReason": "Reason / Promotion name",
+      "discountReasonPlaceholder": "e.g. VIP Customer, Grand Opening, Voucher...",
+      "quickPresets": "Quick presets",
+      "surchargeName": "Surcharge name",
+      "surchargeNamePlaceholder": "e.g. Service Charge, Holiday Surcharge, VIP Room...",
+      "surchargeType": "Surcharge type",
+      "surchargeValue": "Surcharge value",
+      "apply": "Apply",
+      "remove": "Remove",
+      "cancel": "Cancel",
+      "invalidPercent": "Percentage must be between 1 and 100",
+      "invalidAmount": "Invalid discount amount",
+      "exceedSubtotal": "Discount amount cannot exceed subtotal",
+      "exceedMaxDiscount": "Discount exceeds maximum allowed ({max}%)",
+      "vatToggleOn": "Enable VAT",
+      "vatToggleOff": "Disable VAT",
+      "vatIncluded": "VAT Included",
+      "vatAdded": "VAT Excluded",
+      "tabTax": "VAT Tax",
+      "taxRateLabel": "VAT Rate (%)",
+      "taxModeLabel": "Tax calculation mode",
+      "applyTax": "Apply VAT",
+      "removeTax": "Remove VAT",
+      "invalidTaxRate": "VAT rate must be between 0% and 100%"
     }
   },
   "branch": {
@@ -640,7 +715,7 @@
     "tabs": {
       "invoices": "Invoices",
       "zReport": "Z-Report",
-      "categories": "Categories",
+      "categories": "Category Sales",
       "hourly": "Peak Hours",
       "payments": "Payments"
     },
@@ -663,6 +738,17 @@
     "categoryName": "Category Name",
     "quantitySold": "Quantity Sold",
     "share": "Share",
+    "totalCategories": "Total Categories",
+    "totalQuantity": "Total Quantity Sold",
+    "totalCategoryRevenue": "Total Revenue",
+    "topCategory": "Top Category",
+    "searchCategory": "Search categories...",
+    "itemBreakdown": "Item Breakdown",
+    "itemName": "Item Name",
+    "shareInCategory": "% of Category",
+    "viewItems": "View Items",
+    "hideItems": "Hide Items",
+    "noItemsInCategory": "No items sold in this category",
     "hourRange": "Hour Range",
     "invoices": {
       "title": "Invoice Management",
@@ -727,7 +813,8 @@
       "voidedAt": "Voided at",
       "voidReason": "Void reason",
       "saveSuccess": "Invoice updated successfully",
-      "voidSuccess": "Invoice voided successfully"
+      "voidSuccess": "Invoice voided successfully",
+      "billingSettingsBtn": "Billing Settings"
     }
   },
   "tableAdmin": {

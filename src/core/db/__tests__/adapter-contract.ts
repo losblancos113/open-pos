@@ -164,5 +164,27 @@ export function describeAdapterContract(
         db.put(createEnvelope({ id: 'product:offline', docType: 'product', branchId: 'hq' })),
       ).resolves.toBeTruthy();
     });
+
+    it('notifies subscribers on put and remove, and honors unsubscribe', async () => {
+      if (typeof db.subscribe !== 'function') return;
+
+      let callCount = 0;
+      const unsubscribe = db.subscribe(() => {
+        callCount++;
+      });
+
+      const doc = createEnvelope({ id: 'product:sub-test', docType: 'product', branchId: 'hq' });
+      const saved = await db.put(doc);
+      expect(callCount).toBeGreaterThanOrEqual(1);
+
+      const countAfterPut = callCount;
+      await db.remove(saved._id, saved._rev!);
+      expect(callCount).toBeGreaterThan(countAfterPut);
+
+      unsubscribe();
+      const countAfterUnsub = callCount;
+      await db.put(doc);
+      expect(callCount).toBe(countAfterUnsub);
+    });
   });
 }
