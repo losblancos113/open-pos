@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { useI18n } from '../i18n';
+import { REPOSITORY_URL } from '../composables/useLatestRelease';
 
 const { t, locale, setLocale } = useI18n();
+const issuesUrl = `${REPOSITORY_URL}/issues`;
 
 function scrollToTop() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -44,13 +46,13 @@ function scrollToTop() {
           <h4 class="font-bold text-text uppercase tracking-wider text-[11px] mb-3">{{ t.footer.community }}</h4>
           <ul class="space-y-2 mb-4">
             <li>
-              <a href="https://github.com" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors flex items-center gap-1.5">
+              <a :href="REPOSITORY_URL" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors flex items-center gap-1.5">
                 <span>GitHub Repository</span>
                 <span class="text-[10px] text-text-subtle">↗</span>
               </a>
             </li>
             <li>
-              <a href="https://github.com/issues" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors flex items-center gap-1.5">
+              <a :href="issuesUrl" target="_blank" rel="noopener noreferrer" class="hover:text-primary transition-colors flex items-center gap-1.5">
                 <span>Báo lỗi / Issues</span>
                 <span class="text-[10px] text-text-subtle">↗</span>
               </a>

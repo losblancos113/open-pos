@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useI18n } from '../i18n';
+import { REPOSITORY_URL } from '../composables/useLatestRelease';
 
 const { locale, t, setLocale } = useI18n();
 const isMobileMenuOpen = ref(false);
@@ -65,7 +66,7 @@ function toggleMobileMenu() {
 
         <!-- GitHub Link -->
         <a
-          href="https://github.com"
+          :href="REPOSITORY_URL"
           target="_blank"
           rel="noopener noreferrer"
           class="btn btn-secondary px-3 py-1.5 text-xs"

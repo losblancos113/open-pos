@@ -10,12 +10,14 @@ function getInitialLocale(): Locale {
   if (typeof window === 'undefined') return 'vi';
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved === 'vi' || saved === 'en') return saved;
-  const browserLang = navigator.language?.toLowerCase() || '';
-  if (browserLang.startsWith('vi')) return 'vi';
-  return 'en';
+  return 'vi';
 }
 
 const currentLocale = ref<Locale>(getInitialLocale());
+
+if (typeof document !== 'undefined') {
+  document.documentElement.lang = currentLocale.value;
+}
 
 export function useI18n() {
   const locale = currentLocale;

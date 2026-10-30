@@ -253,6 +253,15 @@ export const vi = {
     btnDownload: 'Tải Về Miễn Phí (Windows, macOS, Linux)',
     btnGithub: 'Tham Gia Cộng Đồng GitHub',
     badge: 'Mã Nguồn Mở • Bản Quyền Miễn Phí • An Toàn Tuyệt Đối',
+    latest: 'Phiên bản mới nhất',
+    loading: 'Đang lấy liên kết tải xuống…',
+    downloadFor: 'Tải cho {platform}',
+    viewReleases: 'Xem tất cả bản phát hành trên GitHub',
+    platforms: {
+      windows: { label: 'Windows 10/11', formats: 'MSI / EXE' },
+      macos: { label: 'macOS', formats: 'DMG (Universal)' },
+      linux: { label: 'Linux', formats: 'AppImage / DEB' },
+    },
   },
   footer: {
     brand: 'Open POS',

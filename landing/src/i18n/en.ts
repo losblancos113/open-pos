@@ -253,6 +253,15 @@ export const en = {
     btnDownload: 'Download Free (Windows, macOS, Linux)',
     btnGithub: 'Join the GitHub Community',
     badge: 'Open Source • Free License • Zero Vendor Lock-in',
+    latest: 'Latest version',
+    loading: 'Fetching download links…',
+    downloadFor: 'Download for {platform}',
+    viewReleases: 'View all releases on GitHub',
+    platforms: {
+      windows: { label: 'Windows 10/11', formats: 'MSI / EXE' },
+      macos: { label: 'macOS', formats: 'DMG (Universal)' },
+      linux: { label: 'Linux', formats: 'AppImage / DEB' },
+    },
   },
   footer: {
     brand: 'Open POS',
