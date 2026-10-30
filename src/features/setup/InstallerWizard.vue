@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { ArrowBack, ArrowForward, Checkmark, Warning } from '@vicons/ionicons5';
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input } from '@vuetify/v0';
@@ -319,7 +321,7 @@ async function handleFinish() {
         data-test="step-error"
         class="p-3 text-xs rounded-lg bg-danger/10 text-danger border border-danger/30 flex items-center gap-2"
       >
-        <span>⚠️</span>
+        <span><AppIcon><Warning /></AppIcon></span>
         <span>{{ stepError }}</span>
       </div>
 
@@ -622,13 +624,13 @@ async function handleFinish() {
                 {{ t('setup.step3.portChecking') }}
               </span>
               <span v-else-if="portStatus === 'available'" class="text-primary font-medium flex items-center gap-1">
-                ✓ {{ t('setup.step3.portAvailable', { port: backendPort }) }}
+                <AppIcon><Checkmark /></AppIcon> {{ t('setup.step3.portAvailable', { port: backendPort }) }}
               </span>
               <span v-else-if="portStatus === 'in_use'" class="text-danger font-medium flex items-center gap-1">
-                ⚠ {{ t('setup.step3.portInUse', { port: backendPort }) }}
+                <AppIcon><Warning /></AppIcon> {{ t('setup.step3.portInUse', { port: backendPort }) }}
               </span>
               <span v-else-if="portStatus === 'invalid'" class="text-danger font-medium">
-                ⚠ {{ t('setup.step3.portInvalid') }}
+                <AppIcon><Warning /></AppIcon> {{ t('setup.step3.portInvalid') }}
               </span>
             </div>
           </div>
@@ -687,7 +689,7 @@ async function handleFinish() {
           :disabled="isSubmitting"
           @click="handlePrevStep"
         >
-          <Button.Content>← {{ t('setup.back') }}</Button.Content>
+          <Button.Content><AppIcon><ArrowBack /></AppIcon> {{ t('setup.back') }}</Button.Content>
         </Button.Root>
         <div v-else></div>
 
@@ -699,7 +701,7 @@ async function handleFinish() {
             class="btn btn-primary text-xs px-5 py-2 font-bold"
             @click="handleNextStep"
           >
-            <Button.Content>{{ t('setup.next') }} →</Button.Content>
+            <Button.Content>{{ t('setup.next') }} <AppIcon><ArrowForward /></AppIcon></Button.Content>
           </Button.Root>
 
           <Button.Root

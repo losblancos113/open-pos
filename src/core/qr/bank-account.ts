@@ -2,11 +2,13 @@
  * VietQR Bank Account Configuration & Bank Presets
  *
  * Defines the schema for branch-level receiving bank accounts (bank_account:<branchId>)
- * and standard NAPAS Bank Identification Numbers (BIN) presets (Spec §4.2, §5.4).
+ * and NAPAS Bank Identification Number (BIN) presets. The full bank registry comes from
+ * `vietnam-qr-pay` (Spec §4.2, §5.4).
  *
- * Invariant: Pure domain logic with zero external or framework dependencies.
+ * Invariant: Pure domain logic with no framework or storage dependencies.
  */
 
+import { Banks, type Bank } from 'vietnam-qr-pay';
 import { bankAccountDocId } from '../db/ids';
 
 export { bankAccountDocId };
@@ -28,7 +30,7 @@ export interface BankPreset {
 }
 
 /**
- * Standard NAPAS 247 Bank BIN presets for Vietnam.
+ * Standard NAPAS 247 Bank BIN presets for Vietnam, shown first in the picker.
  */
 export const BANK_PRESETS: readonly BankPreset[] = [
   { bin: '970436', shortName: 'VCB', name: 'Vietcombank' },
@@ -41,8 +43,20 @@ export const BANK_PRESETS: readonly BankPreset[] = [
 ] as const;
 
 /**
- * Finds a standard bank preset by its 6-digit BIN.
+ * Full Vietnamese bank registry (60+ banks) from `vietnam-qr-pay`.
+ */
+export const ALL_BANKS: readonly Bank[] = Banks;
+
+/**
+ * Finds a bank by its 6-digit BIN, checking the common presets first and
+ * falling back to the full registry from `vietnam-qr-pay`.
  */
 export function findBankPresetByBin(bin: string): BankPreset | undefined {
-  return BANK_PRESETS.find((preset) => preset.bin === bin);
+  const preset = BANK_PRESETS.find((p) => p.bin === bin);
+  if (preset) return preset;
+  const bank = Banks.find((b) => b.bin === bin);
+  if (bank) {
+    return { bin: bank.bin, shortName: bank.shortName, name: bank.name };
+  }
+  return undefined;
 }

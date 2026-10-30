@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { Checkmark, Close, HourglassOutline, NotificationsOutline, PricetagOutline, ReceiptOutline, SettingsOutline, Warning } from '@vicons/ionicons5';
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Dialog, Input, Checkbox } from '@vuetify/v0';
@@ -172,7 +174,7 @@ async function handleSave() {
       <div class="border-b border-border pb-3 flex items-start justify-between">
         <div>
           <Dialog.Title class="text-lg font-bold text-text flex items-center gap-2">
-            <span>⚙️</span>
+            <span><AppIcon><SettingsOutline /></AppIcon></span>
             <span>{{ t('pos.billingSettings.title') }}</span>
           </Dialog.Title>
           <Dialog.Description class="text-xs text-text-muted mt-1">
@@ -184,7 +186,7 @@ async function handleSave() {
           class="btn btn-ghost text-xs px-2 py-1 text-text-muted hover:text-text cursor-pointer"
           @click="isOpen = false"
         >
-          <Button.Content>✕</Button.Content>
+          <Button.Content><AppIcon><Close /></AppIcon></Button.Content>
         </Button.Root>
       </div>
 
@@ -194,7 +196,7 @@ async function handleSave() {
         class="p-3 rounded-md bg-warning/10 border border-warning/30 text-warning text-xs flex items-center gap-2"
         data-test="billing-settings-forbidden-banner"
       >
-        <span>⚠️</span>
+        <span><AppIcon><Warning /></AppIcon></span>
         <span>{{ t('pos.billingSettings.permissionDenied') }}</span>
       </div>
 
@@ -211,7 +213,7 @@ async function handleSave() {
         class="p-2.5 rounded-md bg-success/10 border border-success/30 text-success text-xs font-medium"
         data-test="billing-settings-success"
       >
-        ✓ {{ t('pos.billingSettings.saveSuccess') }}
+        <AppIcon><Checkmark /></AppIcon> {{ t('pos.billingSettings.saveSuccess') }}
       </div>
 
       <!-- Danh mục cài đặt -->
@@ -220,7 +222,7 @@ async function handleSave() {
         <div class="p-4 rounded-lg bg-surface/50 border border-border space-y-3" data-test="discount-settings-section">
           <div class="flex items-center justify-between">
             <div class="font-bold text-sm text-text flex items-center gap-1.5">
-              <span>🏷️</span>
+              <span><AppIcon><PricetagOutline /></AppIcon></span>
               <span>{{ t('pos.billingSettings.discountSection') }}</span>
             </div>
             <label class="flex items-center gap-2 cursor-pointer font-medium">
@@ -264,7 +266,7 @@ async function handleSave() {
         <div class="p-4 rounded-lg bg-surface/50 border border-border space-y-3" data-test="surcharge-settings-section">
           <div class="flex items-center justify-between">
             <div class="font-bold text-sm text-text flex items-center gap-1.5">
-              <span>🛎️</span>
+              <span><AppIcon><NotificationsOutline /></AppIcon></span>
               <span>{{ t('pos.billingSettings.surchargeSection') }}</span>
             </div>
             <label class="flex items-center gap-2 cursor-pointer font-medium">
@@ -372,7 +374,7 @@ async function handleSave() {
         <div class="p-4 rounded-lg bg-surface/50 border border-border space-y-3" data-test="tax-settings-section">
           <div class="flex items-center justify-between">
             <div class="font-bold text-sm text-text flex items-center gap-1.5">
-              <span>🧾</span>
+              <span><AppIcon><ReceiptOutline /></AppIcon></span>
               <span>{{ t('pos.billingSettings.taxSection') }}</span>
             </div>
             <label class="flex items-center gap-2 cursor-pointer font-medium">
@@ -517,7 +519,7 @@ async function handleSave() {
           @click="handleSave"
         >
           <Button.Content>
-            <span v-if="isSaving">⏳</span>
+            <span v-if="isSaving"><AppIcon><HourglassOutline /></AppIcon></span>
             <span>{{ t('pos.billingSettings.saveBtn') }}</span>
           </Button.Content>
         </Button.Root>

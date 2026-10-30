@@ -1,6 +1,7 @@
 # Open POS — Tài liệu thiết kế (Design Document)
 
-> **Phiên bản:** 0.3 · **Ngày:** 2026-10-20 · **Trạng thái:** Draft — chờ review lần 3
+> **Phiên bản:** 0.4 · **Ngày:** 2026-10-20 · **Trạng thái:** Draft — chờ review lần 3
+> **Thay đổi 0.3 → 0.4:** đổi cách sinh mã VietQR (R9) — **API `vietqr.vn` là phương thức chính**, dựng offline bằng `vietnam-qr-pay` là **phương thức dự phòng**. Cập nhật §1.2, §1.3, G4, §3.2, §3.3, §4.6, §8, §10 (Risk #22, #23), §11 #5.
 > **Thay đổi 0.2 → 0.3:** tách `M6` thành `M6a`/`M6b`/`M6c`; làm rõ **phân quyền theo branch** (chỉ `owner`/`admin` xem toàn hệ thống); thêm **guest user tạm thời** (tạo khi khách đặt món thành công); hạ mức Risk #16.
 > **Thay đổi 0.1 → 0.2:** bổ sung **multi-branch** vào v1, thêm **VietQR** (R9), mặc định `requireWaiterApproval = BẬT`, không làm e-invoice ở v1.
 > **Loại dự án:** Architectural (new project, greenfield)
@@ -37,7 +38,7 @@ Kiến trúc: **Vue 3 + TypeScript + Vite** trong **Tauri 2 (Rust shell)**, dữ
 | G1 | Bán hàng nhanh, ít thao tác, thân thiện màn hình cảm ứng | Tạo & thanh toán 1 bill ≤ 5 thao tác |
 | G2 | Người dùng tự mở rộng mô hình dữ liệu | Tạo type mới + dùng ngay được, **không cần deploy lại** |
 | G3 | Quản lý bàn linh hoạt | Split/merge/transfer không mất hoặc trùng món |
-| G4 | Chạy độc lập, không cần internet | Offline 100%; mất mạng không mất order |
+| G4 | Chạy độc lập, không cần internet | Mất mạng không mất order, không chặn bán hàng. Mọi chức năng nghiệp vụ chạy local; **các lời gọi ra ngoài (như sinh VietQR qua API) chỉ là tăng cường và luôn có đường dự phòng offline** |
 | G5 | Nhiều điểm chạm: cashier, staff mobile, khách QR, bếp KDS | Cùng một codebase, nhiều route/mode |
 | G6 | Dữ liệu bền vững, có backup | Sync + backup/restore, không mất dữ liệu |
 
@@ -52,7 +53,7 @@ Kiến trúc: **Vue 3 + TypeScript + Vite** trong **Tauri 2 (Rust shell)**, dữ
 - KDS realtime
 - Sync LAN + sync cloud (offline-first)
 - **Multi-branch** — một hệ thống quản lý nhiều chi nhánh; mỗi chi nhánh một hub local riêng, dữ liệu tách theo `branchId`, tổng hợp lên cloud
-- **VietQR** — mã QR chuyển khoản hiển thị trên màn hình bill khi chọn phương thức thanh toán chuyển khoản
+- **VietQR** — mã QR chuyển khoản hiển thị trên màn hình bill khi chọn phương thức thanh toán chuyển khoản; sinh qua API `vietqr.vn`, dự phòng offline bằng `vietnam-qr-pay` (R9)
 - In bill ra **PDF** (chừa interface cho ESC/POS)
 - Song ngữ **vi + en**
 
@@ -65,7 +66,7 @@ Kiến trúc: **Vue 3 + TypeScript + Vite** trong **Tauri 2 (Rust shell)**, dữ
 - Self-order kiosk
 - Multi-tenant (nhiều tenant độc lập chia sẻ hạ tầng) — **khác** multi-branch; multi-branch đã nằm trong v1
 - Hoá đơn điện tử / tích hợp thuế — xác nhận **chưa cần** ở v1 (xem §11 #4)
-- Tự động xác nhận thanh toán qua API/webhook ngân hàng — v1 chỉ **hiển thị VietQR + xác nhận thủ công**
+- Tự động xác nhận thanh toán qua API/webhook ngân hàng — v1 chỉ **hiển thị VietQR + xác nhận thủ công** (lưu ý: gọi API *sinh mã* VietQR là **trong** phạm vi, xem R9; gọi API *đối chiếu/xác nhận thanh toán* là **ngoài** phạm vi)
 - Màn hình phụ cho khách (customer display)
 - Máy in nhiệt ESC/POS + ngăn kéo tiền (chỉ chừa interface)
 
@@ -231,8 +232,28 @@ Hiển thị **mã QR chuyển khoản** ngay trên màn hình bill khi thanh to
 - **Tài khoản nhận tiền cấu hình theo branch** — collection `bank_accounts` (§4.2).
 - **Số tiền điền sẵn** = số tiền còn lại của bill (đúng cả khi khách đã thanh toán một phần).
 - **Xác nhận thanh toán là thủ công ở v1**: khách chuyển xong, nhân viên bấm "Đã nhận tiền" → ghi `payments` với `method = bank_transfer` + `ref` = mã đối chiếu.
-- **Không gọi API ngân hàng** ở v1 — không webhook, không auto-confirm (§1.3, §11 #5).
-- Mã QR render **offline**: dựng chuỗi EMVCo rồi vẽ ảnh QR tại chỗ, không cần internet.
+- **Không auto-confirm** ở v1 — không webhook, không polling số dư, không đối chiếu tự động (§1.3, §11 #5).
+
+**Cách sinh mã QR — API chính, offline dự phòng:**
+
+| Thứ tự | Cơ chế | Điều kiện dùng |
+|:------:|--------|----------------|
+| 1 | **API `POST https://vietqr.vn/api/vietqr/generate`** | Mặc định, khi thiết bị có internet |
+| 2 | **Dựng offline bằng thư viện `vietnam-qr-pay`** | Không có mạng, request lỗi, timeout, HTTP không phải 2xx, hoặc API trả `{ error }` / thiếu `qrCode` |
+
+- **Payload của hai cơ chế KHÔNG giống hệt nhau** — đã kiểm chứng bằng cách gọi thật và parse lại:
+  - API **luôn** đặt Tag 01 = `11` (QR tĩnh) kể cả khi có số tiền, và **bỏ Tag 59** (tên chủ tài khoản).
+  - Bản offline đặt Tag 01 = `12` khi có số tiền (QR động) và có Tag 59 nếu biết tên.
+  - Các trường mang nghĩa thanh toán — BIN, số tài khoản, số tiền, nội dung (`ref`), tiền tệ, quốc gia — **giống nhau**, CRC hợp lệ ở cả hai. Nếu ép offline dùng `initMethod = '11'` và không set tên thì hai chuỗi **trùng khít từng byte**.
+- **Hệ quả cần biết:** QR sinh từ API là "tĩnh kèm số tiền"; một số app ngân hàng có thể cho phép khách sửa số tiền, nên nhân viên **vẫn phải đối chiếu số tiền về** với bill — đúng như quy trình "Đã nhận tiền" thủ công ở R9. Fallback offline (Tag 01 = `12`) khoá số tiền chặt hơn.
+- Vì vậy test không được khẳng định "hai payload bằng nhau"; test phải khẳng định **các trường thanh toán khớp nhau** và **CRC hợp lệ ở cả hai nhánh**.
+- **Fallback là bắt buộc, không phải tuỳ chọn.** Mất mạng LAN/WAN là tình huống thường gặp ở quán ăn; QR phải luôn sinh được để không chặn luồng thanh toán (G4 — mất mạng không chặn bán hàng).
+- **Timeout mặc định 3 giây**; hết thời gian chờ coi như lỗi và chuyển sang offline ngay, không bắt nhân viên/khách đợi.
+- **Gọi API là best-effort và không chặn UI**: hiển thị mã offline ngay lập tức, nếu API trả về thì thay thế. Không có trạng thái "đang tải QR".
+- **UI phải huỷ request** khi đóng modal hoặc khi số tiền/nội dung thay đổi, để tránh response cũ ghi đè mã mới.
+- **Không gửi dữ liệu nhạy cảm ngoài trường cần thiết**: chỉ `bankAccount`, `userBankName`, `bankCode`, `amount`, `content`. Không gửi thông tin khách, mã đơn nội bộ khác, hay dữ liệu chi nhánh (Risk #22).
+- **Mã QR luôn được vẽ tại chỗ** từ chuỗi EMVCo nhận được (`generateQrSvg`) — không nhúng ảnh/`imgId` từ API, để QR in ra và QR hiển thị dùng cùng một nguồn.
+- **Ánh xạ BIN → `bankCode`** dùng bảng tĩnh trong `src/core/qr/vietqr.ts`; nếu BIN không có trong bảng thì gửi nguyên BIN và để fallback xử lý khi API từ chối.
 
 ---
 
@@ -336,7 +357,7 @@ Hiển thị **mã QR chuyển khoản** ngay trên màn hình bill khi thanh to
 | State | Pinia | Chuẩn cho Vue 3 |
 | Routing | Vue Router | Hỗ trợ route `/order`, `/staff`, `/kds` |
 | i18n | vue-i18n | vi + en |
-| VietQR | Bộ dựng payload EMVCo/NAPAS + QR renderer offline (tự viết) | Sinh mã & vẽ QR ngay trên thiết bị, không phụ thuộc API ngân hàng |
+| VietQR | API `vietqr.vn` (chính) + thư viện `vietnam-qr-pay` (dự phòng offline) + QR renderer tự viết | Sinh mã qua API chuẩn hoá khi có mạng; tự dựng payload EMVCo/NAPAS ngay trên thiết bị khi mất mạng. Renderer luôn chạy local nên QR không bao giờ "mất" vì mạng |
 | Validation | Type Registry engine (tự viết) + Zod cho core | Field tuỳ chỉnh cần engine động; Zod cho schema hệ thống |
 | Testing | Vitest, fast-check, Playwright, cargo test | Xem §8 |
 
@@ -352,7 +373,7 @@ src/
 │   ├── sync/                Sync orchestration, conflict queue, sync status
 │   ├── auth/                Session, roles, permission checks
 │   ├── branch/              Ngữ cảnh chi nhánh, scoping dữ liệu, chuyển chi nhánh
-│   ├── qr/                  Dựng payload VietQR (EMVCo/NAPAS) + render QR offline
+│   ├── qr/                  Sinh payload VietQR (API chính, offline dự phòng) + render QR tại chỗ
 │   ├── types/               Type Registry read-model, field-type registry,
 │   │                        validation engine, formula interpreter
 │   ├── money/               Money type (integer đồng), rounding, formatting
@@ -679,10 +700,10 @@ Mỗi event: `{ _id, type, billId, sessionId, actorId, deviceId, payload, create
                Bill → `paid` / `closed`
 ```
 
-- QR sinh **offline**: dựng chuỗi EMVCo tại chỗ rồi vẽ ảnh QR, không cần internet, không gọi API.
+- **QR sinh qua API `vietqr.vn`, tự động rơi xuống dựng offline bằng `vietnam-qr-pay`** nếu không có mạng hoặc API lỗi (R9). UI hiện mã offline ngay, thay bằng mã từ API khi có phản hồi; chuỗi EMVCo luôn được vẽ thành SVG tại chỗ.
 - `ref` = mã đối chiếu, xuất hiện trong báo cáo để khớp với sao kê ngân hàng.
 - Bill thanh toán một phần: QR hiển thị **số tiền còn lại**, không phải tổng bill.
-- Không auto-confirm ở v1 — không webhook, không polling API ngân hàng (§1.3).
+- Không auto-confirm ở v1 — không webhook, không polling số dư/đối chiếu ngân hàng (§1.3).
 - **Khách bấm "Thanh toán" → sinh event `PAYMENT_REQUESTED`** → nhân viên nhận thông báo realtime trên POS/staff mobile, biết bàn nào đang chờ xác nhận tiền về. Tránh tình huống khách đã chuyển khoản mà nhân viên không biết (Risk #20).
 - **Tài khoản nhận tiền lấy từ `bank_accounts` của branch đang hoạt động** — đổi chi nhánh là đổi tài khoản nhận tiền, không cần sửa code.
 
@@ -889,7 +910,7 @@ pub trait PrinterAdapter: Send + Sync {
 
 | Loại | Công cụ | Phạm vi |
 |------|---------|---------|
-| **Unit** | Vitest | Money math, pricing, validation engine, formula interpreter, order lifecycle, **dựng payload VietQR (EMVCo)** |
+| **Unit** | Vitest | Money math, pricing, validation engine, formula interpreter, order lifecycle, **dựng payload VietQR (EMVCo) và nhánh fallback khi API lỗi** (mock `fetch`) |
 | **Property-based** | fast-check | Split/merge invariants, rounding (largest remainder), cart totals, tổng tiền bảo toàn |
 | **Integration** | Vitest + PouchDB memory adapter + PouchDB-server thật | Replication 2 chiều, conflict scenarios, offline→online, event replay, **cách ly dữ liệu giữa các branch** |
 | **Rust** | `cargo test` | axum routes, token sign/verify, Argon2, rate limit, hub supervision, **branch scoping enforcement** |
@@ -902,8 +923,9 @@ pub trait PrinterAdapter: Send + Sync {
 3. **Event replay determinism** — rebuild bill từ events phải cho cùng kết quả trên mọi máy.
 4. **QR token expiry & abuse** — token hết hạn, token của bàn khác, replay attack.
 5. **Cross-branch isolation** ✚ — user của branch A không đọc/ghi được dữ liệu branch B (Risk #16). Test ở cả axum API và filtered replication.
-6. **VietQR payload validity** ✚ — sinh đúng chuẩn EMVCo/NAPAS; test bằng cách **quét thử bằng app ngân hàng thật** (không chỉ unit test); kiểm tra `ref` không dấu, đúng độ dài, số tiền khớp bill.
-7. **Branch override resolution** ✚ — giá hiển thị đúng theo thứ tự `override → price_list → basePrice` (Risk #18).
+6. **VietQR payload validity** ✚ — sinh đúng chuẩn EMVCo/NAPAS; test bằng cách **quét thử bằng app ngân hàng thật** (không chỉ unit test); kiểm tra `ref` không dấu, đúng độ dài, số tiền khớp bill. **Thêm: payload API và payload offline phải khớp nhau ở các trường thanh toán** (BIN, số tài khoản, số tiền, `ref`) và **CRC hợp lệ ở cả hai nhánh** — test parse lại bằng chính thư viện, không so sánh chuỗi thô (vì API luôn dùng Tag 01 = `11` và bỏ Tag 59).
+7. **VietQR fallback khi mất mạng** ✚ — mock `fetch` reject/timeout/HTTP 5xx/`{ error }` và khẳng định mã vẫn sinh được từ thư viện offline; khẳng định UI không hiện trạng thái lỗi cho người dùng.
+8. **Branch override resolution** ✚ — giá hiển thị đúng theo thứ tự `override → price_list → basePrice` (Risk #18).
 
 ---
 
@@ -945,7 +967,7 @@ M0 ──► M1 ──► M2 ──► M3 ──► M4
 
 **Ghi chú multi-branch & VietQR:**
 
-- **VietQR nằm ở M3** vì là một phần của luồng payment — không cần chờ tới nhóm M6. Khối lượng nhỏ (dựng payload EMVCo + render QR).
+- **VietQR nằm ở M3** vì là một phần của luồng payment — không cần chờ tới nhóm M6. Khối lượng nhỏ (gọi API sinh mã + dựng payload EMVCo dự phòng + render QR).
 - **Multi-branch là M6a** nhưng **`branchId` phải có từ M0**. Nếu để tới M6a mới thêm `branchId`, phải migrate lại toàn bộ dữ liệu — tốn công hơn nhiều so với mang sẵn từ đầu (Risk #17).
 - **Cần mở chi nhánh thứ 2 sớm?** → chuyển M6a lên ngay sau M4, trước M5. M5 (QR/KDS) và M6b (kho) làm sau vẫn được, vì `branchId` đã có sẵn từ M0 nên không phải migrate.
 
@@ -998,6 +1020,8 @@ Sau mỗi milestone là một sản phẩm **chạy thật được**, không ph
 | 19 | ✚ **VietQR sai nội dung chuyển khoản** — `ref` không khớp sao kê → khó đối soát | Trung bình | Không khớp được tiền về, mất thời gian đối soát | Format `ref` cố định + validate độ dài/không dấu; xuất `ref` trong báo cáo; preview QR trước khi hiển thị |
 | 20 | ✚ **VietQR thủ công — khách chuyển mà nhân viên không thấy tiền** | Trung bình | Nhân viên bấm "Đã nhận" khi tiền chưa về → thất thoát | Bắt buộc nhân viên xác nhận trên app ngân hàng; ghi `ref` vào payment; đối soát cuối ca với sao kê |
 | 21 | ✚ **Guest user tồn đọng / lạm dụng** — guest "mồ côi", hoặc spam tạo guest qua order rác | Thấp | `users` phình dần, dữ liệu rác | Guest chỉ sinh khi order **hợp lệ** (có table token + validate server-side); guest token hết hiệu lực ngay khi đóng phiên; **job purge sau 30 ngày** (nằm ở M6c); rate limit theo IP cho `/api/order` |
+| 22 | ✚ **Phụ thuộc API bên thứ ba để sinh VietQR** — `vietqr.vn` đổi/đóng API, chậm, chặn CORS, đổi định dạng, hoặc thu phí | Trung bình | Không sinh được mã → chặn thanh toán; hoặc gửi dữ liệu tài khoản ra ngoài | **Fallback offline là bắt buộc và luôn được test** (thư viện `vietnam-qr-pay`). Timeout 3s để không treo UI. Chỉ gửi 5 trường tối thiểu. UI hiện mã offline ngay, API chỉ thay thế khi thành công. Ghi log `source` khi phải fallback để phát hiện API hỏng kéo dài. Nếu API chết hẳn, tắt cờ "dùng API" là xong — fallback trở thành chính |
+| 23 | ✚ **API và offline sinh payload khác nhau** — API luôn dùng Tag 01 = `11` (tĩnh) và bỏ Tag 59; offline dùng `12` khi có số tiền | Thấp | Khách có thể sửa số tiền trên một số app ngân hàng khi quét QR "tĩnh" | Nhân viên **luôn đối chiếu số tiền về với bill** trước khi bấm "Đã nhận tiền" (đã là quy trình bắt buộc ở R9/Risk #20); ghi `ref` vào payment để khớp sao kê. Nếu cần khoá số tiền tuyệt đối, tắt API để dùng offline (`initMethod = 12`) |
 
 ---
 
@@ -1011,7 +1035,7 @@ Sau mỗi milestone là một sản phẩm **chạy thật được**, không ph
 | **2** | **Multi-branch** trong v1? | ✅ **CÓ — làm multi-branch trong v1** | Mỗi chi nhánh một hub local; `branchId` xuyên suốt schema; catalog global + override theo branch; cloud là tầng tổng hợp. **Bắt buộc `branchId` có từ M0** (Risk #17). Multi-tenant (nhiều tenant độc lập) vẫn ngoài phạm vi |
 | **3** | **Printer** — máy in nhiệt ESC/POS trong v1? | ✅ **PDF trước** | `PrinterAdapter` trait chừa sẵn cho ESC/POS ở v2 |
 | **4** | **E-invoice / hoá đơn điện tử** (tích hợp thuế VN)? | ✅ **CHƯA CẦN ở v1** | Xác nhận không làm e-invoice. Order numbering vẫn dùng prefix branch+terminal để sẵn sàng nâng cấp sau |
-| **5** | **Payment** — chỉ tiền mặt hay tích hợp bank/e-wallet? | ✅ **VietQR + xác nhận thủ công** | Hiện mã VietQR trên màn hình bill khi chọn chuyển khoản (khách hoặc nhân viên). **Không** gọi API ngân hàng, không webhook, không auto-confirm. Momo/ZaloPay: ngoài phạm vi v1 |
+| **5** | **Payment** — chỉ tiền mặt hay tích hợp bank/e-wallet? | ✅ **VietQR + xác nhận thủ công** | Hiện mã VietQR trên màn hình bill khi chọn chuyển khoản (khách hoặc nhân viên). Mã sinh qua **API `vietqr.vn`**, tự động **dự phòng offline bằng `vietnam-qr-pay`** khi mất mạng hoặc API lỗi (R9). **Không** auto-confirm: không webhook, không polling số dư, không gọi API xác nhận thanh toán. Momo/ZaloPay: ngoài phạm vi v1 |
 | **6** | **QR approval** — `requireWaiterApproval` mặc định bật hay tắt? | ✅ **MẶC ĐỊNH BẬT** | Cấu hình được theo branch/bàn; mặc định BẬT để kiểm soát order từ khách |
 | **7** | **Language** — chỉ tiếng Việt hay vi + en? | ✅ **vi + en** | Dùng vue-i18n; en hữu ích cho khách du lịch và dev |
 

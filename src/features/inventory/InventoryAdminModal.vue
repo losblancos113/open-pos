@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { Checkmark } from '@vicons/ionicons5';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input } from '@vuetify/v0';
@@ -386,7 +388,7 @@ async function handleStocktakeSubmit() {
         <h3 class="text-sm font-semibold text-text">{{ t('inventory.waste.title') }}</h3>
 
         <div v-if="wasteSuccessMsg" class="p-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded">
-          ✓ {{ t('inventory.waste.submit') }} thành công!
+          <AppIcon><Checkmark /></AppIcon> {{ t('inventory.waste.submit') }} thành công!
         </div>
 
         <form class="space-y-3 max-w-md" @submit.prevent="handleRecordWaste">
@@ -470,7 +472,7 @@ async function handleStocktakeSubmit() {
         </div>
 
         <div v-if="stocktakeSuccessMsg" class="p-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded">
-          ✓ {{ t('inventory.stocktake.submit') }} thành công!
+          <AppIcon><Checkmark /></AppIcon> {{ t('inventory.stocktake.submit') }} thành công!
         </div>
 
         <div class="border border-border rounded-lg overflow-hidden overflow-x-auto max-h-96">

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { BusinessOutline, Close } from '@vicons/ionicons5';
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Dialog, Button, Input } from '@vuetify/v0';
@@ -90,7 +92,7 @@ async function handleAddBranch() {
       <div class="flex items-center justify-between border-b pb-3 border-border shrink-0">
         <div>
           <Dialog.Title class="text-lg font-bold text-text flex items-center gap-2">
-            <span>🏢</span>
+            <span><AppIcon><BusinessOutline /></AppIcon></span>
             <span>{{ t('branch.manage') }}</span>
           </Dialog.Title>
         </div>
@@ -100,7 +102,7 @@ async function handleAddBranch() {
           class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface cursor-pointer"
           @click="emit('close')"
         >
-          <Button.Content>✕ {{ t('common.close') }}</Button.Content>
+          <Button.Content><AppIcon><Close /></AppIcon> {{ t('common.close') }}</Button.Content>
         </Button.Root>
       </div>
 
@@ -112,7 +114,7 @@ async function handleAddBranch() {
         data-test="branch-admin-error"
       >
         <span>{{ errorMessage }}</span>
-        <button type="button" class="text-danger hover:underline font-bold" @click="errorMessage = null">✕</button>
+        <button type="button" class="text-danger hover:underline font-bold" @click="errorMessage = null"><AppIcon><Close /></AppIcon></button>
       </div>
 
       <div
@@ -122,7 +124,7 @@ async function handleAddBranch() {
         data-test="branch-admin-success"
       >
         <span>{{ successMessage }}</span>
-        <button type="button" class="text-success hover:underline font-bold" @click="successMessage = null">✕</button>
+        <button type="button" class="text-success hover:underline font-bold" @click="successMessage = null"><AppIcon><Close /></AppIcon></button>
       </div>
 
       <!-- Scrollable content area -->

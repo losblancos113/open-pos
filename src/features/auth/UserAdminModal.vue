@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { AddOutline, CheckmarkCircle, Close, CreateOutline, PeopleOutline, Warning } from '@vicons/ionicons5';
 import { ref, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input } from '@vuetify/v0';
@@ -186,7 +188,7 @@ async function handleSaveEditUser() {
       <!-- Header -->
       <div class="flex items-center justify-between border-b pb-3 border-border shrink-0">
         <div class="flex items-center gap-2">
-          <span class="text-xl">👥</span>
+          <span class="text-xl"><AppIcon><PeopleOutline /></AppIcon></span>
           <h2 class="text-base font-bold text-text">{{ t('auth.userManagement') }}</h2>
         </div>
         <Button.Root
@@ -195,7 +197,7 @@ async function handleSaveEditUser() {
           class="btn btn-ghost text-xs px-2.5 py-1"
           @click="emit('close')"
         >
-          <Button.Content>✕ {{ t('common.close') }}</Button.Content>
+          <Button.Content><AppIcon><Close /></AppIcon> {{ t('common.close') }}</Button.Content>
         </Button.Root>
       </div>
 
@@ -205,8 +207,8 @@ async function handleSaveEditUser() {
         data-test="user-admin-error"
         class="p-2.5 text-xs text-danger bg-danger/10 border border-danger/20 rounded-md flex justify-between items-center"
       >
-        <span>⚠️ {{ errorMessage }}</span>
-        <button type="button" class="text-danger hover:underline font-bold" @click="errorMessage = null">✕</button>
+        <span><AppIcon><Warning /></AppIcon> {{ errorMessage }}</span>
+        <button type="button" class="text-danger hover:underline font-bold" @click="errorMessage = null"><AppIcon><Close /></AppIcon></button>
       </div>
 
       <div
@@ -214,8 +216,8 @@ async function handleSaveEditUser() {
         data-test="user-admin-success"
         class="p-2.5 text-xs text-success bg-success/10 border border-success/20 rounded-md flex justify-between items-center"
       >
-        <span>✅ {{ successMessage }}</span>
-        <button type="button" class="text-success hover:underline font-bold" @click="successMessage = null">✕</button>
+        <span><AppIcon><CheckmarkCircle /></AppIcon> {{ successMessage }}</span>
+        <button type="button" class="text-success hover:underline font-bold" @click="successMessage = null"><AppIcon><Close /></AppIcon></button>
       </div>
 
       <!-- Main Action: Add User button (when not editing/adding) -->
@@ -228,7 +230,7 @@ async function handleSaveEditUser() {
           @click="openAddUserForm"
         >
           <Button.Content>
-            <span>➕</span>
+            <span><AppIcon><AddOutline /></AppIcon></span>
             <span>{{ t('auth.addUser') }}</span>
           </Button.Content>
         </Button.Root>
@@ -240,7 +242,7 @@ async function handleSaveEditUser() {
         class="p-4 rounded-xl border border-border bg-surface-muted/60 space-y-3.5 overflow-y-auto"
       >
         <div class="flex items-center justify-between border-b border-border pb-2">
-          <h3 class="text-sm font-bold text-text">➕ {{ t('auth.addUser') }}</h3>
+          <h3 class="text-sm font-bold text-text"><AppIcon><AddOutline /></AppIcon> {{ t('auth.addUser') }}</h3>
           <Button.Root
             type="button"
             class="btn btn-ghost text-xs py-1 px-2"
@@ -369,7 +371,7 @@ async function handleSaveEditUser() {
       >
         <div class="flex items-center justify-between border-b border-border pb-2">
           <h3 class="text-sm font-bold text-text">
-            ✏️ {{ t('auth.editUser') }}: <span class="text-primary font-mono">{{ editingUser.username }}</span>
+            <AppIcon><CreateOutline /></AppIcon> {{ t('auth.editUser') }}: <span class="text-primary font-mono">{{ editingUser.username }}</span>
           </h3>
           <Button.Root
             type="button"
@@ -549,7 +551,7 @@ async function handleSaveEditUser() {
                   class="btn btn-ghost text-xs px-2 py-1 text-primary hover:bg-primary/10 rounded"
                   @click="openEditUserForm(u)"
                 >
-                  <Button.Content>✏️ {{ t('common.edit') }}</Button.Content>
+                  <Button.Content><AppIcon><CreateOutline /></AppIcon> {{ t('common.edit') }}</Button.Content>
                 </Button.Root>
               </td>
             </tr>

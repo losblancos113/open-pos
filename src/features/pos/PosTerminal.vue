@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { ArrowForward, CartOutline, ChevronDown, Close, PeopleOutline, RestaurantOutline, SettingsOutline } from '@vicons/ionicons5';
 import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input, Select, Snackbar, Alert } from '@vuetify/v0';
@@ -1657,7 +1659,7 @@ defineExpose({
             >
               <Select.Activator class="field-input py-1 px-2.5 text-xs font-semibold cursor-pointer flex items-center gap-1.5">
                 <span>{{ terminalCode }}</span>
-                <span class="text-[10px] text-text-muted">▼</span>
+                <span class="text-[10px] text-text-muted"><AppIcon><ChevronDown /></AppIcon></span>
               </Select.Activator>
               <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[6rem] border border-border z-50 bg-surface">
                 <Select.Item
@@ -1734,7 +1736,7 @@ defineExpose({
           :title="t('pos.billingSettings.title')"
           @click="handleOpenBillingSettings"
         >
-          <span>⚙️ {{ t('pos.billingSettings.title') }}</span>
+          <span><AppIcon><SettingsOutline /></AppIcon> {{ t('pos.billingSettings.title') }}</span>
         </Button.Root>
       </div>
     </header>
@@ -1762,7 +1764,7 @@ defineExpose({
                 class="font-bold text-xs px-2.5 py-1 rounded bg-primary/10 text-primary border border-primary/20 flex items-center gap-1.5"
                 data-test="selected-table-badge"
               >
-                <span>🍽️</span>
+                <span><AppIcon><RestaurantOutline /></AppIcon></span>
                 <span>{{ effectiveTableName || selectedTableId.replace(/^table:[^:]+:/, '') }}</span>
                 <span class="text-text-muted font-normal text-[11px]">({{ currentTableDoc?.code || selectedTableId.replace(/^table:[^:]+:/, '') }})</span>
                 <span v-if="selectedTableId && !effectiveTableName.includes(selectedTableId.replace(/^table:[^:]+:/, ''))" class="sr-only">{{ selectedTableId.replace(/^table:[^:]+:/, '') }}</span>
@@ -1788,7 +1790,7 @@ defineExpose({
               </span>
 
               <span v-if="effectiveGuestCount" class="text-xs text-text-muted hidden sm:inline">
-                👥 {{ t('pos.table.capacity', { count: effectiveGuestCount }) }}
+                <AppIcon><PeopleOutline /></AppIcon> {{ t('pos.table.capacity', { count: effectiveGuestCount }) }}
               </span>
             </div>
 
@@ -1830,7 +1832,7 @@ defineExpose({
                 :title="t('pos.table.deselect')"
                 @click="handleDeselectTable"
               >
-                <Button.Content>✕ {{ t('pos.table.deselect') }}</Button.Content>
+                <Button.Content><AppIcon><Close /></AppIcon> {{ t('pos.table.deselect') }}</Button.Content>
               </Button.Root>
             </div>
           </div>
@@ -1891,7 +1893,7 @@ defineExpose({
         @click="scrollToTicket"
       >
         <div class="flex items-center gap-2">
-          <span>🛒</span>
+          <span><AppIcon><CartOutline /></AppIcon></span>
           <span class="font-bold text-xs">
             {{ effectiveBill.lines.filter((l) => l.status !== 'voided').length }} món
           </span>
@@ -1900,7 +1902,7 @@ defineExpose({
           <span class="font-mono font-bold text-sm">
             {{ format(effectiveBill.balanceRemaining || effectiveBill.total) }}
           </span>
-          <span class="text-xs bg-surface/20 px-2 py-0.5 rounded font-medium">Xem đơn →</span>
+          <span class="text-xs bg-surface/20 px-2 py-0.5 rounded font-medium">Xem đơn <AppIcon><ArrowForward /></AppIcon></span>
         </div>
       </div>
 
@@ -1956,7 +1958,7 @@ defineExpose({
                 <p class="text-xs mt-1 text-text-muted">{{ t('pos.ticket.emptySubtitle') }}</p>
               </template>
               <template v-else-if="mode === 'floor'">
-                <div class="text-3xl mb-2">🍽️</div>
+                <div class="text-3xl mb-2"><AppIcon><RestaurantOutline /></AppIcon></div>
                 <p class="font-medium text-base text-text">{{ t('pos.table.selectTableHint') }}</p>
                 <p class="text-xs mt-1 text-text-muted">{{ t('pos.mode.floor') }}</p>
               </template>

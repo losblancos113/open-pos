@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { SettingsOutline } from '@vicons/ionicons5';
 import { ref, computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@vuetify/v0';
@@ -93,7 +95,7 @@ async function onBranchChange(event: Event) {
     >
       <Button.Content>
         <span class="sr-only">{{ t('branch.manage') }}</span>
-        ⚙️
+        <AppIcon><SettingsOutline /></AppIcon>
       </Button.Content>
     </Button.Root>
 

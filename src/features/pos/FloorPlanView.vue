@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { SettingsOutline } from '@vicons/ionicons5';
 import { ref, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@vuetify/v0';
@@ -117,7 +119,7 @@ onMounted(() => {
         class="btn btn-ghost text-xs px-2.5 py-1.5 rounded-md hover:bg-surface border border-border text-text-muted hover:text-text shrink-0 flex items-center gap-1.5"
         @click="emit('open-table-admin')"
       >
-        <Button.Content>⚙️ {{ t('tableAdmin.title') }}</Button.Content>
+        <Button.Content><AppIcon><SettingsOutline /></AppIcon> {{ t('tableAdmin.title') }}</Button.Content>
       </Button.Root>
     </div>
 

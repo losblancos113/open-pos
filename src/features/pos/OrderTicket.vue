@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { CardOutline, CheckmarkCircle, Close, DocumentTextOutline, FastFoodOutline, HourglassOutline, PrintOutline, StopwatchOutline } from '@vicons/ionicons5';
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input, Dialog } from '@vuetify/v0';
@@ -258,28 +260,28 @@ function confirmMove() {
                 data-test="line-status-badge"
                 class="px-1.5 py-0.5 text-[10px] rounded bg-amber-500/15 text-amber-700 dark:text-amber-400 font-semibold border border-amber-500/30"
               >
-                ⏱️ {{ t('pos.ticket.statusUnconfirmed') }}
+                <AppIcon><StopwatchOutline /></AppIcon> {{ t('pos.ticket.statusUnconfirmed') }}
               </span>
               <span
                 v-else-if="line.kdsStatus === 'pending'"
                 data-test="line-status-badge"
                 class="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/15 text-blue-700 dark:text-blue-400 font-medium border border-blue-500/30"
               >
-                ⏳ {{ t('pos.ticket.statusPending') }}
+                <AppIcon><HourglassOutline /></AppIcon> {{ t('pos.ticket.statusPending') }}
               </span>
               <span
                 v-else-if="line.kdsStatus === 'preparing'"
                 data-test="line-status-badge"
                 class="px-1.5 py-0.5 text-[10px] rounded bg-amber-600/15 text-amber-800 dark:text-amber-300 font-medium border border-amber-600/30 animate-pulse"
               >
-                🍳 {{ t('pos.ticket.statusPreparing') }}
+                <AppIcon><FastFoodOutline /></AppIcon> {{ t('pos.ticket.statusPreparing') }}
               </span>
               <span
                 v-else-if="line.kdsStatus === 'ready'"
                 data-test="line-status-badge"
                 class="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-medium border border-emerald-500/30"
               >
-                ✅ {{ t('pos.ticket.statusReady') }}
+                <AppIcon><CheckmarkCircle /></AppIcon> {{ t('pos.ticket.statusReady') }}
               </span>
             </div>
 
@@ -314,7 +316,7 @@ function confirmMove() {
               data-test="line-note"
               class="text-xs text-primary/90 italic mt-1 flex items-center gap-1"
             >
-              <span>📝</span>
+              <span><AppIcon><DocumentTextOutline /></AppIcon></span>
               <span>{{ line.note }}</span>
             </div>
           </div>
@@ -378,7 +380,7 @@ function confirmMove() {
               :title="t('pos.ticket.deleteDraft')"
               @click="emit('remove-line', line.lineId)"
             >
-              ✕ {{ t('pos.ticket.deleteDraft') }}
+              <AppIcon><Close /></AppIcon> {{ t('pos.ticket.deleteDraft') }}
             </Button.Root>
             <Button.Root
               v-else
@@ -442,7 +444,7 @@ function confirmMove() {
               :title="t('pos.ticket.removeDiscount')"
               @click.stop="emit('remove-discount')"
             >
-              ✕
+              <AppIcon><Close /></AppIcon>
             </button>
           </span>
           <span
@@ -494,7 +496,7 @@ function confirmMove() {
               :title="t('pos.ticket.removeSurcharge')"
               @click.stop="emit('remove-surcharge')"
             >
-              ✕
+              <AppIcon><Close /></AppIcon>
             </button>
           </span>
           <span
@@ -545,7 +547,7 @@ function confirmMove() {
               :title="t('pos.adjustments.vatToggleOff')"
               @click.stop="emit('toggle-tax', false)"
             >
-              ✕
+              <AppIcon><Close /></AppIcon>
             </button>
           </span>
           <span
@@ -601,7 +603,7 @@ function confirmMove() {
         class="btn btn-primary text-sm py-2.5 rounded-md font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm hover:opacity-95 active:scale-[0.99] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         @click="emit('confirm-order')"
       >
-        <span>🍳</span>
+        <span><AppIcon><FastFoodOutline /></AppIcon></span>
         <span>{{ t('pos.ticket.sendToKitchen') }} ({{ unconfirmedCount }})</span>
       </Button.Root>
 
@@ -613,7 +615,7 @@ function confirmMove() {
           class="btn btn-ghost border border-border text-xs py-2.5 rounded-md font-medium flex items-center justify-center gap-1.5 cursor-pointer hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed"
           @click="emit('print-draft')"
         >
-          <span>🖨️</span>
+          <span><AppIcon><PrintOutline /></AppIcon></span>
           <span>{{ t('pos.ticket.printDraft') }}</span>
         </Button.Root>
 
@@ -625,7 +627,7 @@ function confirmMove() {
           :class="hasUnconfirmedLines ? 'btn-ghost border border-primary/50 text-primary' : 'btn-primary'"
           @click="emit('checkout')"
         >
-          <span>💳</span>
+          <span><AppIcon><CardOutline /></AppIcon></span>
           <span>{{ t('pos.ticket.checkout') }}</span>
         </Button.Root>
       </div>

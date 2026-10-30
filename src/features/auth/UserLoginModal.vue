@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { BackspaceOutline, Close, GlobeOutline, KeyOutline, KeypadOutline, LockClosedOutline, RocketOutline, Warning } from '@vicons/ionicons5';
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input } from '@vuetify/v0';
@@ -257,7 +259,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
           class="btn btn-ghost text-xs p-1 h-7 w-7 rounded-full cursor-pointer flex items-center justify-center text-text-muted hover:text-text shrink-0"
           @click="emit('cancel')"
         >
-          ✕
+          <AppIcon><Close /></AppIcon>
         </Button.Root>
       </div>
 
@@ -274,7 +276,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
           ]"
           @click="activeTab = 'local'"
         >
-          🔑 {{ t('auth.localLogin') }}
+          <AppIcon><KeyOutline /></AppIcon> {{ t('auth.localLogin') }}
         </button>
         <button
           type="button"
@@ -287,7 +289,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
           ]"
           @click="activeTab = 'logto'"
         >
-          🌐 Logto SSO
+          <AppIcon><GlobeOutline /></AppIcon> Logto SSO
         </button>
       </div>
 
@@ -297,7 +299,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
         data-test="login-error"
         class="p-2.5 text-xs text-danger bg-danger/10 border border-danger/20 rounded-md text-center flex items-center justify-center gap-1.5"
       >
-        <span>⚠️</span>
+        <span><AppIcon><Warning /></AppIcon></span>
         <span>{{ errorMessage }}</span>
       </div>
 
@@ -316,7 +318,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
             ]"
             @click="localAuthMode = 'pin'"
           >
-            🔢 {{ t('auth.usePin') }}
+            <AppIcon><KeypadOutline /></AppIcon> {{ t('auth.usePin') }}
           </button>
           <button
             type="button"
@@ -329,7 +331,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
             ]"
             @click="localAuthMode = 'password'"
           >
-            🔒 {{ t('auth.usePassword') }}
+            <AppIcon><LockClosedOutline /></AppIcon> {{ t('auth.usePassword') }}
           </button>
         </div>
 
@@ -452,7 +454,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
               class="btn btn-ghost h-11 text-base font-medium rounded-lg text-text-muted hover:bg-surface-muted border border-border flex items-center justify-center select-none"
               @click="handleBackspace"
             >
-              <Button.Content>⌫</Button.Content>
+              <Button.Content><AppIcon><BackspaceOutline /></AppIcon></Button.Content>
             </Button.Root>
           </div>
 
@@ -472,7 +474,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
       <!-- TAB 2: LOGTO SSO -->
       <div v-else data-test="logto-sso-section" class="space-y-4 py-2 text-center">
         <div class="p-4 rounded-xl bg-surface-muted border border-border space-y-2">
-          <div class="text-3xl">🌐</div>
+          <div class="text-3xl"><AppIcon><GlobeOutline /></AppIcon></div>
           <h3 class="text-sm font-bold text-text">{{ t('auth.logtoLogin') }}</h3>
           <p class="text-xs text-text-muted">
             {{ t('auth.logtoHint') }}
@@ -486,7 +488,7 @@ function quickFillPin(pin: string, roleKeyword?: string) {
           @click="handleLogtoSignIn"
         >
           <Button.Content>
-            <span>🚀</span>
+            <span><AppIcon><RocketOutline /></AppIcon></span>
             <span>{{ t('auth.signInWithLogto') }}</span>
           </Button.Content>
         </Button.Root>

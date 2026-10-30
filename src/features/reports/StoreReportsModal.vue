@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { AlarmOutline, BarChartOutline, CardOutline, Checkmark, ClipboardOutline, DownloadOutline, Play, PricetagOutline, ReceiptOutline } from '@vicons/ionicons5';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, DataTable, Input } from '@vuetify/v0';
@@ -216,7 +218,7 @@ function handleInvoicesUpdated() {
             class="btn btn-ghost border border-border text-xs px-3 py-1 hover:bg-surface"
             @click="handleExportCsv"
           >
-            <Button.Content>📥 {{ t('storeReports.exportCsv') }}</Button.Content>
+            <Button.Content><AppIcon><DownloadOutline /></AppIcon> {{ t('storeReports.exportCsv') }}</Button.Content>
           </Button.Root>
           <Button.Root
             type="button"
@@ -235,7 +237,7 @@ function handleInvoicesUpdated() {
         data-test="export-feedback"
         class="p-2 rounded bg-success/15 border border-success/30 text-success text-xs font-semibold flex items-center gap-2"
       >
-        <span>✓ Đã xuất tệp CSV báo cáo thành công</span>
+        <span><AppIcon><Checkmark /></AppIcon> Đã xuất tệp CSV báo cáo thành công</span>
       </div>
 
       <!-- Navigation Tabs -->
@@ -247,7 +249,7 @@ function handleInvoicesUpdated() {
           class="px-3 py-1.5 transition-colors flex items-center gap-1.5"
           @click="activeTab = 'invoices'"
         >
-          <span>🧾</span>
+          <span><AppIcon><ReceiptOutline /></AppIcon></span>
           <span>{{ t('storeReports.tabs.invoices') }}</span>
         </button>
         <button
@@ -257,7 +259,7 @@ function handleInvoicesUpdated() {
           class="px-3 py-1.5 transition-colors flex items-center gap-1.5"
           @click="activeTab = 'zReport'"
         >
-          <span>📊</span>
+          <span><AppIcon><BarChartOutline /></AppIcon></span>
           <span>{{ t('storeReports.tabs.zReport') }}</span>
         </button>
         <button
@@ -267,7 +269,7 @@ function handleInvoicesUpdated() {
           class="px-3 py-1.5 transition-colors flex items-center gap-1.5"
           @click="activeTab = 'categories'"
         >
-          <span>🏷️</span>
+          <span><AppIcon><PricetagOutline /></AppIcon></span>
           <span>{{ t('storeReports.tabs.categories') }}</span>
         </button>
         <button
@@ -277,7 +279,7 @@ function handleInvoicesUpdated() {
           class="px-3 py-1.5 transition-colors flex items-center gap-1.5"
           @click="activeTab = 'hourly'"
         >
-          <span>⏰</span>
+          <span><AppIcon><AlarmOutline /></AppIcon></span>
           <span>{{ t('storeReports.tabs.hourly') }}</span>
         </button>
         <button
@@ -287,7 +289,7 @@ function handleInvoicesUpdated() {
           class="px-3 py-1.5 transition-colors flex items-center gap-1.5"
           @click="activeTab = 'payments'"
         >
-          <span>💳</span>
+          <span><AppIcon><CardOutline /></AppIcon></span>
           <span>{{ t('storeReports.tabs.payments') }}</span>
         </button>
       </div>
@@ -473,7 +475,7 @@ function handleInvoicesUpdated() {
                   >
                     <DataTable.Cell class="table-cell font-medium text-text">
                       <div class="flex items-center gap-2">
-                        <span class="text-text-muted text-[10px] transition-transform inline-block" :class="{ 'rotate-90': expandedCategories.has(cat.categoryId) }">▶</span>
+                        <span class="text-text-muted text-[10px] transition-transform inline-block" :class="{ 'rotate-90': expandedCategories.has(cat.categoryId) }"><AppIcon><Play /></AppIcon></span>
                         <span>{{ cat.categoryName }}</span>
                         <span
                           v-if="cat.items && cat.items.length > 0"
@@ -516,7 +518,7 @@ function handleInvoicesUpdated() {
                     <DataTable.Cell :colspan="5" class="p-3 pl-8">
                       <div class="rounded border border-border/80 bg-background overflow-hidden">
                         <div class="bg-surface px-3 py-1.5 border-b border-border text-[11px] font-semibold text-text-muted flex justify-between">
-                          <span>📋 {{ t('storeReports.itemBreakdown') }}: {{ cat.categoryName }}</span>
+                          <span><AppIcon><ClipboardOutline /></AppIcon> {{ t('storeReports.itemBreakdown') }}: {{ cat.categoryName }}</span>
                           <span v-if="cat.items">{{ cat.items.length }} món</span>
                         </div>
                         <table v-if="cat.items && cat.items.length > 0" class="w-full text-xs text-left">

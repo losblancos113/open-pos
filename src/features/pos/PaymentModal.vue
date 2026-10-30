@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import AppIcon from '@/components/AppIcon.vue';
+import { Close } from '@vicons/ionicons5';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Dialog, Input } from '@vuetify/v0';
 import { format, money, type Money } from '@/core/money';
-import { buildVietQrPayload } from '@/core/qr/vietqr';
+import { buildVietQrPayload, generateVietQrPayload, type VietQrInput } from '@/core/qr/vietqr';
 import { generateQrSvg } from '@/core/qr/qr-matrix';
 import { recalculateBill } from '@/core/order/reducer';
 import type { BillDoc, PaymentEntry, PaymentMethod } from '@/core/order/types';
@@ -117,20 +119,65 @@ const isBankConfigured = computed(() => {
   );
 });
 
-const vietQrPayload = computed(() => {
-  if (!isBankConfigured.value || !props.bankAccount || !props.bill) {
-    return null;
-  }
-  try {
-    return buildVietQrPayload({
-      bankBin: props.bankAccount.bankBin,
-      accountNumber: props.bankAccount.accountNumber,
-      ...(amountToPay.value > 0 ? { amount: money(amountToPay.value, currency.value) } : {}),
-      paymentRef: props.bill.paymentRef,
-    });
-  } catch {
-    return null;
-  }
+const vietQrPayload = ref<string | null>(null);
+let qrAbort: AbortController | null = null;
+
+function buildVietQrInput(): VietQrInput | null {
+  if (!isBankConfigured.value || !props.bankAccount || !props.bill) return null;
+  return {
+    bankBin: props.bankAccount.bankBin,
+    accountNumber: props.bankAccount.accountNumber,
+    accountName: props.bankAccount.accountName,
+    ...(amountToPay.value > 0 ? { amount: money(amountToPay.value, currency.value) } : {}),
+    paymentRef: props.bill.paymentRef,
+  };
+}
+
+watch(
+  () => [
+    isBankConfigured.value,
+    props.bankAccount?.bankBin,
+    props.bankAccount?.accountNumber,
+    props.bankAccount?.accountName,
+    amountToPay.value,
+    props.bill?.paymentRef,
+  ],
+  () => {
+    qrAbort?.abort();
+    qrAbort = null;
+
+    const input = buildVietQrInput();
+    if (!input) {
+      vietQrPayload.value = null;
+      return;
+    }
+
+    // Hiện mã offline ngay để không có trạng thái "đang tải QR" (Spec R9).
+    try {
+      vietQrPayload.value = buildVietQrPayload(input);
+    } catch {
+      vietQrPayload.value = null;
+      return;
+    }
+
+    // Gọi API song song; chỉ thay mã khi thành công.
+    const controller = new AbortController();
+    qrAbort = controller;
+    generateVietQrPayload(input, { signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        vietQrPayload.value = result.qrCode;
+      })
+      .catch(() => {
+        // Mã offline vẫn đang hiển thị.
+      });
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  qrAbort?.abort();
+  qrAbort = null;
 });
 
 const qrSvg = computed(() => {
@@ -268,7 +315,7 @@ defineExpose({
           class="btn btn-ghost text-xs p-1 h-7 w-7 rounded-full cursor-pointer flex items-center justify-center text-text-muted hover:text-text"
           @click="isOpen = false"
         >
-          ✕
+          <AppIcon><Close /></AppIcon>
         </Button.Root>
       </div>
 

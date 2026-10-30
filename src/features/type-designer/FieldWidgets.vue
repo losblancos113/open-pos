@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { ChevronDown } from '@vicons/ionicons5';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Checkbox, Input, NumberField, Select } from '@vuetify/v0';
@@ -254,7 +256,7 @@ const labelTarget = computed(() => {
         <span :class="!selectValue ? 'text-text-muted/60' : 'text-text'">
           {{ selectedOptionLabel || label }}
         </span>
-        <span class="text-xs text-text-muted ml-2">▼</span>
+        <span class="text-xs text-text-muted ml-2"><AppIcon><ChevronDown /></AppIcon></span>
       </Select.Activator>
       <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
         <Select.Item

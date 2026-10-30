@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { Checkmark, Ellipse, EllipseOutline, Play, Stop } from '@vicons/ionicons5';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Input } from '@vuetify/v0';
@@ -148,13 +150,13 @@ const totalCashDrop = computed(() => {
             data-test="shift-status-pill"
             class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-primary/10 text-primary border border-primary/20"
           >
-            🟢 {{ t('shift.active') }}
+            <AppIcon class="text-success"><Ellipse /></AppIcon> {{ t('shift.active') }}
           </span>
           <span
             v-else
             class="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-text-muted/10 text-text-muted border border-border"
           >
-            ⚪ {{ t('shift.noActive') }}
+            <AppIcon><EllipseOutline /></AppIcon> {{ t('shift.noActive') }}
           </span>
         </div>
         <Button.Root
@@ -212,7 +214,7 @@ const totalCashDrop = computed(() => {
             type="submit"
             class="btn btn-primary text-xs w-full py-2.5 mt-2"
           >
-            <Button.Content>▶ {{ t('shift.open') }}</Button.Content>
+            <Button.Content><AppIcon><Play /></AppIcon> {{ t('shift.open') }}</Button.Content>
           </Button.Root>
         </form>
       </div>
@@ -248,7 +250,7 @@ const totalCashDrop = computed(() => {
           </h3>
 
           <div v-if="movementMsg" class="p-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded">
-            ✓ {{ t('shift.cashMovementSuccess') }}
+            <AppIcon><Checkmark /></AppIcon> {{ t('shift.cashMovementSuccess') }}
           </div>
 
           <form class="space-y-3" @submit.prevent="handleRecordCashMovement">
@@ -305,7 +307,7 @@ const totalCashDrop = computed(() => {
           </h3>
 
           <div v-if="closeMsg" class="p-2 text-xs text-primary bg-primary/10 border border-primary/20 rounded">
-            ✓ {{ t('shift.closeSuccess') }}
+            <AppIcon><Checkmark /></AppIcon> {{ t('shift.closeSuccess') }}
           </div>
 
           <form class="space-y-3" @submit.prevent="handleCloseShift">
@@ -339,7 +341,7 @@ const totalCashDrop = computed(() => {
               data-test="close-shift-btn"
               class="btn btn-primary bg-danger text-white hover:bg-danger/90 text-xs w-full py-2.5 font-bold"
             >
-              <Button.Content>⏹ {{ t('shift.confirmClose') }}</Button.Content>
+              <Button.Content><AppIcon><Stop /></AppIcon> {{ t('shift.confirmClose') }}</Button.Content>
             </Button.Root>
           </form>
         </div>

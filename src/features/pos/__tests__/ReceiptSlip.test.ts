@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ReceiptSlip from '../ReceiptSlip.vue';
 import { money } from '../../../core/money';
@@ -10,6 +10,15 @@ import type { BankAccountDoc } from '../../../core/qr/bank-account';
 
 describe('ReceiptSlip.vue', () => {
   const i18n = createI18n({ legacy: false, locale: 'vi', messages: { vi: viMessages } });
+
+  beforeEach(() => {
+    // Chặn mạng: QR hiện bản offline ngay, API coi như lỗi trong test.
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline in test'));
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   const sampleBill: BillDoc = {
     _id: 'bill:hq:b1',

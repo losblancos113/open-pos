@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { BusinessOutline, Close, FlashOutline, GridOutline } from '@vicons/ionicons5';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Dialog, Input, Select } from '@vuetify/v0';
@@ -412,7 +414,7 @@ async function handleBatchGenerate() {
       <div class="flex items-center justify-between border-b border-border pb-3 shrink-0">
         <div>
           <Dialog.Title class="text-lg font-bold text-text flex items-center gap-2">
-            <span>🪑</span>
+            <span><AppIcon><GridOutline /></AppIcon></span>
             <span>{{ t('tableAdmin.title') }}</span>
           </Dialog.Title>
           <div class="text-xs text-text-muted mt-0.5">
@@ -425,7 +427,7 @@ async function handleBatchGenerate() {
           data-test="close-modal-btn"
           @click="emit('close')"
         >
-          <Button.Content>✕</Button.Content>
+          <Button.Content><AppIcon><Close /></AppIcon></Button.Content>
         </Button.Root>
       </div>
 
@@ -437,7 +439,7 @@ async function handleBatchGenerate() {
         data-test="table-admin-error"
       >
         <span>{{ errorMessage }}</span>
-        <button type="button" class="text-danger hover:underline font-bold" @click="errorMessage = null">✕</button>
+        <button type="button" class="text-danger hover:underline font-bold" @click="errorMessage = null"><AppIcon><Close /></AppIcon></button>
       </div>
       <div
         v-if="successMessage"
@@ -446,7 +448,7 @@ async function handleBatchGenerate() {
         data-test="table-admin-success"
       >
         <span>{{ successMessage }}</span>
-        <button type="button" class="text-success hover:underline font-bold" @click="successMessage = null">✕</button>
+        <button type="button" class="text-success hover:underline font-bold" @click="successMessage = null"><AppIcon><Close /></AppIcon></button>
       </div>
 
       <!-- Navigation Tabs -->
@@ -458,7 +460,7 @@ async function handleBatchGenerate() {
           :class="activeTab === 'areas' ? 'bg-primary text-primary-contrast font-medium' : 'text-text-muted hover:text-text'"
           @click="activeTab = 'areas'"
         >
-          <Button.Content>🏢 {{ t('tableAdmin.tabs.areas') }} ({{ areas.length }})</Button.Content>
+          <Button.Content><AppIcon><BusinessOutline /></AppIcon> {{ t('tableAdmin.tabs.areas') }} ({{ areas.length }})</Button.Content>
         </Button.Root>
 
         <Button.Root
@@ -468,7 +470,7 @@ async function handleBatchGenerate() {
           :class="activeTab === 'tables' ? 'bg-primary text-primary-contrast font-medium' : 'text-text-muted hover:text-text'"
           @click="activeTab = 'tables'"
         >
-          <Button.Content>🪑 {{ t('tableAdmin.tabs.tables') }} ({{ tables.length }})</Button.Content>
+          <Button.Content><AppIcon><GridOutline /></AppIcon> {{ t('tableAdmin.tabs.tables') }} ({{ tables.length }})</Button.Content>
         </Button.Root>
 
         <Button.Root
@@ -478,7 +480,7 @@ async function handleBatchGenerate() {
           :class="activeTab === 'batch' ? 'bg-primary text-primary-contrast font-medium' : 'text-text-muted hover:text-text'"
           @click="activeTab = 'batch'"
         >
-          <Button.Content>⚡ {{ t('tableAdmin.tabs.batch') }}</Button.Content>
+          <Button.Content><AppIcon><FlashOutline /></AppIcon> {{ t('tableAdmin.tabs.batch') }}</Button.Content>
         </Button.Root>
       </div>
 
@@ -912,7 +914,7 @@ async function handleBatchGenerate() {
                 @click="handleBatchGenerate"
               >
                 <Button.Content>
-                  ⚡ {{ t('tableAdmin.batch.submit', { count: batchPreviewCodes.length }) }}
+                  <AppIcon><FlashOutline /></AppIcon> {{ t('tableAdmin.batch.submit', { count: batchPreviewCodes.length }) }}
                 </Button.Content>
               </Button.Root>
             </div>

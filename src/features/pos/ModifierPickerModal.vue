@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { Checkmark } from '@vicons/ionicons5';
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Checkbox, Dialog, Radio } from '@vuetify/v0';
@@ -286,7 +288,7 @@ function handleConfirm() {
             >
               <div class="flex items-center gap-2.5">
                 <Checkbox.Indicator class="w-4 h-4 rounded border border-border flex items-center justify-center text-xs selected:(border-primary bg-primary text-primary-contrast)">
-                  <span v-if="isOptionSelected(group._id, opt.id)">✓</span>
+                  <span v-if="isOptionSelected(group._id, opt.id)"><AppIcon><Checkmark /></AppIcon></span>
                 </Checkbox.Indicator>
                 <span class="text-sm font-medium">
                   {{ opt.name[locale as 'vi' | 'en'] || opt.name.vi || opt.name.en }}

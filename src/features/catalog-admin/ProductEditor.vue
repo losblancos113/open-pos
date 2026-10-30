@@ -29,6 +29,8 @@ export interface ProductFormValue {
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Checkbox, Input, NumberField, Select } from '@vuetify/v0';
+import AppIcon from '@/components/AppIcon.vue';
+import { ChevronDown } from '@vicons/ionicons5';
 import type { SupportedLocale } from '@/i18n';
 import { GLOBAL_BRANCH_ID } from '@/core/db/branch';
 import { createEnvelope } from '@/core/db/envelope';
@@ -412,7 +414,7 @@ function onSubmit(): void {
           >
             <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('catalog.field.category')">
               <span>{{ selectedCategoryLabel || t('catalog.field.category') }}</span>
-              <span class="text-xs text-text-muted ml-2">▼</span>
+              <span class="text-xs text-text-muted ml-2"><AppIcon><ChevronDown /></AppIcon></span>
             </Select.Activator>
             <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
               <Select.Item

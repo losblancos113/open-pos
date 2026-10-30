@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { ChevronDown } from '@vicons/ionicons5';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Checkbox, Input, Progress, Select } from '@vuetify/v0';
@@ -455,7 +457,7 @@ async function runMigration(): Promise<void> {
         <Select.Root :model-value="draft.kind" :disabled="isEditing" @update:model-value="setKind">
           <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('type.designer.kind')">
             <span>{{ t(KIND_KEYS[draft.kind]) }}</span>
-            <span class="text-xs text-text-muted ml-2">▼</span>
+            <span class="text-xs text-text-muted ml-2"><AppIcon><ChevronDown /></AppIcon></span>
           </Select.Activator>
           <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
             <Select.Item
@@ -516,7 +518,7 @@ async function runMigration(): Promise<void> {
             >
               <Select.Activator class="field-input flex items-center justify-between cursor-pointer" :label="t('type.field.dataType')">
                 <span>{{ t(`type.dataType.${row.dataType}`) }}</span>
-                <span class="text-xs text-text-muted ml-2">▼</span>
+                <span class="text-xs text-text-muted ml-2"><AppIcon><ChevronDown /></AppIcon></span>
               </Select.Activator>
               <Select.Content eager class="panel-card p-1 shadow-xl max-h-60 overflow-y-auto min-w-[14rem] border border-border z-50 bg-surface">
                 <Select.Item

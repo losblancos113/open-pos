@@ -47,6 +47,12 @@ describe('PaymentModal.vue', () => {
     updatedAt: '2026-10-23T00:00:00.000Z',
   };
 
+  beforeEach(() => {
+    // UI hiện mã offline ngay rồi mới gọi API. Chặn mạng để test khép kín,
+    // và để nhánh offline (đã tính sẵn) là kết quả cuối cùng.
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline in test'));
+  });
+
   afterEach(() => {
     wrapper?.unmount();
     wrapper = null;

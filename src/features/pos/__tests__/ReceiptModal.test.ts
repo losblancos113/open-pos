@@ -122,6 +122,8 @@ describe('ReceiptModal.vue', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    // ReceiptSlip hiện QR offline ngay rồi gọi API; chặn mạng để test khép kín.
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('offline in test'));
   });
 
   afterEach(() => {

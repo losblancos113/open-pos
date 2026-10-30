@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { Checkmark, Close } from '@vicons/ionicons5';
 import { ref, computed } from 'vue';
 import { Button, Checkbox, Input } from '@vuetify/v0';
 import { useI18n } from 'vue-i18n';
@@ -114,7 +116,7 @@ function handleClose() {
           class="btn btn-ghost text-xs p-1 h-7 w-7 rounded-full flex items-center justify-center text-text-muted hover:text-text cursor-pointer"
           @click="handleClose"
         >
-          ✕
+          <AppIcon><Close /></AppIcon>
         </Button.Root>
       </div>
 
@@ -171,7 +173,7 @@ function handleClose() {
               @click.stop
             >
               <Checkbox.Indicator class="flex items-center justify-center text-xs font-bold leading-none">
-                <span v-if="selectedLines.includes(line.lineId)">✓</span>
+                <span v-if="selectedLines.includes(line.lineId)"><AppIcon><Checkmark /></AppIcon></span>
               </Checkbox.Indicator>
             </Checkbox.Root>
             <div class="flex-1 min-w-0">

@@ -529,8 +529,8 @@ function windowText(list: PriceListDoc): string {
   };
 
   const fromText = moment(list.effectiveFrom);
-  if (list.effectiveTo === null) return `${fromText} →`;
-  return `${fromText} → ${moment(list.effectiveTo)}`;
+  if (list.effectiveTo === null) return `${fromText} –`;
+  return `${fromText} – ${moment(list.effectiveTo)}`;
 }
 
 // ---- Product override (tầng branch) ----------------------------------------

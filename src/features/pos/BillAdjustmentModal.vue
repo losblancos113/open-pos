@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { Close, NotificationsOutline, PricetagOutline, ReceiptOutline } from '@vicons/ionicons5';
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Dialog, Input } from '@vuetify/v0';
@@ -244,7 +246,7 @@ function handleRemoveTax() {
           class="btn btn-ghost text-xs px-2 py-1 text-text-muted hover:text-text cursor-pointer"
           @click="isOpen = false"
         >
-          <Button.Content>✕</Button.Content>
+          <Button.Content><AppIcon><Close /></AppIcon></Button.Content>
         </Button.Root>
       </div>
 
@@ -257,7 +259,7 @@ function handleRemoveTax() {
           data-test="tab-discount-btn"
           @click="activeTab = 'discount'"
         >
-          🏷️ {{ t('pos.adjustments.tabDiscount') }}
+          <AppIcon><PricetagOutline /></AppIcon> {{ t('pos.adjustments.tabDiscount') }}
         </button>
         <button
           type="button"
@@ -266,7 +268,7 @@ function handleRemoveTax() {
           data-test="tab-surcharge-btn"
           @click="activeTab = 'surcharge'"
         >
-          🛎️ {{ t('pos.adjustments.tabSurcharge') }}
+          <AppIcon><NotificationsOutline /></AppIcon> {{ t('pos.adjustments.tabSurcharge') }}
         </button>
         <button
           type="button"
@@ -275,7 +277,7 @@ function handleRemoveTax() {
           data-test="tab-tax-btn"
           @click="activeTab = 'tax'"
         >
-          🧾 {{ t('pos.adjustments.tabTax') }}
+          <AppIcon><ReceiptOutline /></AppIcon> {{ t('pos.adjustments.tabTax') }}
         </button>
       </div>
 

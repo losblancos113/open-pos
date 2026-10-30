@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { ChatbubbleOutline, Checkmark, Close, CreateOutline, EyeOutline, LockClosedOutline, PrintOutline, RefreshOutline, SettingsOutline, Warning } from '@vicons/ionicons5';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, DataTable, Input } from '@vuetify/v0';
@@ -359,7 +361,7 @@ function handleReprint(bill: BillDoc): void {
 
       <div class="flex items-center gap-2">
         <span v-if="!canEdit" class="text-xs text-text-muted italic bg-surface/60 px-2 py-1 rounded border border-border">
-          🔒 {{ t('storeReports.invoices.adminOnlyTooltip') }}
+          <AppIcon><LockClosedOutline /></AppIcon> {{ t('storeReports.invoices.adminOnlyTooltip') }}
         </span>
         <Button.Root
           v-if="canEdit"
@@ -369,7 +371,7 @@ function handleReprint(bill: BillDoc): void {
           :title="t('storeReports.invoices.billingSettingsBtn')"
           @click="isBillingSettingsOpen = true"
         >
-          <Button.Content>⚙️ {{ t('storeReports.invoices.billingSettingsBtn') }}</Button.Content>
+          <Button.Content><AppIcon><SettingsOutline /></AppIcon> {{ t('storeReports.invoices.billingSettingsBtn') }}</Button.Content>
         </Button.Root>
         <Button.Root
           type="button"
@@ -377,7 +379,7 @@ function handleReprint(bill: BillDoc): void {
           class="btn btn-ghost border border-border text-xs px-2.5 py-1"
           @click="loadBills"
         >
-          <Button.Content>🔄 {{ t('common.refresh') || 'Làm mới' }}</Button.Content>
+          <Button.Content><AppIcon><RefreshOutline /></AppIcon> {{ t('common.refresh') || 'Làm mới' }}</Button.Content>
         </Button.Root>
       </div>
     </div>
@@ -388,7 +390,7 @@ function handleReprint(bill: BillDoc): void {
       class="p-2.5 rounded-md bg-success/15 border border-success/30 text-success text-xs font-semibold flex items-center justify-between"
       role="status"
     >
-      <span>✓ {{ actionFeedback }}</span>
+      <span><AppIcon><Checkmark /></AppIcon> {{ actionFeedback }}</span>
     </div>
 
     <!-- Summary KPI Cards -->
@@ -441,7 +443,7 @@ function handleReprint(bill: BillDoc): void {
                 <span class="hover:underline cursor-pointer text-primary" @click="openDetail(bill)">
                   {{ bill.billNumber || bill._id.replace(/^bill:[^:]+:/, '') }}
                 </span>
-                <span v-if="bill.note" class="ml-1 text-[11px] text-text-muted" :title="bill.note">💬</span>
+                <span v-if="bill.note" class="ml-1 text-[11px] text-text-muted" :title="bill.note"><AppIcon><ChatbubbleOutline /></AppIcon></span>
               </DataTable.Cell>
 
               <!-- Table -->
@@ -509,7 +511,7 @@ function handleReprint(bill: BillDoc): void {
                     :title="t('storeReports.invoices.viewDetail')"
                     @click="openDetail(bill)"
                   >
-                    <Button.Content>👁️ {{ t('storeReports.invoices.viewDetail') }}</Button.Content>
+                    <Button.Content><AppIcon><EyeOutline /></AppIcon> {{ t('storeReports.invoices.viewDetail') }}</Button.Content>
                   </Button.Root>
 
                   <Button.Root
@@ -519,7 +521,7 @@ function handleReprint(bill: BillDoc): void {
                     :title="t('storeReports.invoices.reprint')"
                     @click="handleReprint(bill)"
                   >
-                    <Button.Content>🖨️ {{ t('storeReports.invoices.reprint') }}</Button.Content>
+                    <Button.Content><AppIcon><PrintOutline /></AppIcon> {{ t('storeReports.invoices.reprint') }}</Button.Content>
                   </Button.Root>
 
                   <!-- Admin/Owner Edit Options -->
@@ -532,7 +534,7 @@ function handleReprint(bill: BillDoc): void {
                       :title="t('storeReports.invoices.void')"
                       @click="openVoidModal(bill)"
                     >
-                      <Button.Content>✕ {{ t('storeReports.invoices.void') }}</Button.Content>
+                      <Button.Content><AppIcon><Close /></AppIcon> {{ t('storeReports.invoices.void') }}</Button.Content>
                     </Button.Root>
                     <Button.Root
                       type="button"
@@ -541,7 +543,7 @@ function handleReprint(bill: BillDoc): void {
                       :title="t('storeReports.invoices.editNote')"
                       @click="openEditNoteModal(bill)"
                     >
-                      <Button.Content>✏️</Button.Content>
+                      <Button.Content><AppIcon><CreateOutline /></AppIcon></Button.Content>
                     </Button.Root>
                   </template>
                 </div>
@@ -599,7 +601,7 @@ function handleReprint(bill: BillDoc): void {
             class="btn btn-ghost text-xs px-2 py-1"
             @click="isDetailOpen = false"
           >
-            <Button.Content>✕</Button.Content>
+            <Button.Content><AppIcon><Close /></AppIcon></Button.Content>
           </Button.Root>
         </div>
 
@@ -610,7 +612,7 @@ function handleReprint(bill: BillDoc): void {
           data-test="voided-detail-banner"
         >
           <div class="font-bold flex items-center gap-1.5">
-            ⚠️ {{ t('storeReports.invoices.voidedNotice') }}
+            <AppIcon><Warning /></AppIcon> {{ t('storeReports.invoices.voidedNotice') }}
           </div>
           <div v-if="selectedBill.voidReason">
             <span class="font-semibold">{{ t('storeReports.invoices.voidReason') }}:</span> {{ selectedBill.voidReason }}
@@ -722,7 +724,7 @@ function handleReprint(bill: BillDoc): void {
               class="text-primary hover:underline text-xs"
               @click="openEditNoteModal(selectedBill)"
             >
-              <Button.Content>✏️ {{ t('storeReports.invoices.editNote') }}</Button.Content>
+              <Button.Content><AppIcon><CreateOutline /></AppIcon> {{ t('storeReports.invoices.editNote') }}</Button.Content>
             </Button.Root>
           </div>
           <p class="italic text-text bg-surface/60 p-2 rounded border border-border min-h-7">
@@ -739,7 +741,7 @@ function handleReprint(bill: BillDoc): void {
               class="btn btn-ghost border border-border text-xs px-3 py-1.5"
               @click="handleReprint(selectedBill)"
             >
-              <Button.Content>🖨️ {{ t('storeReports.invoices.reprint') }}</Button.Content>
+              <Button.Content><AppIcon><PrintOutline /></AppIcon> {{ t('storeReports.invoices.reprint') }}</Button.Content>
             </Button.Root>
 
             <Button.Root
@@ -749,7 +751,7 @@ function handleReprint(bill: BillDoc): void {
               class="btn btn-danger text-xs px-3 py-1.5"
               @click="openVoidModal(selectedBill)"
             >
-              <Button.Content>✕ {{ t('storeReports.invoices.void') }}</Button.Content>
+              <Button.Content><AppIcon><Close /></AppIcon> {{ t('storeReports.invoices.void') }}</Button.Content>
             </Button.Root>
           </div>
 
@@ -772,7 +774,7 @@ function handleReprint(bill: BillDoc): void {
     >
       <div class="panel-card w-full max-w-md p-5 space-y-4 shadow-2xl">
         <div class="flex items-center gap-2 text-danger">
-          <span class="text-xl">⚠️</span>
+          <span class="text-xl"><AppIcon><Warning /></AppIcon></span>
           <h3 class="text-base font-bold">{{ t('storeReports.invoices.voidTitle') }}</h3>
         </div>
 

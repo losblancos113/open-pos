@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { format, money } from '@/core/money';
 import { calculateLineTotal } from '@/core/order/reducer';
-import { buildVietQrPayload } from '@/core/qr/vietqr';
+import { buildVietQrPayload, generateVietQrPayload, type VietQrInput } from '@/core/qr/vietqr';
 import { generateQrSvg } from '@/core/qr/qr-matrix';
 import type { BillDoc, SessionDoc, OrderLineItem } from '@/core/order/types';
 import type { BankAccountDoc } from '@/core/qr/bank-account';
@@ -114,20 +114,66 @@ const shouldShowVietQr = computed(() => {
   return isUnpaid || hasBankPayment;
 });
 
-const vietQrPayload = computed(() => {
+const vietQrPayload = ref<string | null>(null);
+let qrAbort: AbortController | null = null;
+
+function buildVietQrInput(): VietQrInput | null {
   if (!shouldShowVietQr.value || !props.bankAccount || !props.bill) return null;
-  try {
-    const unpaidMinor =
-      props.bill.balanceRemaining?.minor ?? props.bill.total?.minor ?? 0;
-    return buildVietQrPayload({
-      bankBin: props.bankAccount.bankBin,
-      accountNumber: props.bankAccount.accountNumber,
-      ...(unpaidMinor > 0 ? { amount: money(unpaidMinor, currency.value) } : {}),
-      paymentRef: props.bill.paymentRef,
-    });
-  } catch {
-    return null;
-  }
+  const unpaidMinor = props.bill.balanceRemaining?.minor ?? props.bill.total?.minor ?? 0;
+  return {
+    bankBin: props.bankAccount.bankBin,
+    accountNumber: props.bankAccount.accountNumber,
+    accountName: props.bankAccount.accountName,
+    ...(unpaidMinor > 0 ? { amount: money(unpaidMinor, currency.value) } : {}),
+    paymentRef: props.bill.paymentRef,
+  };
+}
+
+watch(
+  () => [
+    shouldShowVietQr.value,
+    props.bankAccount?.bankBin,
+    props.bankAccount?.accountNumber,
+    props.bankAccount?.accountName,
+    props.bill?.balanceRemaining?.minor,
+    props.bill?.total?.minor,
+    props.bill?.paymentRef,
+  ],
+  () => {
+    qrAbort?.abort();
+    qrAbort = null;
+
+    const input = buildVietQrInput();
+    if (!input) {
+      vietQrPayload.value = null;
+      return;
+    }
+
+    // Hiện mã offline ngay (Spec R9: không có trạng thái "đang tải QR").
+    try {
+      vietQrPayload.value = buildVietQrPayload(input);
+    } catch {
+      vietQrPayload.value = null;
+      return;
+    }
+
+    const controller = new AbortController();
+    qrAbort = controller;
+    generateVietQrPayload(input, { signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        vietQrPayload.value = result.qrCode;
+      })
+      .catch(() => {
+        // Mã offline vẫn đang hiển thị.
+      });
+  },
+  { immediate: true },
+);
+
+onUnmounted(() => {
+  qrAbort?.abort();
+  qrAbort = null;
 });
 
 const qrSvg = computed(() => {

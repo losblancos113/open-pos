@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { LogOutOutline, RefreshOutline } from '@vicons/ionicons5';
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@vuetify/v0';
@@ -153,7 +155,7 @@ function handleLogout() {
           @click="handleSwitchUser"
         >
           <Button.Content>
-            <span>🔄</span>
+            <span><AppIcon><RefreshOutline /></AppIcon></span>
             <div class="text-left">
               <div class="font-semibold">{{ t('auth.switchUser') }}</div>
               <div class="text-[10px] text-text-muted font-normal">{{ t('auth.switchUserDesc') }}</div>
@@ -169,7 +171,7 @@ function handleLogout() {
           @click="handleLogout"
         >
           <Button.Content>
-            <span>🚪</span>
+            <span><AppIcon><LogOutOutline /></AppIcon></span>
             <span class="font-bold">{{ t('auth.logout') }}</span>
           </Button.Content>
         </Button.Root>

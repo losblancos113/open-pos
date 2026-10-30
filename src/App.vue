@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { AlarmOutline, BarChartOutline, ChevronDown, CubeOutline, GridOutline, PeopleOutline, StatsChartOutline } from '@vicons/ionicons5';
 import { onMounted, ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@vuetify/v0';
@@ -190,7 +192,7 @@ onMounted(async () => {
             :title="t('report.crossBranch')"
             @click="isReportModalOpen = true"
           >
-            <Button.Content>📊 <span class="hidden lg:inline">{{ t('report.crossBranch') }}</span></Button.Content>
+            <Button.Content><AppIcon><BarChartOutline /></AppIcon> <span class="hidden lg:inline">{{ t('report.crossBranch') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
@@ -201,7 +203,7 @@ onMounted(async () => {
             :title="t('inventory.title')"
             @click="isInventoryModalOpen = true"
           >
-            <Button.Content>📦 <span class="hidden lg:inline">{{ t('inventory.title') }}</span></Button.Content>
+            <Button.Content><AppIcon><CubeOutline /></AppIcon> <span class="hidden lg:inline">{{ t('inventory.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
@@ -212,7 +214,7 @@ onMounted(async () => {
             :title="t('shift.title')"
             @click="isShiftModalOpen = true"
           >
-            <Button.Content>⏰ <span class="hidden lg:inline">{{ t('shift.title') }}</span></Button.Content>
+            <Button.Content><AppIcon><AlarmOutline /></AppIcon> <span class="hidden lg:inline">{{ t('shift.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
@@ -223,7 +225,7 @@ onMounted(async () => {
             :title="t('storeReports.title')"
             @click="isStoreReportsModalOpen = true"
           >
-            <Button.Content>📈 <span class="hidden lg:inline">{{ t('storeReports.title') }}</span></Button.Content>
+            <Button.Content><AppIcon><StatsChartOutline /></AppIcon> <span class="hidden lg:inline">{{ t('storeReports.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
@@ -234,7 +236,7 @@ onMounted(async () => {
             :title="t('tableAdmin.title')"
             @click="isTableAdminModalOpen = true"
           >
-            <Button.Content>🪑 <span class="hidden lg:inline">{{ t('tableAdmin.title') }}</span></Button.Content>
+            <Button.Content><AppIcon><GridOutline /></AppIcon> <span class="hidden lg:inline">{{ t('tableAdmin.title') }}</span></Button.Content>
           </Button.Root>
 
           <Button.Root
@@ -245,7 +247,7 @@ onMounted(async () => {
             :title="t('auth.userManagement')"
             @click="isUserAdminModalOpen = true"
           >
-            <Button.Content>👥 <span class="hidden lg:inline">{{ t('auth.userManagement') }}</span></Button.Content>
+            <Button.Content><AppIcon><PeopleOutline /></AppIcon> <span class="hidden lg:inline">{{ t('auth.userManagement') }}</span></Button.Content>
           </Button.Root>
 
           <!-- User profile button & Dropdown menu -->
@@ -266,7 +268,7 @@ onMounted(async () => {
                 >
                   Logto
                 </span>
-                <span class="text-[9px] text-text-muted ml-0.5">▼</span>
+                <span class="text-[9px] text-text-muted ml-0.5"><AppIcon><ChevronDown /></AppIcon></span>
               </Button.Content>
             </Button.Root>
 

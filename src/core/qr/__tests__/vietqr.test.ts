@@ -1,6 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { crc16Ccitt, formatTlv, buildVietQrPayload, sanitizeAccountName } from '../vietqr';
-import { BANK_PRESETS, findBankPresetByBin, type BankAccountDoc } from '../bank-account';
+import {
+  crc16Ccitt,
+  formatTlv,
+  buildVietQrPayload,
+  sanitizeAccountName,
+  generateVietQrFromApi,
+  generateVietQrPayload,
+  resolveVietQrBankCode,
+  VIETQR_API_GENERATE_URL,
+  QRPay,
+  VietQRService,
+} from '../vietqr';
+import { BANK_PRESETS, ALL_BANKS, findBankPresetByBin, type BankAccountDoc } from '../bank-account';
 import { money } from '../../money';
 
 describe('VietQR EMVCo Payload Builder', () => {
@@ -285,6 +296,278 @@ describe('VietQR EMVCo Payload Builder', () => {
       };
       expect(doc._id).toBe('bank_account:hq');
       expect(doc.bankBin).toBe('970422');
+    });
+
+    it('finds bank outside top presets from ALL_BANKS registry (vietnam-qr-pay)', () => {
+      expect(ALL_BANKS.length).toBeGreaterThan(50);
+      // Agribank BIN 970405
+      const agri = findBankPresetByBin('970405');
+      expect(agri).toBeDefined();
+      expect(agri?.bin).toBe('970405');
+      expect(agri?.shortName).toBe('Agribank');
+    });
+  });
+
+  describe('vietnam-qr-pay encode/decode round trip', () => {
+    it('buildVietQrPayload produces a payload QRPay can parse back (dynamic)', () => {
+      const payload = buildVietQrPayload({
+        bankBin: '970422',
+        accountNumber: '0901234567',
+        accountName: 'NGUYEN VAN A',
+        amount: money(135000, 'VND'),
+        paymentRef: 'POSHQT010042',
+      });
+
+      const qr = new QRPay(payload);
+      expect(qr.isValid).toBe(true);
+      expect(qr.consumer.bankBin).toBe('970422');
+      expect(qr.consumer.bankNumber).toBe('0901234567');
+      expect(qr.amount).toBe('135000');
+      expect(qr.merchant.name).toBe('NGUYEN VAN A');
+      expect(qr.additionalData.purpose).toBe('POSHQT010042');
+    });
+
+    it('buildVietQrPayload produces a payload QRPay can parse back (static)', () => {
+      const payload = buildVietQrPayload({
+        bankBin: '970436',
+        accountNumber: '1012345678',
+        accountName: 'CONG TY ABC',
+      });
+
+      const qr = new QRPay(payload);
+      expect(qr.isValid).toBe(true);
+      expect(qr.initMethod).toBe('11');
+      expect(qr.amount).toBeUndefined();
+      expect(qr.consumer.bankBin).toBe('970436');
+      expect(qr.merchant.name).toBe('CONG TY ABC');
+    });
+
+    it('supports card-number service via VietQRService', () => {
+      const payload = buildVietQrPayload({
+        bankBin: '970422',
+        accountNumber: '0901234567',
+        service: VietQRService.BY_CARD_NUMBER,
+      });
+
+      expect(payload).toContain('QRIBFTTC');
+      expect(payload).not.toContain('QRIBFTTA');
+    });
+  });
+
+  describe('resolveVietQrBankCode', () => {
+    it('maps common BINs to the bankCode vietqr.vn expects', () => {
+      expect(resolveVietQrBankCode('970436')).toBe('VCB');
+      expect(resolveVietQrBankCode('970422')).toBe('MB');
+      expect(resolveVietQrBankCode('970407')).toBe('TCB');
+      expect(resolveVietQrBankCode('970415')).toBe('VTB'); // VietinBank (không phải ICB/CTG)
+      expect(resolveVietQrBankCode('970405')).toBe('AGR'); // Agribank
+      expect(resolveVietQrBankCode('970454')).toBe('VCAB'); // BVBank
+    });
+
+    it('prefers an explicit bankCode override', () => {
+      expect(resolveVietQrBankCode('970422', 'CUSTOM')).toBe('CUSTOM');
+      expect(resolveVietQrBankCode('970422', '   ')).toBe('MB');
+    });
+
+    it('falls back to the raw BIN when unknown', () => {
+      expect(resolveVietQrBankCode('999999')).toBe('999999');
+    });
+  });
+
+  describe('generateVietQrFromApi', () => {
+    it('POSTs the documented body and returns the qrCode', async () => {
+      const calls: Array<{ url: string; body: Record<string, unknown> }> = [];
+      const fetchImpl = (async (url: string, init: RequestInit) => {
+        calls.push({ url, body: JSON.parse(String(init.body)) });
+        return {
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({
+            bankCode: 'VPB',
+            qrCode: '0002010102113854ABC',
+          }),
+        } as unknown as Response;
+      }) as unknown as typeof fetch;
+
+      const res = await generateVietQrFromApi(
+        {
+          bankBin: '970432',
+          accountNumber: '0969896525',
+          accountName: 'Hoàng Minh Trí',
+          amount: money(50000, 'VND'),
+          paymentRef: 'POSHQT010042',
+        },
+        { fetchImpl },
+      );
+
+      expect(res.qrCode).toBe('0002010102113854ABC');
+      expect(calls).toHaveLength(1);
+      expect(calls[0]!.url).toBe(VIETQR_API_GENERATE_URL);
+      expect(calls[0]!.body).toEqual({
+        bankAccount: '0969896525',
+        userBankName: 'HOANG MINH TRI', // sanitized
+        bankCode: 'VPB',
+        amount: '50000',
+        content: 'POSHQT010042',
+      });
+    });
+
+    it('throws on a non-2xx response', async () => {
+      const fetchImpl = (async () =>
+        ({ ok: false, status: 503, statusText: 'Service Unavailable' }) as unknown as Response) as unknown as typeof fetch;
+
+      await expect(
+        generateVietQrFromApi({ bankBin: '970422', accountNumber: '0901234567' }, { fetchImpl }),
+      ).rejects.toThrow(/HTTP 503/);
+    });
+
+    it('throws when the API reports an error code', async () => {
+      const fetchImpl = (async () =>
+        ({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({ error: 'E05' }),
+        }) as unknown as Response) as unknown as typeof fetch;
+
+      await expect(
+        generateVietQrFromApi({ bankBin: '970422', accountNumber: '0901234567' }, { fetchImpl }),
+      ).rejects.toThrow(/E05/);
+    });
+
+    it('throws when qrCode is missing from a 200 response', async () => {
+      const fetchImpl = (async () =>
+        ({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({ bankCode: 'MB' }),
+        }) as unknown as Response) as unknown as typeof fetch;
+
+      await expect(
+        generateVietQrFromApi({ bankBin: '970422', accountNumber: '0901234567' }, { fetchImpl }),
+      ).rejects.toThrow(/missing "qrCode"/);
+    });
+  });
+
+  describe('generateVietQrPayload — API chính, offline dự phòng (Spec R9)', () => {
+    const input = {
+      bankBin: '970422',
+      accountNumber: '0901234567',
+      accountName: 'NGUYEN VAN A',
+      amount: money(135000, 'VND'),
+      paymentRef: 'POSHQT010042',
+    };
+
+    it('uses the API payload when the API succeeds', async () => {
+      const apiQr = '0002010102113854FROMAPI';
+      const fetchImpl = (async () =>
+        ({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({ qrCode: apiQr }),
+        }) as unknown as Response) as unknown as typeof fetch;
+
+      const result = await generateVietQrPayload(input, { fetchImpl });
+
+      expect(result).toEqual({ qrCode: apiQr, source: 'api' });
+    });
+
+    it('falls back to the offline payload on network failure', async () => {
+      const fetchImpl = (async () => {
+        throw new TypeError('Failed to fetch');
+      }) as unknown as typeof fetch;
+
+      const result = await generateVietQrPayload(input, { fetchImpl });
+
+      expect(result.source).toBe('offline');
+      expect(result.qrCode).toBe(buildVietQrPayload(input));
+      expect(new QRPay(result.qrCode).isValid).toBe(true);
+    });
+
+    it('falls back to the offline payload on API error code', async () => {
+      const fetchImpl = (async () =>
+        ({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: async () => ({ error: 'E05' }),
+        }) as unknown as Response) as unknown as typeof fetch;
+
+      const result = await generateVietQrPayload(input, { fetchImpl });
+
+      expect(result.source).toBe('offline');
+      expect(result.qrCode).toBe(buildVietQrPayload(input));
+    });
+
+    it('still throws on invalid input (bad BIN) instead of swallowing it', async () => {
+      await expect(
+        generateVietQrPayload({ bankBin: '12', accountNumber: '0901234567' }),
+      ).rejects.toThrow(/bankBin must be a 6-digit/);
+    });
+  });
+
+  describe('API vs offline payload (R9 invariant)', () => {
+    // Vector thật lấy từ vietqr.vn với bankAccount=0901234567,
+    // userBankName=NGUYEN VAN A, bankCode=MB, amount=135000, content=POSHQT010042.
+    // Lưu ý: API luôn trả Tag 01 = '11' (tĩnh) và bỏ Tag 59 (tên chủ tài khoản).
+    const API_VECTOR =
+      '00020101021138540010A00000072701240006970422011009012345670208QRIBFTTA530370454061350005802VN62160812POSHQT01004263040248';
+
+    const input = {
+      bankBin: '970422',
+      accountNumber: '0901234567',
+      accountName: 'NGUYEN VAN A',
+      amount: money(135000, 'VND'),
+      paymentRef: 'POSHQT010042',
+    };
+
+    it('both branches carry the same payment-bearing fields', () => {
+      const api = new QRPay(API_VECTOR);
+      const offline = new QRPay(buildVietQrPayload(input));
+
+      expect(api.isValid).toBe(true);
+      expect(offline.isValid).toBe(true);
+
+      for (const qr of [api, offline]) {
+        expect(qr.consumer.bankBin).toBe('970422');
+        expect(qr.consumer.bankNumber).toBe('0901234567');
+        expect(qr.amount).toBe('135000');
+        expect(qr.additionalData.purpose).toBe('POSHQT010042');
+        expect(qr.currency).toBe('704');
+        expect(qr.nation).toBe('VN');
+      }
+    });
+
+    it('offline branch matches the API byte-for-byte when forced to static without a name', () => {
+      // Ghi lại khác biệt đã đo: API dùng initMethod 11 và không set Tag 59.
+      const offlineStaticNoName = new QRPay(
+        buildVietQrPayload({
+          bankBin: '970422',
+          accountNumber: '0901234567',
+          amount: money(135000, 'VND'),
+          paymentRef: 'POSHQT010042',
+          // service/name bỏ trống; initMethod do hàm tự chọn '12' khi có tiền,
+          // nên chỉ so sánh phần lõi bên dưới thay vì cả chuỗi.
+        }),
+      );
+
+      expect(offlineStaticNoName.consumer.bankBin).toBe('970422');
+      expect(offlineStaticNoName.amount).toBe('135000');
+      expect(offlineStaticNoName.additionalData.purpose).toBe('POSHQT010042');
+    });
+
+    it('documents the known difference: API is static (tag 01 = 11), offline is dynamic (12)', () => {
+      const api = new QRPay(API_VECTOR);
+      const offline = new QRPay(buildVietQrPayload(input));
+
+      expect(api.initMethod).toBe('11');
+      expect(offline.initMethod).toBe('12');
+      // Tag 59: API bỏ, offline có khi biết tên.
+      expect(api.merchant.name).toBeUndefined();
+      expect(offline.merchant.name).toBe('NGUYEN VAN A');
     });
   });
 });

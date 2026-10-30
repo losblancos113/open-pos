@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { ChevronDown } from '@vicons/ionicons5';
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Dialog, Input, Select } from '@vuetify/v0';
@@ -276,7 +278,7 @@ async function handleSave() {
             >
               <Select.Activator class="field-input py-2 px-3 text-sm cursor-pointer w-full flex items-center justify-between">
                 <span>{{ selectedBankLabel }}</span>
-                <span class="text-xs text-text-muted">▼</span>
+                <span class="text-xs text-text-muted"><AppIcon><ChevronDown /></AppIcon></span>
               </Select.Activator>
               <Select.Content eager class="panel-card p-1 shadow-lg max-h-60 overflow-y-auto">
                 <Select.Item

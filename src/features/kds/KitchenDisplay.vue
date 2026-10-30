@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { AddOutline, ArrowUndoOutline, CafeOutline, Checkmark, Close, DocumentTextOutline, FastFoodOutline, NutritionOutline, RefreshOutline, RestaurantOutline, SparklesOutline, StopwatchOutline, Warning } from '@vicons/ionicons5';
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Dialog } from '@vuetify/v0';
@@ -452,7 +454,7 @@ defineExpose({
           :class="activeStation === 'all' ? 'btn-primary shadow-xs' : 'btn-ghost'"
           @click="activeStation = 'all'"
         >
-          <Button.Content>🍽️ {{ t('kds.stations.all') }}</Button.Content>
+          <Button.Content><AppIcon><RestaurantOutline /></AppIcon> {{ t('kds.stations.all') }}</Button.Content>
         </Button.Root>
         <Button.Root
           type="button"
@@ -461,7 +463,7 @@ defineExpose({
           :class="activeStation === 'kitchen' ? 'btn-primary shadow-xs' : 'btn-ghost'"
           @click="activeStation = 'kitchen'"
         >
-          <Button.Content>🍳 {{ t('kds.stations.kitchen') }}</Button.Content>
+          <Button.Content><AppIcon><FastFoodOutline /></AppIcon> {{ t('kds.stations.kitchen') }}</Button.Content>
         </Button.Root>
         <Button.Root
           type="button"
@@ -470,7 +472,7 @@ defineExpose({
           :class="activeStation === 'bar' ? 'btn-primary shadow-xs' : 'btn-ghost'"
           @click="activeStation = 'bar'"
         >
-          <Button.Content>☕ {{ t('kds.stations.bar') }}</Button.Content>
+          <Button.Content><AppIcon><CafeOutline /></AppIcon> {{ t('kds.stations.bar') }}</Button.Content>
         </Button.Root>
         <Button.Root
           type="button"
@@ -479,7 +481,7 @@ defineExpose({
           :class="activeStation === 'cold' ? 'btn-primary shadow-xs' : 'btn-ghost'"
           @click="activeStation = 'cold'"
         >
-          <Button.Content>🥗 {{ t('kds.stations.cold') }}</Button.Content>
+          <Button.Content><AppIcon><NutritionOutline /></AppIcon> {{ t('kds.stations.cold') }}</Button.Content>
         </Button.Root>
       </div>
 
@@ -496,7 +498,7 @@ defineExpose({
             v-if="stats.delayedCount > 0"
             class="px-2.5 py-1 rounded bg-rose-500/10 border border-rose-500/20 text-rose-600 animate-pulse font-bold"
           >
-            ⚠️ {{ t('kds.aging.delayed') }}: {{ stats.delayedCount }}
+            <AppIcon><Warning /></AppIcon> {{ t('kds.aging.delayed') }}: {{ stats.delayedCount }}
           </span>
         </div>
 
@@ -508,7 +510,7 @@ defineExpose({
           @click="isRecallModalOpen = true"
         >
           <Button.Content>
-            <span>↩️</span>
+            <span><AppIcon><ArrowUndoOutline /></AppIcon></span>
             <span>{{ t('kds.ticket.recall') }} ({{ recentlyCompletedItems.length }})</span>
           </Button.Content>
         </Button.Root>
@@ -521,7 +523,7 @@ defineExpose({
           :title="t('kds.refresh')"
           @click="loadData"
         >
-          <Button.Content>🔄</Button.Content>
+          <Button.Content><AppIcon><RefreshOutline /></AppIcon></Button.Content>
         </Button.Root>
       </div>
     </header>
@@ -534,7 +536,7 @@ defineExpose({
         class="h-full flex flex-col items-center justify-center text-center p-8 panel-card border-dashed border-2 border-border/80"
         data-test="kds-empty-state"
       >
-        <div class="text-5xl sm:text-6xl mb-3">🍳✨</div>
+        <div class="text-5xl sm:text-6xl mb-3"><AppIcon><FastFoodOutline /></AppIcon><AppIcon><SparklesOutline /></AppIcon></div>
         <h3 class="text-base sm:text-lg font-bold text-text">{{ t('kds.empty.title') }}</h3>
         <p class="text-xs sm:text-sm text-text-muted mt-1 max-w-md">
           {{ t('kds.empty.subtitle') }}
@@ -594,7 +596,7 @@ defineExpose({
                   'bg-rose-600 text-white animate-pulse': ticket.agingStage === 'delayed',
                 }"
               >
-                ⏱️ {{ ticket.elapsedMinutes }}'
+                <AppIcon><StopwatchOutline /></AppIcon> {{ ticket.elapsedMinutes }}'
               </span>
               <span class="text-[10px] font-semibold text-text-muted mt-0.5">
                 {{ t(`kds.aging.${ticket.agingStage}`) }}
@@ -634,7 +636,7 @@ defineExpose({
                     data-test="line-added-later-badge"
                     class="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-purple-300 font-semibold border border-purple-500/30"
                   >
-                    ➕ {{ t('kds.ticket.addedLater') }}
+                    <AppIcon><AddOutline /></AppIcon> {{ t('kds.ticket.addedLater') }}
                   </span>
                 </div>
 
@@ -652,7 +654,7 @@ defineExpose({
                   class="mt-1 pl-6 flex items-center gap-1 text-[11px] font-semibold text-rose-600"
                   data-test="line-note"
                 >
-                  <span>📝</span>
+                  <span><AppIcon><DocumentTextOutline /></AppIcon></span>
                   <span class="italic bg-rose-500/10 px-1.5 py-0.5 rounded">{{ line.note }}</span>
                 </div>
               </div>
@@ -678,7 +680,7 @@ defineExpose({
                   :title="t('kds.ticket.bump')"
                   @click="handleBumpLine(ticket, line)"
                 >
-                  ✓
+                  <AppIcon><Checkmark /></AppIcon>
                 </button>
               </div>
             </div>
@@ -696,7 +698,7 @@ defineExpose({
               @click="handleBumpTicket(ticket)"
             >
               <Button.Content>
-                <span>✓</span>
+                <span><AppIcon><Checkmark /></AppIcon></span>
                 <span>{{ t('kds.ticket.bumpAll') }}</span>
               </Button.Content>
             </Button.Root>
@@ -713,7 +715,7 @@ defineExpose({
       >
         <div class="flex items-center justify-between border-b border-border pb-3 shrink-0">
           <Dialog.Title class="text-base font-bold text-text flex items-center gap-2">
-            <span>↩️</span>
+            <span><AppIcon><ArrowUndoOutline /></AppIcon></span>
             <span>{{ t('kds.history.title') }}</span>
           </Dialog.Title>
           <Button.Root
@@ -721,7 +723,7 @@ defineExpose({
             class="btn btn-ghost text-xs p-1 h-7 w-7 rounded-full flex items-center justify-center text-text-muted hover:text-text cursor-pointer"
             @click="isRecallModalOpen = false"
           >
-            ✕
+            <AppIcon><Close /></AppIcon>
           </Button.Root>
         </div>
 
@@ -755,7 +757,7 @@ defineExpose({
               class="btn btn-ghost text-xs px-2.5 py-1 rounded border border-border text-primary hover:bg-primary/10 cursor-pointer font-bold shrink-0"
               @click="handleRecallItem(item, idx)"
             >
-              <Button.Content>↩️ {{ t('kds.ticket.recall') }}</Button.Content>
+              <Button.Content><AppIcon><ArrowUndoOutline /></AppIcon> {{ t('kds.ticket.recall') }}</Button.Content>
             </Button.Root>
           </div>
         </div>

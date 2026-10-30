@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue';
+import { Close, PrintOutline } from '@vicons/ionicons5';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Dialog, Button } from '@vuetify/v0';
@@ -94,7 +96,7 @@ function handleClose() {
                 class="btn btn-primary text-xs px-3 py-1.5 flex items-center gap-1.5 cursor-pointer shadow-sm"
                 @click="handlePrint"
               >
-                <span>🖨️</span>
+                <span><AppIcon><PrintOutline /></AppIcon></span>
                 <span>{{ t('pos.receipt.print') }}</span>
               </Button.Root>
               <Button.Root
@@ -103,7 +105,7 @@ function handleClose() {
                 class="btn btn-ghost text-xs p-1.5 h-8 w-8 rounded-full cursor-pointer flex items-center justify-center text-text-muted hover:text-text"
                 @click="handleClose"
               >
-                ✕
+                <AppIcon><Close /></AppIcon>
               </Button.Root>
             </div>
           </div>
