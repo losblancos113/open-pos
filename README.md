@@ -4,8 +4,9 @@ Offline-first point-of-sale for restaurants and cafés, built for the Vietnamese
 Runs as a desktop app on each terminal and syncs with the other terminals in the same
 branch over the local network — no internet connection required to sell.
 
-**Status: M2 (Catalog & Menu) complete.** Type Registry and Catalog Admin are operational
-offline-first with UnoCSS styling. See [Milestones](#milestones) for what comes next.
+**Status: v1 feature-complete.** All milestones — M0 through M6c — are delivered and
+covered by the test suite. See [Milestones](#milestones) for what each one delivered
+and [Known limitations](#known-limitations) for what was deliberately left out.
 
 ---
 
@@ -22,7 +23,7 @@ offline-first with UnoCSS styling. See [Milestones](#milestones) for what comes 
 - [Milestones](#milestones)
 - [Documentation](#documentation)
 - [Conventions that matter](#conventions-that-matter)
-- [Known limitations (M2)](#known-limitations-m2)
+- [Known limitations](#known-limitations)
 
 ---
 
@@ -58,9 +59,10 @@ The design document defines the product as nine requirements. These are the v1 s
 | **R8** | Multi-branch | Several branches in one system, with catalog overrides per branch and branch-scoped permissions. |
 | **R9** | VietQR | Bank-transfer payment by VietQR (EMVCo payload + rendered QR) as part of the payment flow. |
 
-**M0 delivers the foundation for these**, not the features themselves: the branch-aware
-document envelope, the money type, the storage adapter, the sync hub, the desktop shell,
-the LAN server skeleton, i18n, design tokens, and CI.
+All nine requirements were delivered across milestones M0–M6c, with two adjustments made
+during delivery: staff PIN login (R5) runs on the desktop terminal instead of a mobile
+surface, and guest QR ordering (R6) was not built — see
+[Known limitations](#known-limitations).
 
 ---
 
@@ -75,6 +77,8 @@ the LAN server skeleton, i18n, design tokens, and CI.
 | Property testing | fast-check | ^4.10.2 |
 | i18n | vue-i18n | ^11.4.16 |
 | Local storage | PouchDB + pouchdb-find | ^9.0.0 |
+| UI primitives | Vuetify0 (`@vuetify/v0`, headless) | ^1.3.0 |
+| Styling | UnoCSS (`presetWind4`) | — |
 | Desktop shell | Tauri 2 (Rust) | 2.x |
 | LAN server | axum + tokio | 0.8 / 1.x |
 | Hub (sync) | Node + Express + PouchDB | Express ^4.21.0 |
@@ -94,8 +98,8 @@ Three processes cooperate on one terminal:
 │                                                              │
 │   ┌────────────────────────┐      ┌───────────────────────┐  │
 │   │  Vue 3 UI (webview)    │      │  axum LAN server      │  │
-│   │  ├─ core/money         │      │  GET /api/health      │  │
-│   │  ├─ core/db (adapter)  │      │  (M5: WS hub, QR)     │  │
+│   │  ├─ core/** (domain)   │      │  GET /api/health      │  │
+│   │  ├─ features/** (UI)   │      │  POST /api/auth/*     │  │
 │   │  ├─ i18n (vi/en)       │      └───────────────────────┘  │
 │   │  └─ styles/tokens      │                                 │
 │   └───────────┬────────────┘                                 │
@@ -135,40 +139,68 @@ Three processes cooperate on one terminal:
 open-pos/
 ├── src/                          # Vue 3 frontend
 │   ├── main.ts                   # App bootstrap (mounts App.vue, installs i18n)
-│   ├── App.vue                   # Root component
+│   ├── App.vue                   # App shell: navigation, branch switcher, login
+│   ├── components/               # Shared UI (AppIcon, AppLogo)
 │   ├── core/                     # Framework-free domain logic (no Vue imports)
 │   │   ├── money.ts              # Integer minor units + currency safety
+│   │   ├── money-parse.ts        # Locale-aware money parsing
 │   │   ├── money-allocate.ts     # Deterministic split-payment allocation
-│   │   └── db/
-│   │       ├── adapter.ts        # DbAdapter interface (storage contract)
-│   │       ├── envelope.ts       # DocEnvelope + createEnvelope (mandatory branchId)
-│   │       ├── ids.ts            # _id conventions (branch:, product:, ...)
-│   │       └── memory-adapter.ts # In-memory DbAdapter for tests/dev
+│   │   ├── db/                   # Envelope, _id helpers, DbAdapter + memory/PouchDB adapters
+│   │   ├── types/                # M1 Type Registry: definitions, formulas, migration
+│   │   ├── catalog/              # M2 Catalog: products, pricing, menu, CSV
+│   │   ├── order/                # M3/M4 order engine: reducer, bills, split/merge
+│   │   ├── qr/                   # VietQR payload, bank account, vendored QR encoder
+│   │   ├── auth/                 # Users, PIN hashing, tokens, permissions
+│   │   ├── branch/               # Branch repository
+│   │   ├── inventory/            # M6b recipes, stock movements, stocktake, waste
+│   │   ├── shift/                # M6c shift engine
+│   │   ├── reports/              # Store & cross-branch reports, CSV export
+│   │   ├── audit/                # Audit log
+│   │   ├── maintenance/          # Backup/restore, token cleanup
+│   │   └── system/               # Terminal registration, port service
+│   ├── features/                 # UI features (one folder per surface)
+│   │   ├── auth/                 # Login, user admin, profile
+│   │   ├── branch/               # Branch switcher + branch admin
+│   │   ├── type-designer/        # M1 Type Designer, DynamicForm/List
+│   │   ├── catalog-admin/        # M2 Catalog Admin
+│   │   ├── pos/                  # M3/M4 POS terminal, floor plan, split/merge dialogs
+│   │   ├── kds/                  # M5 kitchen display
+│   │   ├── table-admin/          # Table management
+│   │   ├── inventory/            # M6b inventory admin
+│   │   ├── shift/                # M6c shift open/close
+│   │   ├── reports/              # M6c store reports, invoices, cross-branch reports
+│   │   └── setup/                # Installer wizard
 │   ├── i18n/                     # vi.json + en.json + createI18n setup
 │   └── styles/
 │       ├── tokens.ts             # Design tokens — single source of truth
-│       └── tokens.css            # CSS variables (kept in sync by a test)
+│       ├── tokens.css            # CSS variables (kept in sync by a test)
+│       └── uno-theme.ts          # UnoCSS theme derived from tokens
 ├── src-tauri/                    # Tauri 2 desktop shell (Rust)
 │   ├── src/
 │   │   ├── main.rs               # Binary entry point
 │   │   ├── lib.rs                # run() + module declarations
 │   │   └── lan/                  # axum LAN server
 │   │       ├── mod.rs            # router() + tests
-│   │       └── health.rs         # GET /api/health handler
+│   │       ├── health.rs         # GET /api/health handler
+│   │       └── auth.rs           # POST /api/auth/login, /api/auth/switch-branch
 │   ├── capabilities/default.json # Tauri permission set for the main window
 │   ├── Cargo.toml
 │   └── tauri.conf.json           # Window, bundle and dev-server config
 ├── sidecar/                      # PouchDB-server hub (Node, separate package)
 │   ├── package.json
-│   └── src/server.mjs            # Express + PouchDB CouchDB-compatible API
-├── tests/                        # Cross-process integration tests
+│   └── src/server.mjs            # CouchDB-compatible API + bearer-token, branch-scoped auth
+├── landing/                      # Marketing landing page (separate Vite app)
+├── tests/                        # Cross-process integration & acceptance tests
 │   ├── sidecar.test.ts           # Hub protocol + security regressions
 │   ├── hub-endpoints.test.ts     # CouchDB endpoint contract
-│   └── two-terminal-sync.test.ts # M0 acceptance test
+│   ├── sidecar-branch-auth.test.ts # Branch-scoped hub tokens (M6a)
+│   ├── two-terminal-sync.test.ts # M0 acceptance test
+│   ├── m6b-inventory-acceptance.test.ts
+│   └── m6c-shifts-reports-hardening-acceptance.test.ts
 ├── .github/workflows/ci.yml      # CI: web + rust jobs
 └── docs/superpowers/
     ├── specs/2026-10-20-open-pos-design.md   # Design document (v0.5)
-    └── plans/2026-10-20-m0-foundation.md     # M0 implementation plan
+    └── plans/                                # One implementation plan per milestone, M0–M6c
 ```
 
 **Where things belong:**
@@ -263,28 +295,35 @@ binary actually links (this is where a bad app icon or a missing symbol surfaces
 
 ## Testing
 
-**743 tests across 56 files, all passing.**
+**1,230 tests across 137 files, all passing.**
 
 Major test suites covering each milestone:
 
 | Suite | Covers |
 |-------|--------|
-| `src/core/__tests__/` | Money integer units, deterministic allocation properties, Vietnamese slugify |
-| `src/core/db/__tests__/` | Document envelope, `_id` helpers, memory & PouchDB adapter contract |
+| `src/core/__tests__/` | Money integer units + parsing, deterministic allocation properties, Vietnamese slugify |
+| `src/core/db/__tests__/` | Document envelope, `_id` helpers, branch handling, memory & PouchDB adapter contract |
 | `src/core/types/__tests__/` | M1 Type Registry: definition validation, rational math, formula evaluation, lazy migration, acceptance |
 | `src/core/catalog/__tests__/` | M2 Catalog engine: models, validation, pricing resolution, menu assembly, CSV export/import, acceptance |
-| `src/features/type-designer/__tests__/` | Type Designer UI, DynamicForm, DynamicList, FieldWidgets |
-| `src/features/catalog-admin/__tests__/` | Catalog Admin UI: CategoryList, ProductList, ProductEditor, ComboEditor, ModifierGroupEditor, PriceListEditor, BranchOverrideEditor, CsvPanel |
+| `src/core/order/__tests__/` | M3/M4 order reducer, numbering, bills, split/merge (incl. fast-check property tests), inventory settlement, acceptance |
+| `src/core/qr/__tests__/` | VietQR EMVCo payload, bank-account settings, QR matrix |
+| `src/core/auth`, `branch`, `inventory`, `shift`, `reports`, `audit`, `maintenance` | M5/M6 domain logic: users, PIN hashing, permissions, stock deduction, shift engine, reports & export, audit log, backup/restore |
+| `src/features/**/__tests__/` | UI: POS terminal & dialogs, kitchen display, catalog admin, type designer, branch admin, inventory, shift, reports & invoices, table admin, installer wizard |
 | `src/styles/__tests__/` | Token-to-theme bridge, UnoCSS utility generation, token drift |
 | `src/i18n/__tests__/i18n.test.ts` | vi/en **key parity** across all modules |
 | `tests/sidecar.test.ts` | Hub protocol + security regressions |
 | `tests/hub-endpoints.test.ts` | CouchDB endpoint contract |
+| `tests/sidecar-branch-auth.test.ts` | Branch-scoped hub bearer tokens |
 | `tests/two-terminal-sync.test.ts` | **M0 acceptance** — two terminals sync through the hub |
 | `src/core/catalog/__tests__/acceptance-m2.test.ts` | **M2 acceptance** — end-to-end multi-category, modifier, combo, price list, branch override, CSV round-trip menu |
+| `src/core/order/__tests__/acceptance-m3.test.ts` | **M3 acceptance** — end-to-end order-to-payment workflow |
+| `tests/m6b-inventory-acceptance.test.ts` | **M6b acceptance** — end-to-end inventory workflow |
+| `tests/m6c-shifts-reports-hardening-acceptance.test.ts` | **M6c acceptance** — end-to-end shift/report/backup workflow |
 
 The integration suites in `tests/` spawn a real hub process and talk to it over HTTP.
-`tests/two-terminal-sync.test.ts` verifies multi-terminal replication through the hub;
-`src/core/catalog/__tests__/acceptance-m2.test.ts` proves the full cafe menu workflow.
+`tests/two-terminal-sync.test.ts` verifies multi-terminal replication through the hub,
+`tests/sidecar-branch-auth.test.ts` the branch-scoped token scheme, and the M6b/M6c
+acceptance suites run their milestones end to end.
 
 ---
 
@@ -295,12 +334,12 @@ The integration suites in `tests/` spawn a real hub process and talk to it over 
 | **M0** | Foundation & Skeleton | ✅ **Done.** Scaffold, storage adapter, hub sidecar, axum skeleton, CI, i18n, tokens, money type, `branchId` throughout the schema. |
 | **M1** | Type Registry & Dynamic Forms | ✅ **Done.** User-defined-types engine, field-type registry, formula interpreter, schema migration, Type Designer UI. |
 | **M2** | Catalog & Menu | ✅ **Done.** Categories, products, variants, modifiers, combos, price lists, branch overrides, CSV import/export, UnoCSS, Catalog Admin UI. |
-| **M3** | Order Engine & POS Terminal | Floor plan, table sessions, order entry, discounts, split payment, **VietQR**, bill PDF. |
-| **M4** | Split / Merge / Transfer | Split by item / evenly / by seat, merge tables and bills, transfer tables. |
-| **M5** | Staff Mobile, QR Order & KDS | LAN + WS hub, PIN login, QR ordering, waiter approval, kitchen display. |
-| **M6a** | Multi-branch & Cloud | Branch management, branch-scoped permissions, filtered replication, cross-branch reporting. |
-| **M6b** | Inventory | Recipes/BOM, automatic stock deduction, stocktake, waste tracking. |
-| **M6c** | Shifts, Reports & Hardening | Shift close and cash reconciliation, reports, audit log, backup/restore, installer. |
+| **M3** | Order Engine & POS Terminal | ✅ **Done.** Floor plan, table sessions, order entry, discounts/surcharges, split payment, **VietQR**, bills & invoice management. |
+| **M4** | Split / Merge / Transfer | ✅ **Done.** Split by item / evenly / by seat, merge tables and bills, transfer tables — property-tested engine. |
+| **M5** | Split / Merge / Transfer UI & KDS | ✅ **Done.** Split/merge/transfer dialogs on the POS terminal, kitchen display with live status sync. (The design doc's original M5 — staff mobile & QR ordering — was descoped; see [Known limitations](#known-limitations).) |
+| **M6a** | Multi-branch & Cloud | ✅ **Done.** Branch management + switcher, branch-scoped permissions, branch-scoped hub tokens, cross-branch reporting. |
+| **M6b** | Inventory & Stock Control | ✅ **Done.** Recipes/BOM, automatic stock deduction on paid bills, stocktake, waste tracking, stock movements. |
+| **M6c** | Shifts, Reports & Hardening | ✅ **Done.** Shift open/close with cash reconciliation, store & cross-branch reports, CSV export, audit log, backup/restore, installer wizard. |
 
 Full detail, dependencies, and safe stopping points are in §9 of the design document.
 
@@ -311,9 +350,7 @@ Full detail, dependencies, and safe stopping points are in §9 of the design doc
 | Document | What it is |
 |----------|-----------|
 | `docs/superpowers/specs/2026-10-20-open-pos-design.md` | The design document (v0.5). Requirements R1–R9, data model, architecture, security, risks. **The authority on product decisions.** |
-| `docs/superpowers/plans/2026-10-20-m0-foundation.md` | The M0 implementation plan: twelve tasks with tests and commit points. |
-| `docs/superpowers/plans/2026-10-20-m1-type-registry.md` | The M1 implementation plan: type definition, formulas, migration, Type Designer UI. |
-| `docs/superpowers/plans/2026-10-22-m2-catalog.md` | The M2 implementation plan: catalog models, pricing, CSV import/export, Catalog Admin UI. |
+| `docs/superpowers/plans/` | One implementation plan per milestone, M0 through M6c (`2026-10-20-m0-foundation.md` … `2026-10-26-m6c-shifts-reports-hardening.md`). |
 | [`AGENTS.md`](./AGENTS.md) | Instructions for AI coding agents working in this repo. |
 | [`CLAUDE.md`](./CLAUDE.md) | Claude Code-specific guidance. |
 
@@ -348,21 +385,19 @@ These are enforced by tests or by types. Breaking them will fail the build.
 
 ---
 
-## Known limitations (M2)
+## Known limitations
 
-M2 delivers the type registry and catalog management. Be aware of what is **not** here yet:
+v1 is feature-complete against the delivered plans, with these boundaries:
 
-- **No order or POS screens yet.** Floor plan, table sessions, order entry, modifiers at order time, hold/park, and checkout are M3 work.
-- **Single-branch in active UI.** `branchId` is threaded through all documents and branch overrides exist, but branch
-  switching UI, per-branch permissions and filtered replication are M6a.
-- **The hub has no authentication.** It binds to `127.0.0.1` by default. Putting it on a
-  shared network without adding auth would let anyone who can reach the port read and write
-  data. LAN exposure needs the token scheme from §6.3 of the design doc first.
-- **The LAN server exposes only `/api/health`.** The WebSocket hub, QR token issuance and
-  KDS endpoints are M5 work.
-- **Images are reference strings only in v1.** Stored as URL / data URL strings. The media
-  storage and attachment pipeline is M6a (§13.2).
+- **No guest QR ordering and no staff mobile surface.** R6 (guest QR order + waiter
+  approval) and the mobile half of R5 were descoped during delivery. Staff sign in with a
+  PIN on the terminal, and the kitchen display runs on the same desktop shell — there is
+  no `/staff` mobile route and no WebSocket hub.
+- **Reports export CSV, not Excel/PDF.** Z-report, category/hourly sales and cross-branch
+  reports all export as CSV.
+- **Images are reference strings only.** Stored as URL / data URL strings. The media
+  storage and attachment pipeline (§13.2) was not built.
 - **No end-to-end desktop test.** The Rust binary and the webview are verified separately
-  (cargo tests + browser tests); nothing yet drives the packaged app.
+  (cargo tests + Vitest); nothing drives the packaged app.
 - **CI runs on Windows only.** That matches the primary target, but Linux/macOS build
   breakage would not be caught.
