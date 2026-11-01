@@ -5,8 +5,10 @@ import {
   saveDatabaseConfig,
   type DatabaseConfig,
   type CosmosDbConfig,
+  type FirestoreDbConfig,
 } from '@/core/db/config';
 import { createCosmosAdapter } from '@/core/db/cosmos-adapter';
+import { createFirestoreAdapter } from '@/core/db/firestore-adapter';
 import { createPouchAdapter } from '@/core/db/pouch-adapter';
 import {
   migrateAdapterData,
@@ -18,7 +20,9 @@ export type ProviderStatus = 'connected' | 'connecting' | 'error' | 'local';
 
 const activeConfig = ref<DatabaseConfig>(loadDatabaseConfig());
 const providerStatus = ref<ProviderStatus>(
-  activeConfig.value.provider === 'cosmos' ? 'connecting' : 'local',
+  activeConfig.value.provider === 'cosmos' || activeConfig.value.provider === 'firestore'
+    ? 'connecting'
+    : 'local',
 );
 const statusMessage = ref<string>('');
 
@@ -30,6 +34,21 @@ export function useDatabaseProvider() {
       providerStatus.value = 'connecting';
       try {
         const adapter = await createCosmosAdapter(config);
+        providerStatus.value = 'connected';
+        statusMessage.value = '';
+        return adapter;
+      } catch (err) {
+        providerStatus.value = 'error';
+        const msg = err instanceof Error ? err.message : String(err);
+        statusMessage.value = msg;
+        throw err;
+      }
+    }
+
+    if (config.provider === 'firestore') {
+      providerStatus.value = 'connecting';
+      try {
+        const adapter = await createFirestoreAdapter(config);
         providerStatus.value = 'connected';
         statusMessage.value = '';
         return adapter;
@@ -60,6 +79,23 @@ export function useDatabaseProvider() {
       providerStatus.value = 'connecting';
       try {
         const adapter = await createCosmosAdapter(newConfig);
+        activeConfig.value = newConfig;
+        saveDatabaseConfig(newConfig);
+        providerStatus.value = 'connected';
+        statusMessage.value = '';
+        return adapter;
+      } catch (err) {
+        providerStatus.value = 'error';
+        const msg = err instanceof Error ? err.message : String(err);
+        statusMessage.value = msg;
+        throw err;
+      }
+    }
+
+    if (newConfig.provider === 'firestore') {
+      providerStatus.value = 'connecting';
+      try {
+        const adapter = await createFirestoreAdapter(newConfig);
         activeConfig.value = newConfig;
         saveDatabaseConfig(newConfig);
         providerStatus.value = 'connected';
