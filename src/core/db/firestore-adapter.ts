@@ -190,17 +190,19 @@ export async function createFirestoreAdapter(config: FirestoreDbConfig): Promise
   if (found) {
     app = found;
   } else {
-    app = initializeApp(
-      {
-        apiKey: config.apiKey,
-        authDomain: config.authDomain,
-        projectId: config.projectId,
-        storageBucket: config.storageBucket,
-        messagingSenderId: config.messagingSenderId,
-        appId: config.appId,
-      },
-      appName,
-    );
+    const firebaseOptions: Record<string, string> = {
+      apiKey: config.apiKey,
+      authDomain: config.authDomain,
+      projectId: config.projectId,
+      appId: config.appId,
+    };
+    if (config.storageBucket) {
+      firebaseOptions.storageBucket = config.storageBucket;
+    }
+    if (config.messagingSenderId) {
+      firebaseOptions.messagingSenderId = config.messagingSenderId;
+    }
+    app = initializeApp(firebaseOptions as any, appName);
   }
 
   const db: Firestore = getFirestore(app);

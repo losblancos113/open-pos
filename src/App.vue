@@ -285,7 +285,7 @@ onMounted(async () => {
             />
             <AppIcon><CloudOutline /></AppIcon>
             <span class="hidden lg:inline">
-              {{ activeConfig.provider === 'cosmos' ? 'Cosmos DB' : 'Local DB' }}
+              {{ activeConfig.provider === 'cosmos' ? 'Cosmos DB' : activeConfig.provider === 'firestore' ? 'Firestore' : 'Local DB' }}
             </span>
           </Button.Root>
 
