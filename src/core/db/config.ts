@@ -11,7 +11,18 @@ export interface CosmosDbConfig {
   partitionKeyPath?: string;
 }
 
-export type DatabaseConfig = LocalDbConfig | CosmosDbConfig;
+export interface FirestoreDbConfig {
+  provider: 'firestore';
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId: string;
+  collectionName?: string;
+}
+
+export type DatabaseConfig = LocalDbConfig | CosmosDbConfig | FirestoreDbConfig;
 
 export const DEFAULT_LOCAL_CONFIG: LocalDbConfig = {
   provider: 'local',
