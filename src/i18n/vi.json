@@ -948,5 +948,36 @@
     },
     "refresh": "Làm mới",
     "autoRefresh": "Tự động cập nhật"
+  },
+  "database": {
+    "title": "Cấu hình Cơ sở dữ liệu",
+    "provider": "Nhà cung cấp lưu trữ",
+    "providers": {
+      "local": "Nội bộ (PouchDB / Offline)",
+      "cosmos": "Azure Cosmos DB (Cloud NoSQL)",
+      "firestore": "Google Firestore (Sắp ra mắt)"
+    },
+    "endpoint": "Endpoint URL",
+    "key": "Khóa truy cập (Primary Key)",
+    "databaseId": "Tên Database",
+    "containerId": "Tên Container",
+    "testConnection": "Kiểm tra kết nối",
+    "testing": "Đang kiểm tra…",
+    "testSuccess": "Kết nối thành công ({latencyMs}ms)",
+    "testFailed": "Kết nối thất bại: {error}",
+    "autoProvision": "Tự động khởi tạo Database/Container",
+    "provisioning": "Đang khởi tạo…",
+    "provisionSuccess": "Khởi tạo thành công container tại 400 RU/s",
+    "migrate": "Chuyển dữ liệu lên Cloud",
+    "migrating": "Đang chuyển dữ liệu ({transferred}/{total})…",
+    "migrateSuccess": "Chuyển thành công {transferred}/{total} bản ghi",
+    "migrateFailed": "Chuyển thất bại {failed} bản ghi",
+    "status": {
+      "connected": "Đã kết nối Cloud",
+      "connecting": "Đang kết nối Cloud…",
+      "local": "Chế độ nội bộ (Offline)",
+      "error": "Lỗi kết nối Cloud"
+    },
+    "switchSuccess": "Đã chuyển đổi nhà cung cấp cơ sở dữ liệu thành công"
   }
 }

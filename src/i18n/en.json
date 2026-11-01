@@ -948,5 +948,36 @@
     },
     "refresh": "Refresh",
     "autoRefresh": "Auto-refresh"
+  },
+  "database": {
+    "title": "Database Configuration",
+    "provider": "Storage Provider",
+    "providers": {
+      "local": "Local (PouchDB / Offline)",
+      "cosmos": "Azure Cosmos DB (Cloud NoSQL)",
+      "firestore": "Google Firestore (Coming Soon)"
+    },
+    "endpoint": "Endpoint URL",
+    "key": "Access Key (Primary Key)",
+    "databaseId": "Database Name",
+    "containerId": "Container Name",
+    "testConnection": "Test Connection",
+    "testing": "Testing…",
+    "testSuccess": "Connection successful ({latencyMs}ms)",
+    "testFailed": "Connection failed: {error}",
+    "autoProvision": "Auto-Provision Container",
+    "provisioning": "Provisioning…",
+    "provisionSuccess": "Successfully provisioned container at 400 RU/s",
+    "migrate": "Migrate Local Data to Cloud",
+    "migrating": "Migrating data ({transferred}/{total})…",
+    "migrateSuccess": "Successfully migrated {transferred}/{total} records",
+    "migrateFailed": "Failed to migrate {failed} records",
+    "status": {
+      "connected": "Cloud Connected",
+      "connecting": "Connecting to Cloud…",
+      "local": "Local Mode (Offline)",
+      "error": "Cloud Connection Error"
+    },
+    "switchSuccess": "Successfully switched database provider"
   }
 }
