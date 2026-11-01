@@ -3,11 +3,13 @@ import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button, Dialog, Input, Select } from '@vuetify/v0';
 import AppIcon from '@/components/AppIcon.vue';
-import { ChevronDown } from '@vicons/ionicons5';
+import { ChevronDown, ClipboardOutline } from '@vicons/ionicons5';
 import type { DbAdapter } from '@/core/db/adapter';
-import type { DatabaseConfig, CosmosDbConfig } from '@/core/db/config';
+import type { DatabaseConfig, CosmosDbConfig, FirestoreDbConfig } from '@/core/db/config';
 import { useDatabaseProvider } from '@/composables/useDatabaseProvider';
 import { testCosmosConnection, ensureCosmosContainer } from '@/core/db/cosmos-provision';
+import { testFirestoreConnection } from '@/core/db/firestore-provision';
+import { parseFirebaseConfigSnippet } from '@/core/db/firebase-config-parser';
 
 const props = withDefaults(
   defineProps<{
@@ -28,11 +30,27 @@ const { t } = useI18n();
 const { activeConfig, switchProvider, migrateToCloud } = useDatabaseProvider();
 
 // Form state
-const selectedProvider = ref<'local' | 'cosmos'>('local');
+const selectedProvider = ref<'local' | 'cosmos' | 'firestore'>('local');
+
+// Cosmos state
 const endpoint = ref('');
 const key = ref('');
 const databaseId = ref('openpos');
 const containerId = ref('documents');
+
+// Firestore state
+const firestoreApiKey = ref('');
+const firestoreAuthDomain = ref('');
+const firestoreProjectId = ref('');
+const firestoreStorageBucket = ref('');
+const firestoreMessagingSenderId = ref('');
+const firestoreAppId = ref('');
+const firestoreCollectionName = ref('openpos_documents');
+
+// Paste snippet state
+const isPasteOpen = ref(false);
+const pasteSnippet = ref('');
+const pasteNotice = ref<{ success: boolean; message: string } | null>(null);
 
 // Operational state
 const isTesting = ref(false);
@@ -50,6 +68,7 @@ const isSaving = ref(false);
 const providerOptions = computed(() => [
   { key: 'local', label: t('database.providers.local') },
   { key: 'cosmos', label: t('database.providers.cosmos') },
+  { key: 'firestore', label: t('database.providers.firestore') },
 ]);
 
 const selectedProviderLabel = computed(() => {
@@ -58,18 +77,29 @@ const selectedProviderLabel = computed(() => {
 });
 
 function loadFormFromConfig(config: DatabaseConfig) {
-  selectedProvider.value = config.provider === 'cosmos' ? 'cosmos' : 'local';
+  selectedProvider.value = config.provider;
   if (config.provider === 'cosmos') {
     endpoint.value = config.endpoint || '';
     key.value = config.key || '';
     databaseId.value = config.databaseId || 'openpos';
     containerId.value = config.containerId || 'documents';
+  } else if (config.provider === 'firestore') {
+    firestoreApiKey.value = config.apiKey || '';
+    firestoreAuthDomain.value = config.authDomain || '';
+    firestoreProjectId.value = config.projectId || '';
+    firestoreStorageBucket.value = config.storageBucket || '';
+    firestoreMessagingSenderId.value = config.messagingSenderId || '';
+    firestoreAppId.value = config.appId || '';
+    firestoreCollectionName.value = config.collectionName || 'openpos_documents';
   } else {
     endpoint.value = '';
     key.value = '';
     databaseId.value = 'openpos';
     containerId.value = 'documents';
   }
+  isPasteOpen.value = false;
+  pasteSnippet.value = '';
+  pasteNotice.value = null;
   testResult.value = null;
   provisionResult.value = null;
   migrationProgress.value = null;
@@ -87,7 +117,7 @@ watch(
 );
 
 function onSelectProvider(val: unknown) {
-  if (val === 'local' || val === 'cosmos') {
+  if (val === 'local' || val === 'cosmos' || val === 'firestore') {
     selectedProvider.value = val;
     testResult.value = null;
     provisionResult.value = null;
@@ -105,26 +135,89 @@ function buildCosmosConfig(): CosmosDbConfig {
   };
 }
 
+function buildFirestoreConfig(): FirestoreDbConfig {
+  const cfg: FirestoreDbConfig = {
+    provider: 'firestore',
+    apiKey: firestoreApiKey.value.trim(),
+    authDomain: firestoreAuthDomain.value.trim(),
+    projectId: firestoreProjectId.value.trim(),
+    appId: firestoreAppId.value.trim(),
+  };
+  if (firestoreStorageBucket.value.trim()) {
+    cfg.storageBucket = firestoreStorageBucket.value.trim();
+  }
+  if (firestoreMessagingSenderId.value.trim()) {
+    cfg.messagingSenderId = firestoreMessagingSenderId.value.trim();
+  }
+  if (firestoreCollectionName.value.trim()) {
+    cfg.collectionName = firestoreCollectionName.value.trim();
+  }
+  return cfg;
+}
+
+function handleApplyPasteSnippet() {
+  pasteNotice.value = null;
+  const parsed = parseFirebaseConfigSnippet(pasteSnippet.value);
+  if (!parsed) {
+    pasteNotice.value = {
+      success: false,
+      message: t('database.parseFailed'),
+    };
+    return;
+  }
+
+  if (parsed.apiKey) firestoreApiKey.value = parsed.apiKey;
+  if (parsed.authDomain) firestoreAuthDomain.value = parsed.authDomain;
+  if (parsed.projectId) firestoreProjectId.value = parsed.projectId;
+  if (parsed.storageBucket) firestoreStorageBucket.value = parsed.storageBucket;
+  if (parsed.messagingSenderId) firestoreMessagingSenderId.value = parsed.messagingSenderId;
+  if (parsed.appId) firestoreAppId.value = parsed.appId;
+  if (parsed.collectionName) firestoreCollectionName.value = parsed.collectionName;
+
+  pasteNotice.value = {
+    success: true,
+    message: t('database.parseSuccess'),
+  };
+  isPasteOpen.value = false;
+}
+
 async function handleTestConnection() {
-  if (selectedProvider.value !== 'cosmos') return;
   isTesting.value = true;
   testResult.value = null;
   errorMessage.value = '';
 
-  const cfg = buildCosmosConfig();
-  const res = await testCosmosConnection(cfg);
-  isTesting.value = false;
+  if (selectedProvider.value === 'cosmos') {
+    const cfg = buildCosmosConfig();
+    const res = await testCosmosConnection(cfg);
+    isTesting.value = false;
 
-  if (res.success) {
-    testResult.value = {
-      success: true,
-      message: t('database.testSuccess', { latencyMs: res.latencyMs ?? 0 }),
-    };
-  } else {
-    testResult.value = {
-      success: false,
-      message: t('database.testFailed', { error: res.error || '' }),
-    };
+    if (res.success) {
+      testResult.value = {
+        success: true,
+        message: t('database.testSuccess', { latencyMs: res.latencyMs ?? 0 }),
+      };
+    } else {
+      testResult.value = {
+        success: false,
+        message: t('database.testFailed', { error: res.error || '' }),
+      };
+    }
+  } else if (selectedProvider.value === 'firestore') {
+    const cfg = buildFirestoreConfig();
+    const res = await testFirestoreConnection(cfg);
+    isTesting.value = false;
+
+    if (res.success) {
+      testResult.value = {
+        success: true,
+        message: t('database.testSuccess', { latencyMs: res.latencyMs ?? 0 }),
+      };
+    } else {
+      testResult.value = {
+        success: false,
+        message: t('database.testFailed', { error: res.error || '' }),
+      };
+    }
   }
 }
 
@@ -152,14 +245,23 @@ async function handleAutoProvision() {
 }
 
 async function handleMigrate() {
-  if (selectedProvider.value !== 'cosmos') return;
   isMigrating.value = true;
   errorMessage.value = '';
 
   try {
-    const cfg = buildCosmosConfig();
-    const { createCosmosAdapter } = await import('@/core/db/cosmos-adapter');
-    const cloudAdapter = await createCosmosAdapter(cfg);
+    let cloudAdapter: DbAdapter;
+    if (selectedProvider.value === 'cosmos') {
+      const cfg = buildCosmosConfig();
+      const { createCosmosAdapter } = await import('@/core/db/cosmos-adapter');
+      cloudAdapter = await createCosmosAdapter(cfg);
+    } else if (selectedProvider.value === 'firestore') {
+      const cfg = buildFirestoreConfig();
+      const { createFirestoreAdapter } = await import('@/core/db/firestore-adapter');
+      cloudAdapter = await createFirestoreAdapter(cfg);
+    } else {
+      isMigrating.value = false;
+      return;
+    }
 
     const progress = await migrateToCloud(props.currentAdapter, cloudAdapter, {
       batchSize: 10,
@@ -193,6 +295,8 @@ async function handleSave() {
     let newConfig: DatabaseConfig;
     if (selectedProvider.value === 'cosmos') {
       newConfig = buildCosmosConfig();
+    } else if (selectedProvider.value === 'firestore') {
+      newConfig = buildFirestoreConfig();
     } else {
       newConfig = { provider: 'local' };
     }
@@ -356,6 +460,154 @@ async function handleSave() {
           :class="provisionResult.success ? 'bg-success/10 text-success border border-success/30' : 'bg-danger/10 text-danger border border-danger/30'"
         >
           {{ provisionResult.message }}
+        </div>
+
+        <!-- Migration progress banner -->
+        <div
+          v-if="migrationProgress"
+          class="p-2.5 bg-primary/10 border border-primary/30 rounded text-xs text-primary"
+        >
+          {{ t('database.migrateSuccess', { transferred: migrationProgress.transferred, total: migrationProgress.total }) }}
+          <span v-if="migrationProgress.failed > 0" class="text-danger ml-2">
+            ({{ t('database.migrateFailed', { failed: migrationProgress.failed }) }})
+          </span>
+        </div>
+      </div>
+
+      <!-- Google Cloud Firestore credentials form -->
+      <div v-if="selectedProvider === 'firestore'" class="space-y-3 pt-2">
+        <div class="flex items-center justify-between pb-1">
+          <span class="text-xs text-text-muted font-medium">{{ t('database.providers.firestore') }}</span>
+          <button
+            type="button"
+            data-test="firestore-paste-btn"
+            class="btn btn-ghost text-xs px-2.5 py-1 border border-border rounded flex items-center gap-1.5 text-primary hover:bg-primary/5"
+            @click="isPasteOpen = !isPasteOpen"
+          >
+            <AppIcon><ClipboardOutline /></AppIcon>
+            <span>{{ t('database.pasteConfig') }}</span>
+          </button>
+        </div>
+
+        <!-- Inline Paste Snippet Dialog/Panel -->
+        <div v-if="isPasteOpen" class="p-3 bg-surface border border-border rounded-lg space-y-2">
+          <label class="text-xs text-text font-medium block">
+            {{ t('database.pastePrompt') }}
+          </label>
+          <textarea
+            v-model="pasteSnippet"
+            data-test="firestore-paste-textarea"
+            rows="5"
+            class="field-input w-full p-2 text-xs font-mono resize-y"
+            placeholder="const firebaseConfig = { apiKey: &quot;...&quot;, projectId: &quot;...&quot; };"
+          />
+          <div class="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              class="btn btn-ghost text-xs px-2.5 py-1"
+              @click="isPasteOpen = false"
+            >
+              {{ t('common.cancel') }}
+            </button>
+            <button
+              type="button"
+              data-test="firestore-apply-paste-btn"
+              class="btn btn-primary text-xs px-3 py-1 font-medium"
+              @click="handleApplyPasteSnippet"
+            >
+              {{ t('common.confirm') }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Paste result notification -->
+        <div
+          v-if="pasteNotice"
+          class="p-2.5 rounded text-xs"
+          :class="pasteNotice.success ? 'bg-success/10 text-success border border-success/30' : 'bg-danger/10 text-danger border border-danger/30'"
+        >
+          {{ pasteNotice.message }}
+        </div>
+
+        <div class="space-y-1">
+          <label class="field-label text-xs text-text-muted font-medium">
+            {{ t('database.apiKey') }}
+          </label>
+          <Input.Root v-model="firestoreApiKey" data-test="firestore-api-key">
+            <Input.Control
+              type="password"
+              class="field-input w-full px-3 py-2 text-sm"
+              placeholder="AIzaSy..."
+            />
+          </Input.Root>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="field-label text-xs text-text-muted font-medium">
+              {{ t('database.projectId') }}
+            </label>
+            <Input.Root v-model="firestoreProjectId" data-test="firestore-project-id">
+              <Input.Control class="field-input w-full px-3 py-2 text-sm" placeholder="my-pos-project" />
+            </Input.Root>
+          </div>
+
+          <div class="space-y-1">
+            <label class="field-label text-xs text-text-muted font-medium">
+              {{ t('database.authDomain') }}
+            </label>
+            <Input.Root v-model="firestoreAuthDomain">
+              <Input.Control class="field-input w-full px-3 py-2 text-sm" placeholder="my-pos.firebaseapp.com" />
+            </Input.Root>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1">
+            <label class="field-label text-xs text-text-muted font-medium">
+              {{ t('database.appId') }}
+            </label>
+            <Input.Root v-model="firestoreAppId">
+              <Input.Control class="field-input w-full px-3 py-2 text-sm" placeholder="1:123456789:web:abcdef" />
+            </Input.Root>
+          </div>
+
+          <div class="space-y-1">
+            <label class="field-label text-xs text-text-muted font-medium">
+              {{ t('database.collectionName') }}
+            </label>
+            <Input.Root v-model="firestoreCollectionName">
+              <Input.Control class="field-input w-full px-3 py-2 text-sm" placeholder="openpos_documents" />
+            </Input.Root>
+          </div>
+        </div>
+
+        <!-- Connection Test & Migration Actions -->
+        <div class="flex items-center gap-2 pt-2">
+          <Button.Root
+            class="btn btn-ghost text-xs px-3 py-1.5 border border-border"
+            :disabled="isTesting || !firestoreApiKey || !firestoreProjectId"
+            @click="handleTestConnection"
+          >
+            {{ isTesting ? t('database.testing') : t('database.testConnection') }}
+          </Button.Root>
+
+          <Button.Root
+            class="btn btn-ghost text-xs px-3 py-1.5 border border-border"
+            :disabled="isMigrating || !firestoreApiKey || !firestoreProjectId"
+            @click="handleMigrate"
+          >
+            {{ isMigrating ? t('database.migrating', { transferred: migrationProgress?.transferred ?? 0, total: migrationProgress?.total ?? 0 }) : t('database.migrate') }}
+          </Button.Root>
+        </div>
+
+        <!-- Test result banner -->
+        <div
+          v-if="testResult"
+          class="p-2.5 rounded text-xs"
+          :class="testResult.success ? 'bg-success/10 text-success border border-success/30' : 'bg-danger/10 text-danger border border-danger/30'"
+        >
+          {{ testResult.message }}
         </div>
 
         <!-- Migration progress banner -->

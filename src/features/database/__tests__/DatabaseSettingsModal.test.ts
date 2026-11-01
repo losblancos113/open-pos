@@ -13,6 +13,12 @@ vi.mock('@/core/db/cosmos-provision', () => {
   };
 });
 
+vi.mock('@/core/db/firestore-provision', () => {
+  return {
+    testFirestoreConnection: vi.fn().mockResolvedValue({ success: true, latencyMs: 55 }),
+  };
+});
+
 describe('DatabaseSettingsModal.vue', () => {
   const i18n = createI18n({ legacy: false, locale: 'vi', messages: { vi: viMessages } });
   let wrapper: VueWrapper | null = null;
@@ -60,5 +66,50 @@ describe('DatabaseSettingsModal.vue', () => {
     await closeBtn.trigger('click');
 
     expect(wrapper.emitted('close')).toBeTruthy();
+  });
+
+  it('renders Firestore fields when firestore is selected and populates on paste', async () => {
+    const memoryAdapter = await createMemoryAdapter();
+    wrapper = mount(DatabaseSettingsModal, {
+      props: {
+        open: true,
+        currentAdapter: memoryAdapter,
+      },
+      global: {
+        plugins: [i18n],
+      },
+    });
+
+    // Select firestore
+    const firestoreItem = wrapper.find('[data-value="firestore"]');
+    expect(firestoreItem.exists()).toBe(true);
+    await firestoreItem.trigger('click');
+
+    // Check firestore fields appear
+    expect(wrapper.find('[data-test="firestore-api-key"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="firestore-project-id"]').exists()).toBe(true);
+
+    // Paste snippet
+    const pasteBtn = wrapper.find('[data-test="firestore-paste-btn"]');
+    expect(pasteBtn.exists()).toBe(true);
+    await pasteBtn.trigger('click');
+
+    const pasteTextarea = wrapper.find('[data-test="firestore-paste-textarea"]');
+    expect(pasteTextarea.exists()).toBe(true);
+    await pasteTextarea.setValue(
+      JSON.stringify({
+        apiKey: 'AIzaPastedKey123',
+        projectId: 'pasted-proj',
+        authDomain: 'pasted.firebaseapp.com',
+        appId: '1:pasted:web',
+      }),
+    );
+
+    const applyPasteBtn = wrapper.find('[data-test="firestore-apply-paste-btn"]');
+    await applyPasteBtn.trigger('click');
+
+    // Verify fields populated
+    const apiKeyInput = wrapper.find<HTMLInputElement>('[data-test="firestore-api-key"] input');
+    expect(apiKeyInput.element.value).toBe('AIzaPastedKey123');
   });
 });
