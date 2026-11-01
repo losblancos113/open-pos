@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppIcon from '@/components/AppIcon.vue';
-import { AlarmOutline, BarChartOutline, ChevronDown, CubeOutline, GridOutline, PeopleOutline, StatsChartOutline } from '@vicons/ionicons5';
+import { AlarmOutline, BarChartOutline, ChevronDown, CloudOutline, CubeOutline, GridOutline, PeopleOutline, StatsChartOutline } from '@vicons/ionicons5';
 import { onMounted, ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { Button } from '@vuetify/v0';
@@ -11,6 +11,7 @@ import { Button } from '@vuetify/v0';
 import PouchDB from 'pouchdb/dist/pouchdb.js';
 import type { DbAdapter } from '@/core/db/adapter';
 import { createPouchAdapter } from '@/core/db/pouch-adapter';
+import { useDatabaseProvider } from '@/composables/useDatabaseProvider';
 import { createBranchRepository, type BranchRepository } from '@/core/branch/branch-repository';
 import { createUserRepository, type UserRepository } from '@/core/auth/user-repository';
 import { createSystemRepository, type SystemRepository } from '@/core/system/system-repository';
@@ -33,6 +34,7 @@ import InventoryAdminModal from './features/inventory/InventoryAdminModal.vue';
 import ShiftModal from './features/shift/ShiftModal.vue';
 import StoreReportsModal from './features/reports/StoreReportsModal.vue';
 import TableAdminModal from './features/table-admin/TableAdminModal.vue';
+import DatabaseSettingsModal from './features/database/DatabaseSettingsModal.vue';
 import AppLogo from '@/components/AppLogo.vue';
 import { createInventoryRepository, type InventoryRepository } from '@/core/inventory/inventory-repository';
 import { createShiftRepository, type ShiftRepository } from '@/core/shift/shift-repository';
@@ -73,6 +75,9 @@ const isInventoryModalOpen = ref(false);
 const isShiftModalOpen = ref(false);
 const isStoreReportsModalOpen = ref(false);
 const isTableAdminModalOpen = ref(false);
+const isDatabaseModalOpen = ref(false);
+
+const { activeConfig, providerStatus, statusMessage, initializeAdapter } = useDatabaseProvider();
 const inventoryRepo = ref<InventoryRepository | null>(null);
 const shiftRepo = ref<ShiftRepository | null>(null);
 const orderRepo = ref<OrderRepository | null>(null);
@@ -85,6 +90,22 @@ const activeBranchName = computed(
 
 function onTablesUpdated() {
   posTerminalKey.value++;
+}
+
+async function onAdapterChanged(newAdapter: DbAdapter) {
+  adapter.value = newAdapter;
+  const repo = createBranchRepository(newAdapter);
+  branchRepo.value = repo;
+  const uRepo = createUserRepository(newAdapter);
+  userRepo.value = uRepo;
+  const sRepo = createSystemRepository(newAdapter);
+  systemRepo.value = sRepo;
+  inventoryRepo.value = createInventoryRepository(newAdapter);
+  shiftRepo.value = createShiftRepository(newAdapter);
+  orderRepo.value = createOrderRepository(newAdapter);
+  await repo.seedDefaultBranches();
+  const dbUsers = await uRepo.listUsers({ includeInactive: true });
+  defaultUsers.value = dbUsers;
 }
 
 async function onInstallerComplete(adminUser: UserDoc, branchId: string) {
@@ -110,7 +131,7 @@ function onLogout() {
 
 onMounted(async () => {
   try {
-    const rawAdapter = await createPouchAdapter(new PouchDB(LOCAL_DB_NAME));
+    const rawAdapter = await initializeAdapter(new PouchDB(LOCAL_DB_NAME));
     adapter.value = rawAdapter;
 
     const repo = createBranchRepository(rawAdapter);
@@ -248,6 +269,24 @@ onMounted(async () => {
             @click="isUserAdminModalOpen = true"
           >
             <Button.Content><AppIcon><PeopleOutline /></AppIcon> <span class="hidden lg:inline">{{ t('auth.userManagement') }}</span></Button.Content>
+          </Button.Root>
+
+          <!-- Database settings & Cloud status indicator -->
+          <Button.Root
+            type="button"
+            data-test="database-settings-btn"
+            class="btn btn-ghost text-xs px-2 sm:px-2.5 py-1.5 rounded-md hover:bg-surface border border-border shadow-2xs flex items-center gap-1.5"
+            :title="t('database.title')"
+            @click="isDatabaseModalOpen = true"
+          >
+            <span
+              class="inline-block w-2 h-2 rounded-full"
+              :class="providerStatus === 'connected' ? 'bg-success' : providerStatus === 'local' ? 'bg-primary' : 'bg-danger'"
+            />
+            <AppIcon><CloudOutline /></AppIcon>
+            <span class="hidden lg:inline">
+              {{ activeConfig.provider === 'cosmos' ? 'Cosmos DB' : 'Local DB' }}
+            </span>
           </Button.Root>
 
           <!-- User profile button & Dropdown menu -->
@@ -419,6 +458,14 @@ onMounted(async () => {
         :order-repo="orderRepo"
         @close="isTableAdminModalOpen = false"
         @tables-updated="onTablesUpdated"
+      />
+
+      <DatabaseSettingsModal
+        v-if="adapter !== null"
+        :open="isDatabaseModalOpen"
+        :current-adapter="adapter"
+        @close="isDatabaseModalOpen = false"
+        @adapter-changed="onAdapterChanged"
       />
     </section>
   </main>
