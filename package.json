@@ -26,6 +26,7 @@
     "node": ">=22"
   },
   "dependencies": {
+    "@azure/cosmos": "^4.10.1",
     "@floating-ui/dom": "^1.8.0",
     "@vuetify/v0": "^1.3.0",
     "pouchdb": "^9.0.0",
