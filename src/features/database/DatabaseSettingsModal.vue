@@ -86,7 +86,7 @@ watch(
   { immediate: true },
 );
 
-function onSelectProvider(val: string) {
+function onSelectProvider(val: unknown) {
   if (val === 'local' || val === 'cosmos') {
     selectedProvider.value = val;
     testResult.value = null;

@@ -32,12 +32,12 @@ function isRateLimitError(err: unknown): { isRateLimit: boolean; retryAfterMs?: 
   };
   const status = anyErr.statusCode ?? anyErr.code ?? anyErr.status;
   const isRateLimit = status === 429;
-  const retryAfterMs =
-    typeof anyErr.retryAfterInMilliseconds === 'number'
-      ? anyErr.retryAfterInMilliseconds
-      : undefined;
 
-  return { isRateLimit, retryAfterMs };
+  if (isRateLimit && typeof anyErr.retryAfterInMilliseconds === 'number') {
+    return { isRateLimit: true, retryAfterMs: anyErr.retryAfterInMilliseconds };
+  }
+
+  return { isRateLimit };
 }
 
 async function putWithRetry(
